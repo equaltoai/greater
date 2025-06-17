@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { useListsStore } from '@/lib/stores/lists';
+  import { listsStore } from '@/lib/stores/lists';
   import ListCard from './ListCard.svelte';
   import ListEditor from './ListEditor.svelte';
   import Button from './Button.svelte';
@@ -8,12 +8,12 @@
   import ErrorState from './ErrorState.svelte';
   import type { List } from '@/types/mastodon';
 
-  const listsStore = useListsStore();
+  ;
   
   let showEditor = false;
   let editingList: List | null = null;
 
-  $: ({ lists, listMembers, isLoading, error } = $listsStore);
+  $: ({ lists, listMembers, isLoading, error } = listsStore);
 
   onMount(() => {
     listsStore.fetchLists();

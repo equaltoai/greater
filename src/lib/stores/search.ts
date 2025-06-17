@@ -1,4 +1,3 @@
-import { create } from 'zustand';
 import type { MastodonClient } from '../api/client';
 import type { Account, Status, Tag } from '../../types/mastodon';
 
@@ -8,86 +7,98 @@ export interface SearchResults {
   hashtags: Tag[];
 }
 
-interface SearchState {
-  query: string;
-  results: SearchResults | null;
-  loading: boolean;
-  error: string | null;
-  searchHistory: string[];
-  activeTab: 'all' | 'accounts' | 'statuses' | 'hashtags';
-  
-  // Actions
-  setQuery: (query: string) => void;
-  setActiveTab: (tab: 'all' | 'accounts' | 'statuses' | 'hashtags') => void;
-  search: (client: MastodonClient, query: string) => Promise<void>;
-  clearResults: () => void;
-  addToHistory: (query: string) => void;
-  clearHistory: () => void;
-}
-
 const MAX_HISTORY_ITEMS = 10;
 
-export const useSearchStore = create<SearchState>((set, get) => ({
-  query: '',
-  results: null,
-  loading: false,
-  error: null,
-  searchHistory: JSON.parse(localStorage.getItem('searchHistory') || '[]'),
-  activeTab: 'all',
+// Search state management with Svelte 5 runes
+class SearchStore {
+  query = $state('');
+  results = $state<SearchResults | null>(null);
+  loading = $state(false);
+  error = $state<string | null>(null);
+  searchHistory = $state<string[]>([]);
+  activeTab = $state<'all' | 'accounts' | 'statuses' | 'hashtags'>('all');
   
-  setQuery: (query) => set({ query }),
+  constructor() {
+    // Load search history from localStorage
+    if (typeof window !== 'undefined') {
+      const savedHistory = localStorage.getItem('searchHistory');
+      if (savedHistory) {
+        try {
+          this.searchHistory = JSON.parse(savedHistory);
+        } catch (e) {
+          console.error('Failed to load search history:', e);
+        }
+      }
+      
+      // Persist search history changes to localStorage
+      $effect(() => {
+        localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory));
+      });
+    }
+  }
+
+  setQuery(query: string): void {
+    this.query = query;
+  }
   
-  setActiveTab: (tab) => set({ activeTab: tab }),
-  
-  search: async (client, query) => {
+  setActiveTab(tab: 'all' | 'accounts' | 'statuses' | 'hashtags'): void {
+    this.activeTab = tab;
+  }
+  async search(client: MastodonClient, query: string): Promise<void> {
     if (!query.trim()) {
-      set({ results: null, error: null });
+      this.results = null;
+      this.error = null;
       return;
     }
     
-    set({ loading: true, error: null });
+    this.loading = true;
+    this.error = null;
     
     try {
       // Search API v2 provides better results
-      const results = await client.search(query, {
+      const results = await client.search({
+        q: query,
         resolve: true,
         limit: 20
       });
       
-      set({ 
-        results: {
-          accounts: results.accounts || [],
-          statuses: results.statuses || [],
-          hashtags: results.hashtags || []
-        },
-        loading: false 
-      });
+      this.results = {
+        accounts: results.accounts || [],
+        statuses: results.statuses || [],
+        hashtags: results.hashtags || []
+      };
+      this.loading = false;
       
       // Add to history
-      get().addToHistory(query);
+      this.addToHistory(query);
     } catch (error) {
-      set({ 
-        error: error instanceof Error ? error.message : 'Search failed',
-        loading: false 
-      });
+      this.error = error instanceof Error ? error.message : 'Search failed';
+      this.loading = false;
     }
-  },
+  }
   
-  clearResults: () => set({ results: null, query: '', error: null }),
+  clearResults(): void {
+    this.results = null;
+    this.query = '';
+    this.error = null;
+  }
   
-  addToHistory: (query) => {
-    const { searchHistory } = get();
+  addToHistory(query: string): void {
     const newHistory = [
       query,
-      ...searchHistory.filter(q => q !== query)
+      ...this.searchHistory.filter(q => q !== query)
     ].slice(0, MAX_HISTORY_ITEMS);
     
-    set({ searchHistory: newHistory });
-    localStorage.setItem('searchHistory', JSON.stringify(newHistory));
-  },
-  
-  clearHistory: () => {
-    set({ searchHistory: [] });
-    localStorage.removeItem('searchHistory');
+    this.searchHistory = newHistory;
   }
-}));
+  
+  clearHistory(): void {
+    this.searchHistory = [];
+    if (typeof window !== 'undefined') {
+      localStorage.removeItem('searchHistory');
+    }
+  }
+}
+
+// Create singleton instance
+export const searchStore = new SearchStore();

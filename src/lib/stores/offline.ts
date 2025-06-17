@@ -1,5 +1,3 @@
-import { create } from 'zustand';
-import { persist } from 'zustand/middleware';
 import type { CreateStatusParams } from '@/types/mastodon';
 
 interface OfflinePost {
@@ -8,20 +6,6 @@ interface OfflinePost {
   timestamp: number;
   retries: number;
   error?: string;
-}
-
-interface OfflineState {
-  posts: OfflinePost[];
-  isOnline: boolean;
-  isSyncing: boolean;
-  
-  // Actions
-  addPost: (data: CreateStatusParams) => string;
-  removePost: (id: string) => void;
-  updatePost: (id: string, updates: Partial<OfflinePost>) => void;
-  setOnlineStatus: (online: boolean) => void;
-  syncPosts: () => Promise<void>;
-  clearQueue: () => void;
 }
 
 // IndexedDB wrapper for offline storage
@@ -74,143 +58,154 @@ class OfflineDB {
   }
 }
 
-const offlineDB = new OfflineDB();
-
-export const useOfflineStore = create<OfflineState>()(
-  persist(
-    (set, get) => ({
-      posts: [],
-      isOnline: typeof navigator !== 'undefined' ? navigator.onLine : true,
-      isSyncing: false,
-
-      addPost: (data) => {
-        const id = `offline-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
-        const post: OfflinePost = {
-          id,
-          data,
-          timestamp: Date.now(),
-          retries: 0
-        };
-
-        set(state => ({
-          posts: [...state.posts, post]
-        }));
-
-        // Save to IndexedDB
-        offlineDB.savePost(post).catch(console.error);
-
-        // Register for background sync if available
-        if ('serviceWorker' in navigator && 'SyncManager' in window) {
-          navigator.serviceWorker.ready.then(registration => {
-            registration.sync.register('sync-posts').catch(console.error);
-          });
-        }
-
-        return id;
-      },
-
-      removePost: (id) => {
-        set(state => ({
-          posts: state.posts.filter(post => post.id !== id)
-        }));
-
-        // Remove from IndexedDB
-        offlineDB.deletePost(id).catch(console.error);
-      },
-
-      updatePost: (id, updates) => {
-        set(state => ({
-          posts: state.posts.map(post => 
-            post.id === id ? { ...post, ...updates } : post
-          )
-        }));
-      },
-
-      setOnlineStatus: (online) => {
-        set({ isOnline: online });
-        
-        // Trigger sync when coming back online
-        if (online && get().posts.length > 0) {
-          get().syncPosts();
-        }
-      },
-
-      syncPosts: async () => {
-        const { posts, isOnline } = get();
-        
-        if (!isOnline || posts.length === 0 || get().isSyncing) {
-          return;
-        }
-
-        set({ isSyncing: true });
-
+// Offline state management with Svelte 5 runes
+class OfflineStore {
+  posts = $state<OfflinePost[]>([]);
+  isOnline = $state(typeof navigator !== 'undefined' ? navigator.onLine : true);
+  isSyncing = $state(false);
+  
+  private offlineDB = new OfflineDB();
+  
+  constructor() {
+    // Load persisted state from localStorage
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem('offline-queue');
+      if (savedState) {
         try {
-          // Import API client dynamically to avoid circular dependencies
-          const { api } = await import('@/lib/api/client');
-          const client = await api();
-
-          for (const post of posts) {
-            try {
-              await client.createStatus(post.data);
-              get().removePost(post.id);
-            } catch (error) {
-              // Update retry count and error
-              get().updatePost(post.id, {
-                retries: post.retries + 1,
-                error: error instanceof Error ? error.message : 'Failed to sync'
-              });
-
-              // Remove if too many retries
-              if (post.retries >= 3) {
-                get().removePost(post.id);
-              }
-            }
+          const parsed = JSON.parse(savedState);
+          if (parsed.state) {
+            this.posts = parsed.state.posts || [];
           }
-        } finally {
-          set({ isSyncing: false });
+        } catch (e) {
+          console.error('Failed to load offline state:', e);
         }
-      },
+      }
+      
+      // Persist state changes to localStorage
+      $effect(() => {
+        const toPersist = {
+          state: {
+            posts: this.posts
+          }
+        };
+        localStorage.setItem('offline-queue', JSON.stringify(toPersist));
+      });
+      
+      // Set up online/offline listeners
+      window.addEventListener('online', () => {
+        this.setOnlineStatus(true);
+      });
 
-      clearQueue: () => {
-        const posts = get().posts;
-        set({ posts: [] });
+      window.addEventListener('offline', () => {
+        this.setOnlineStatus(false);
+      });
 
-        // Clear from IndexedDB
-        posts.forEach(post => {
-          offlineDB.deletePost(post.id).catch(console.error);
+      // Listen for sync complete messages from service worker
+      if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.addEventListener('message', (event) => {
+          if (event.data.type === 'sync-complete') {
+            this.removePost(event.data.postId);
+          }
         });
       }
-    }),
-    {
-      name: 'offline-queue',
-      partialize: (state) => ({ posts: state.posts })
+      
+      // Load posts from IndexedDB on startup
+      this.offlineDB.getAllPosts().then(posts => {
+        this.posts = posts;
+      }).catch(console.error);
     }
-  )
-);
+  }
 
-// Set up online/offline listeners
-if (typeof window !== 'undefined') {
-  window.addEventListener('online', () => {
-    useOfflineStore.getState().setOnlineStatus(true);
-  });
+  addPost(data: CreateStatusParams): string {
+    const id = `offline-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+    const post: OfflinePost = {
+      id,
+      data,
+      timestamp: Date.now(),
+      retries: 0
+    };
 
-  window.addEventListener('offline', () => {
-    useOfflineStore.getState().setOnlineStatus(false);
-  });
+    this.posts = [...this.posts, post];
 
-  // Listen for sync complete messages from service worker
-  if ('serviceWorker' in navigator) {
-    navigator.serviceWorker.addEventListener('message', (event) => {
-      if (event.data.type === 'sync-complete') {
-        useOfflineStore.getState().removePost(event.data.postId);
+    // Save to IndexedDB
+    this.offlineDB.savePost(post).catch(console.error);
+
+    // Register for background sync if available
+    if ('serviceWorker' in navigator && 'SyncManager' in window) {
+      navigator.serviceWorker.ready.then(registration => {
+        (registration as any).sync?.register('sync-posts').catch(console.error);
+      });
+    }
+
+    return id;
+  }
+
+  removePost(id: string): void {
+    this.posts = this.posts.filter(post => post.id !== id);
+
+    // Remove from IndexedDB
+    this.offlineDB.deletePost(id).catch(console.error);
+  }
+
+  updatePost(id: string, updates: Partial<OfflinePost>): void {
+    this.posts = this.posts.map(post => 
+      post.id === id ? { ...post, ...updates } : post
+    );
+  }
+
+  setOnlineStatus(online: boolean): void {
+    this.isOnline = online;
+    
+    // Trigger sync when coming back online
+    if (online && this.posts.length > 0) {
+      this.syncPosts();
+    }
+  }
+
+  async syncPosts(): Promise<void> {
+    if (!this.isOnline || this.posts.length === 0 || this.isSyncing) {
+      return;
+    }
+
+    this.isSyncing = true;
+
+    try {
+      // Import API client dynamically to avoid circular dependencies
+      const { getClient } = await import('@/lib/api/client');
+      const client = getClient();
+
+      for (const post of this.posts) {
+        try {
+          await client.createStatus(post.data);
+          this.removePost(post.id);
+        } catch (error) {
+          // Update retry count and error
+          this.updatePost(post.id, {
+            retries: post.retries + 1,
+            error: error instanceof Error ? error.message : 'Failed to sync'
+          });
+
+          // Remove if too many retries
+          if (post.retries >= 3) {
+            this.removePost(post.id);
+          }
+        }
       }
+    } finally {
+      this.isSyncing = false;
+    }
+  }
+
+  clearQueue(): void {
+    const posts = this.posts;
+    this.posts = [];
+
+    // Clear from IndexedDB
+    posts.forEach(post => {
+      this.offlineDB.deletePost(post.id).catch(console.error);
     });
   }
 }
 
-// Load posts from IndexedDB on startup
-if (typeof window !== 'undefined') {
-  offlineDB.getAllPosts().then(posts => {
-    useOfflineStore.setState({ posts });
-  }).catch(console.error);
-}
+// Create singleton instance
+export const offlineStore = new OfflineStore();

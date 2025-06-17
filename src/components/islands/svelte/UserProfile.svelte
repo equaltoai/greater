@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getClient } from '../../../lib/api/client';
-  import { useAuthStore } from '../../../lib/stores/auth';
+  import { authStore } from '../../../lib/stores/auth';
   import type { Account, Relationship } from '../../../types/mastodon';
   import Button from './Button.svelte';
   
@@ -12,7 +12,7 @@
   
   let { username, domain }: Props = $props();
   
-  const authStore = useAuthStore();
+  ;
   
   let account: Account | null = null;
   let relationship: Relationship | null = null;

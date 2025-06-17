@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Account } from '@/types/mastodon';
   import { getClient } from '@/lib/api/client';
-  import { useAuthStore } from '@/lib/stores/auth';
+  import { authStore } from '@/lib/stores/auth';
   
   interface Props {
     account: Account;
@@ -9,7 +9,7 @@
   
   let { account }: Props = $props();
   
-  const authStore = useAuthStore();
+  ;
   
   let isFollowing = $state(account.following || false);
   let isFollowingLoading = $state(false);

@@ -1,8 +1,8 @@
 <script lang="ts">
-  import { useAuthStore } from '@/lib/stores/auth';
+  import { authStore } from '@/lib/stores/auth';
   
   // Get current instance from auth store
-  const authStore = useAuthStore();
+  ;
   const { currentInstance } = authStore;
   
   // Placeholder instance data

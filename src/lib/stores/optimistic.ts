@@ -3,7 +3,7 @@
  * Updates UI immediately while API calls happen in background
  */
 
-import { useTimelineStore } from './timeline';
+import { timelineStore } from './timeline';
 import { getClient } from '@/lib/api/client';
 import type { Status } from '@/types/mastodon';
 
@@ -36,7 +36,7 @@ export async function toggleFavorite(status: Status): Promise<void> {
   });
   
   // Optimistic update
-  useTimelineStore.getState().updateStatus(status.id, {
+  timelineStore.getState().updateStatus(status.id, {
     favourited: newState,
     favourites_count: status.favourites_count + (newState ? 1 : -1)
   });
@@ -48,7 +48,7 @@ export async function toggleFavorite(status: Status): Promise<void> {
       : await client.unfavouriteStatus(status.id);
     
     // Update with server response
-    useTimelineStore.getState().updateStatus(status.id, {
+    timelineStore.getState().updateStatus(status.id, {
       favourited: updatedStatus.favourited,
       favourites_count: updatedStatus.favourites_count
     });
@@ -57,7 +57,7 @@ export async function toggleFavorite(status: Status): Promise<void> {
     pendingUpdates.delete(updateId);
   } catch (error) {
     // Revert on error
-    useTimelineStore.getState().updateStatus(status.id, {
+    timelineStore.getState().updateStatus(status.id, {
       favourited: previousState,
       favourites_count: status.favourites_count
     });
@@ -84,7 +84,7 @@ export async function toggleReblog(status: Status): Promise<void> {
   });
   
   // Optimistic update
-  useTimelineStore.getState().updateStatus(status.id, {
+  timelineStore.getState().updateStatus(status.id, {
     reblogged: newState,
     reblogs_count: status.reblogs_count + (newState ? 1 : -1)
   });
@@ -96,7 +96,7 @@ export async function toggleReblog(status: Status): Promise<void> {
       : await client.unreblogStatus(status.id);
     
     // Update with server response
-    useTimelineStore.getState().updateStatus(status.id, {
+    timelineStore.getState().updateStatus(status.id, {
       reblogged: updatedStatus.reblogged,
       reblogs_count: updatedStatus.reblogs_count
     });
@@ -104,7 +104,7 @@ export async function toggleReblog(status: Status): Promise<void> {
     pendingUpdates.delete(updateId);
   } catch (error) {
     // Revert on error
-    useTimelineStore.getState().updateStatus(status.id, {
+    timelineStore.getState().updateStatus(status.id, {
       reblogged: previousState,
       reblogs_count: status.reblogs_count
     });
@@ -131,7 +131,7 @@ export async function toggleBookmark(status: Status): Promise<void> {
   });
   
   // Optimistic update
-  useTimelineStore.getState().updateStatus(status.id, {
+  timelineStore.getState().updateStatus(status.id, {
     bookmarked: newState
   });
   
@@ -142,14 +142,14 @@ export async function toggleBookmark(status: Status): Promise<void> {
       : await client.unbookmarkStatus(status.id);
     
     // Update with server response
-    useTimelineStore.getState().updateStatus(status.id, {
+    timelineStore.getState().updateStatus(status.id, {
       bookmarked: updatedStatus.bookmarked
     });
     
     pendingUpdates.delete(updateId);
   } catch (error) {
     // Revert on error
-    useTimelineStore.getState().updateStatus(status.id, {
+    timelineStore.getState().updateStatus(status.id, {
       bookmarked: previousState
     });
     
@@ -163,7 +163,7 @@ export async function toggleBookmark(status: Status): Promise<void> {
  */
 export async function deleteStatus(statusId: string): Promise<void> {
   // Store the status before removing (in case we need to restore)
-  const timeline = useTimelineStore.getState();
+  const timeline = timelineStore.getState();
   const status = timeline.home.statuses.find(s => s.id === statusId) ||
                  timeline.local.statuses.find(s => s.id === statusId) ||
                  timeline.federated.statuses.find(s => s.id === statusId);

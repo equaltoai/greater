@@ -189,8 +189,7 @@ export const createPost = async (): Promise<boolean> => {
     // Check if online
     if (!navigator.onLine) {
       // Add to offline queue
-      const { useOfflineStore } = await import('./offline');
-      const offlineStore = useOfflineStore.getState();
+      const { offlineStore } = await import('./offline');
       const postId = offlineStore.addPost(params);
       
       composeError$.set('You\'re offline. Your post will be sent when you\'re back online.');
@@ -224,8 +223,7 @@ export const createPost = async (): Promise<boolean> => {
     if (error instanceof Error && 
         (error.message.includes('Failed to fetch') || 
          error.message.includes('Network request failed'))) {
-      const { useOfflineStore } = await import('./offline');
-      const offlineStore = useOfflineStore.getState();
+      const { offlineStore } = await import('./offline');
       offlineStore.addPost(params);
       
       composeError$.set('Network error. Your post has been queued and will be sent when connection is restored.');

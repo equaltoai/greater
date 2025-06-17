@@ -1,14 +1,14 @@
 <script lang="ts">
   import type { List } from '@/types/mastodon';
   import { createEventDispatcher } from 'svelte';
-  import { useListsStore } from '@/lib/stores/lists';
+  import { listsStore } from '@/lib/stores/lists';
   import Button from './Button.svelte';
 
   export let list: List | null = null;
   export let onClose: () => void;
 
   const dispatch = createEventDispatcher();
-  const listsStore = useListsStore();
+  ;
 
   let title = list?.title || '';
   let repliesPolicy: 'followed' | 'list' | 'none' = list?.replies_policy || 'list';

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { useSearchStore } from '@/lib/stores/search';
+  import { searchStore } from '@/lib/stores/search';
   import { getClient } from '@/lib/api/client';
   import StatusCard from './StatusCard.svelte';
   import UserCard from './UserCard.svelte';
@@ -9,7 +9,7 @@
   import ErrorState from './ErrorState.svelte';
   import StatusSkeleton from './StatusSkeleton.svelte';
   
-  const searchStore = useSearchStore();
+  ;
   
   let searchQuery = $state('');
   let activeTab = $state<'all' | 'accounts' | 'statuses' | 'hashtags'>('all');

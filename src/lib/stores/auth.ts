@@ -1,9 +1,7 @@
 /**
- * Authentication state management using Zustand
+ * Authentication state management using Svelte 5 runes
  */
 
-import { create } from 'zustand';
-import { persist, createJSONStorage } from 'zustand/middleware';
 import type { 
   AuthState, 
   AuthenticatedAccount, 
@@ -20,50 +18,60 @@ import {
 import { AuthError } from '@/types/auth';
 import { secureAuthClient } from '@/lib/auth/secure-client';
 
-interface AuthStore extends AuthState {
-  // Actions
-  startLogin: (instance: string) => Promise<{ url: string; state: string }>;
-  completeLogin: (code: string, state: string) => Promise<void>;
-  logout: () => Promise<void>;
-  switchAccount: (accountId: string) => Promise<void>;
-  removeAccount: (accountId: string) => Promise<void>;
-  validateInstanceUrl: (instance: string) => Promise<boolean>;
-  setError: (error: string | null) => void;
-  clearError: () => void;
-  restoreSession: () => Promise<void>;
-}
-
-// API helper to verify credentials
-async function verifyCredentials(instance: string, token: string): Promise<MastodonAccount> {
-  const response = await fetch(`${instance}/api/v1/accounts/verify_credentials`, {
-    headers: {
-      'Authorization': `Bearer ${token}`
-    }
-  });
+// Create auth state with Svelte 5 runes
+class AuthStore {
+  currentUser = $state<MastodonAccount | null>(null);
+  currentInstance = $state<string | null>(null);
+  accounts = $state<AuthenticatedAccount[]>([]);
+  isAuthenticated = $state(false);
+  isLoading = $state(false);
+  error = $state<string | null>(null);
   
-  if (!response.ok) {
-    throw new AuthError('Failed to verify credentials', 'VERIFY_FAILED', instance);
-  }
-  
-  return response.json();
-}
-
-export const useAuthStore = create<AuthStore>()(
-  persist(
-    (set, get) => ({
-      // Initial state
-      currentUser: null,
-      currentInstance: null,
-      accounts: [],
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
-      
-      // Start OAuth login flow
-      startLogin: async (instance: string) => {
-        set({ isLoading: true, error: null });
-        
+  constructor() {
+    // Load persisted state from localStorage
+    if (typeof window !== 'undefined') {
+      const savedState = localStorage.getItem('auth-storage');
+      if (savedState) {
         try {
+          const parsed = JSON.parse(savedState);
+          if (parsed.state) {
+            this.currentUser = parsed.state.currentUser;
+            this.currentInstance = parsed.state.currentInstance;
+            this.accounts = parsed.state.accounts || [];
+            this.isAuthenticated = parsed.state.isAuthenticated || false;
+          }
+        } catch (e) {
+          console.error('Failed to load auth state:', e);
+        }
+      }
+      
+      // Persist state changes to localStorage
+      $effect(() => {
+        const toPersist = {
+          state: {
+            accounts: this.accounts.map(a => ({
+              id: a.id,
+              instance: a.instance,
+              user: a.user,
+              lastUsed: a.lastUsed,
+              token: {} as OAuthToken,
+              app: {} as OAuthApp
+            })),
+            currentUser: this.currentUser,
+            currentInstance: this.currentInstance,
+            isAuthenticated: this.isAuthenticated
+          }
+        };
+        localStorage.setItem('auth-storage', JSON.stringify(toPersist));
+      });
+    }
+  }
+
+  async startLogin(instance: string): Promise<{ url: string; state: string }> {
+    this.isLoading = true;
+    this.error = null;
+    
+    try {
           // Validate instance
           const isValid = await validateInstance(instance);
           if (!isValid) {
@@ -73,18 +81,19 @@ export const useAuthStore = create<AuthStore>()(
           // Build authorization URL
           const { url, state } = await buildAuthorizationUrl({ instance });
           
-          set({ isLoading: false });
-          return { url, state };
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Login failed';
-          set({ isLoading: false, error: message });
-          throw error;
-        }
-      },
+      this.isLoading = false;
+      return { url, state };
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed';
+      this.isLoading = false;
+      this.error = message;
+      throw error;
+    }
+  }
       
-      // Complete OAuth login flow
-      completeLogin: async (code: string, state: string) => {
-        set({ isLoading: true, error: null });
+  async completeLogin(code: string, state: string): Promise<void> {
+    this.isLoading = true;
+    this.error = null;
         
         try {
           // Verify state and get stored data
@@ -137,36 +146,33 @@ export const useAuthStore = create<AuthStore>()(
             lastUsed: Date.now()
           };
           
-          // Update state
-          set(state => ({
-            currentUser: user,
-            currentInstance: instance,
-            accounts: [...state.accounts.filter(a => a.id !== account.id), account],
-            isAuthenticated: true,
-            isLoading: false,
-            error: null
-          }));
-        } catch (error) {
-          const message = error instanceof Error ? error.message : 'Login failed';
-          set({ isLoading: false, error: message });
-          throw error;
-        }
-      },
+      // Update state
+      this.currentUser = user;
+      this.currentInstance = instance;
+      this.accounts = [...this.accounts.filter(a => a.id !== account.id), account];
+      this.isAuthenticated = true;
+      this.isLoading = false;
+      this.error = null;
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Login failed';
+      this.isLoading = false;
+      this.error = message;
+      throw error;
+    }
+  }
       
-      // Logout current user
-      logout: async () => {
-        const state = get();
-        if (!state.currentInstance || !state.currentUser) {
-          return;
-        }
+  async logout(): Promise<void> {
+    if (!this.currentInstance || !this.currentUser) {
+      return;
+    }
+    
+    this.isLoading = true;
         
-        set({ isLoading: true });
-        
-        try {
-          // Find current account
-          const account = state.accounts.find(
-            a => a.instance === state.currentInstance && a.user.id === state.currentUser?.id
-          );
+    try {
+      // Find current account
+      const account = this.accounts.find(
+        a => a.instance === this.currentInstance && a.user.id === this.currentUser?.id
+      );
           
           if (account) {
             // Get token from secure storage and revoke it
@@ -176,62 +182,53 @@ export const useAuthStore = create<AuthStore>()(
               await secureAuthClient.revokeToken(account.instance);
             }
             
-            // Remove account
-            const remainingAccounts = state.accounts.filter(a => a.id !== account.id);
-            
-            // Switch to another account if available
-            const nextAccount = remainingAccounts[0];
-            
-            set({
-              currentUser: nextAccount?.user || null,
-              currentInstance: nextAccount?.instance || null,
-              accounts: remainingAccounts,
-              isAuthenticated: !!nextAccount,
-              isLoading: false
-            });
+        // Remove account
+        const remainingAccounts = this.accounts.filter(a => a.id !== account.id);
+        
+        // Switch to another account if available
+        const nextAccount = remainingAccounts[0];
+        
+        this.currentUser = nextAccount?.user || null;
+        this.currentInstance = nextAccount?.instance || null;
+        this.accounts = remainingAccounts;
+        this.isAuthenticated = !!nextAccount;
+        this.isLoading = false;
           }
-        } catch (error) {
-          // Logout error - continue with local cleanup
-          // Still logout even if revoke fails
-          set({
-            currentUser: null,
-            currentInstance: null,
-            accounts: [],
-            isAuthenticated: false,
-            isLoading: false
-          });
-        }
-      },
+    } catch (error) {
+      // Logout error - continue with local cleanup
+      // Still logout even if revoke fails
+      this.currentUser = null;
+      this.currentInstance = null;
+      this.accounts = [];
+      this.isAuthenticated = false;
+      this.isLoading = false;
+    }
+  }
       
-      // Switch between accounts
-      switchAccount: async (accountId: string) => {
-        const account = get().accounts.find(a => a.id === accountId);
+  async switchAccount(accountId: string): Promise<void> {
+    const account = this.accounts.find(a => a.id === accountId);
         if (account) {
           // Verify token is still valid
           const token = await secureAuthClient.getToken(account.instance);
-          if (!token) {
-            // Token expired or revoked, remove account
-            await get().removeAccount(accountId);
-            throw new AuthError('Session expired', 'SESSION_EXPIRED');
-          }
-          
-          // Update last used
-          account.lastUsed = Date.now();
-          
-          set(state => ({
-            currentUser: account.user,
-            currentInstance: account.instance,
-            accounts: state.accounts.map(a => 
-              a.id === accountId ? { ...a, lastUsed: Date.now() } : a
-            )
-          }));
-        }
-      },
+      if (!token) {
+        // Token expired or revoked, remove account
+        await this.removeAccount(accountId);
+        throw new AuthError('Session expired', 'SESSION_EXPIRED');
+      }
       
-      // Remove an account
-      removeAccount: async (accountId: string) => {
-        const state = get();
-        const account = state.accounts.find(a => a.id === accountId);
+      // Update last used
+      account.lastUsed = Date.now();
+      
+      this.currentUser = account.user;
+      this.currentInstance = account.instance;
+      this.accounts = this.accounts.map(a => 
+        a.id === accountId ? { ...a, lastUsed: Date.now() } : a
+      );
+    }
+  }
+      
+  async removeAccount(accountId: string): Promise<void> {
+    const account = this.accounts.find(a => a.id === accountId);
         
         if (!account) return;
         
@@ -246,81 +243,75 @@ export const useAuthStore = create<AuthStore>()(
           // Failed to revoke token - continue with account removal
         }
         
-        // Remove account
-        const remainingAccounts = state.accounts.filter(a => a.id !== accountId);
-        
-        // If removing current account, switch to another
-        if (account.user.id === state.currentUser?.id) {
-          const nextAccount = remainingAccounts[0];
-          set({
-            currentUser: nextAccount?.user || null,
-            currentInstance: nextAccount?.instance || null,
-            accounts: remainingAccounts,
-            isAuthenticated: !!nextAccount
-          });
-        } else {
-          set({ accounts: remainingAccounts });
-        }
-      },
-      
-      // Validate instance URL
-      validateInstanceUrl: async (instance: string) => {
-        return validateInstance(instance);
-      },
-      
-      // Error management
-      setError: (error: string | null) => set({ error }),
-      clearError: () => set({ error: null }),
-      
-      // Restore session from secure storage
-      restoreSession: async () => {
-        const state = get();
-        if (!state.currentInstance || !state.isAuthenticated) {
-          return;
-        }
-        
-        try {
-          // Check if we have a valid session
-          const hasSession = await secureAuthClient.hasValidSession();
-          if (!hasSession) {
-            // Clear auth state if no valid session
-            set({
-              currentUser: null,
-              currentInstance: null,
-              accounts: [],
-              isAuthenticated: false
-            });
-          }
-        } catch (error) {
-          // Failed to restore session - user needs to re-authenticate
-        }
-      }
-    }),
-    {
-      name: 'auth-storage',
-      storage: createJSONStorage(() => localStorage),
-      partialize: (state) => ({
-        // Only store non-sensitive data
-        accounts: state.accounts.map(a => ({
-          id: a.id,
-          instance: a.instance,
-          user: a.user,
-          lastUsed: a.lastUsed,
-          // Exclude token and app data
-          token: {} as OAuthToken,
-          app: {} as OAuthApp
-        })),
-        currentUser: state.currentUser,
-        currentInstance: state.currentInstance,
-        isAuthenticated: state.isAuthenticated
-      })
+    // Remove account
+    const remainingAccounts = this.accounts.filter(a => a.id !== accountId);
+    
+    // If removing current account, switch to another
+    if (account.user.id === this.currentUser?.id) {
+      const nextAccount = remainingAccounts[0];
+      this.currentUser = nextAccount?.user || null;
+      this.currentInstance = nextAccount?.instance || null;
+      this.accounts = remainingAccounts;
+      this.isAuthenticated = !!nextAccount;
+    } else {
+      this.accounts = remainingAccounts;
     }
-  )
-);
+  }
+      
+  async validateInstanceUrl(instance: string): Promise<boolean> {
+    return validateInstance(instance);
+  }
+  
+  setError(error: string | null): void {
+    this.error = error;
+  }
+  
+  clearError(): void {
+    this.error = null;
+  }
+      
+  async restoreSession(): Promise<void> {
+    if (!this.currentInstance || !this.isAuthenticated) {
+      return;
+    }
+    
+    try {
+      // Check if we have a valid session
+      const hasSession = await secureAuthClient.hasValidSession();
+      if (!hasSession) {
+        // Clear auth state if no valid session
+        this.currentUser = null;
+        this.currentInstance = null;
+        this.accounts = [];
+        this.isAuthenticated = false;
+      }
+    } catch (error) {
+      // Failed to restore session - user needs to re-authenticate
+    }
+  }
+}
+
+// API helper to verify credentials
+async function verifyCredentials(instance: string, token: string): Promise<MastodonAccount> {
+  const response = await fetch(`${instance}/api/v1/accounts/verify_credentials`, {
+    headers: {
+      'Authorization': `Bearer ${token}`
+    }
+  });
+  
+  if (!response.ok) {
+    throw new AuthError('Failed to verify credentials', 'VERIFY_FAILED', instance);
+  }
+  
+  return response.json();
+}
+
+// Create singleton instance
+export const authStore = new AuthStore();
 
 // Helper function to get current access token from secure storage
 export async function getAccessToken(): Promise<string | null> {
-  const { currentInstance } = useAuthStore.getState();
+  const { currentInstance } = authStore;
   
   if (!currentInstance) {
     return null;

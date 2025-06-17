@@ -6,7 +6,7 @@
 import { atom, map, computed } from 'nanostores';
 import type { Notification, NotificationType } from '@/types/mastodon';
 import { getClient } from '@/lib/api/client';
-import { useAuthStore } from './auth';
+import { authStore } from './auth';
 
 // Notification state
 export const notifications$ = map<Record<string, Notification>>({});
@@ -144,7 +144,7 @@ let eventSource: EventSource | null = null;
 export function startNotificationStream() {
   if (eventSource) return;
   
-  const { currentUser } = useAuthStore.getState();
+  const { currentUser } = authStore.getState();
   if (!currentUser) return;
   
   const client = getClient();
@@ -250,7 +250,7 @@ export async function requestNotificationPermission() {
 }
 
 // Clean up on logout
-useAuthStore.subscribe((state) => {
+authStore.subscribe((state) => {
   if (!state.currentUser) {
     stopNotificationStream();
     notifications$.set({});

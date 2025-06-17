@@ -1,7 +1,7 @@
 <script lang="ts">
-  import { useSearchStore } from '@/lib/stores/search';
+  import { searchStore } from '@/lib/stores/search';
   
-  const searchStore = useSearchStore();
+  ;
   
   let searchQuery = $state('');
   let isFocused = $state(false);

@@ -1,26 +1,22 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
-  import { useOfflineStore } from '@/lib/stores/offline';
+  import { offlineStore } from '@/lib/stores/offline';
   
-  const offlineStore = useOfflineStore();
-  
-  $: ({ isOnline, posts, isSyncing } = $offlineStore);
-  $: queuedCount = posts.length;
+  $: queuedCount = offlineStore.posts.length;
   
   let showBanner = false;
   let wasOffline = false;
   
   $: {
     // Show banner when going offline or coming back online with queued posts
-    if (!isOnline && !wasOffline) {
+    if (!offlineStore.isOnline && !wasOffline) {
       showBanner = true;
       wasOffline = true;
-    } else if (isOnline && wasOffline) {
+    } else if (offlineStore.isOnline && wasOffline) {
       if (queuedCount > 0) {
         showBanner = true;
         // Hide after sync completes
         setTimeout(() => {
-          if ($offlineStore.posts.length === 0) {
+          if (offlineStore.posts.length === 0) {
             showBanner = false;
           }
         }, 3000);
@@ -37,14 +33,14 @@
 </script>
 
 {#if showBanner}
-  <div class="offline-banner {isOnline ? 'online' : 'offline'}">
+  <div class="offline-banner {offlineStore.isOnline ? 'online' : 'offline'}">
     <div class="banner-content">
-      {#if !isOnline}
+      {#if !offlineStore.isOnline}
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M1 1l22 22M9 9v.01M15 9a6 6 0 0 1 4.24 10.24M7.83 7.83A6 6 0 0 0 12 18c1.46 0 2.8-.52 3.84-1.39M5 12h.01M19 12a7 7 0 0 0-7-7M12 19v.01"/>
         </svg>
         <span>You're offline. Posts will be sent when connection is restored.</span>
-      {:else if isSyncing}
+      {:else if offlineStore.isSyncing}
         <svg class="spinner" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
           <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
         </svg>

@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import type { Status, Relationship } from '@/types/mastodon';
 	import { sanitizeMastodonHtml } from '@/lib/utils/sanitize';
-	import { useTimelineStore } from '@/lib/stores/timeline';
-	import { useAuthStore } from '@/lib/stores/auth';
+	import { timelineStore } from '@/lib/stores/timeline';
+	import { authStore } from '@/lib/stores/auth';
 	import { getClient } from '@/lib/api/client';
 	import Button from './Button.svelte';
 	import MediaGallery from './MediaGallery.svelte';
@@ -15,8 +15,8 @@
 	
 	let { status, showThread = false }: Props = $props();
 	
-	const timelineStore = useTimelineStore();
-	const authStore = useAuthStore();
+	;
+	;
 	
 	const displayStatus = $derived(status.reblog || status);
 	const isReblog = $derived(!!status.reblog);

@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { useTimelineStore } from '@/lib/stores/timeline';
-  import { useListsStore } from '@/lib/stores/lists';
+  import { timelineStore } from '@/lib/stores/timeline';
+  import { listsStore } from '@/lib/stores/lists';
   import VirtualizedTimeline from './VirtualizedTimeline.svelte';
   import EmptyState from './EmptyState.svelte';
   import ErrorState from './ErrorState.svelte';
@@ -9,15 +9,15 @@
 
   export let listId: string;
 
-  const timelineStore = useTimelineStore();
-  const listsStore = useListsStore();
+  ;
+  ;
 
   let list = listsStore.getListById(listId);
   let memberCount = 0;
 
-  $: statuses = $timelineStore.timelines[`list:${listId}`] || [];
-  $: isLoading = $timelineStore.isLoading;
-  $: error = $timelineStore.error;
+  $: statuses = timelineStore.timelines[`list:${listId}`] || [];
+  $: isLoading = timelineStore.isLoading;
+  $: error = timelineStore.error;
 
   onMount(async () => {
     // Fetch list details if not cached
@@ -28,7 +28,7 @@
 
     // Fetch list members
     await listsStore.fetchListMembers(listId);
-    memberCount = $listsStore.listMembers[listId]?.length || 0;
+    memberCount = listsStore.listMembers[listId]?.length || 0;
 
     // Load timeline
     await timelineStore.loadTimeline(`list:${listId}`);

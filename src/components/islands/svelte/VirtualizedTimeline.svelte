@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { onMount, onDestroy } from 'svelte';
 	import { createVirtualizer } from '@tanstack/svelte-virtual';
-	import { useTimelineStore } from '@/lib/stores/timeline';
+	import { timelineStore } from '@/lib/stores/timeline';
 	import type { TimelineType } from '@/lib/stores/timeline';
 	import StatusCard from './StatusCard.svelte';
 	import TimelineSkeleton from './TimelineSkeleton.svelte';
@@ -19,7 +19,7 @@
 	// Support alternative prop name for backwards compatibility
 	const actualType = timelineType || type;
 	
-	const store = useTimelineStore.getState();
+	const store = timelineStore;
 	let timeline = $state(store[type]);
 	let unsubscribe: () => void;
 	

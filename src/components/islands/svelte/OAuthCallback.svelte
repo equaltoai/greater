@@ -1,11 +1,9 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { useAuthStore } from '@/lib/stores/auth';
+  import { authStore } from '@/lib/stores/auth';
   
   let error = $state('');
   let status = $state('Processing login...');
-  
-  const authStore = useAuthStore.getState();
   
   onMount(async () => {
     // Get URL parameters

@@ -1,14 +1,12 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { useAuthStore } from '@/lib/stores/auth';
+  import { authStore } from '@/lib/stores/auth';
   
   let instance = $state('');
   let isValidating = $state(false);
   let isValid = $state(false);
   let error = $state('');
   let validationTimeout: number;
-  
-  const authStore = useAuthStore.getState();
   
   // Check if already authenticated and redirect
   onMount(() => {

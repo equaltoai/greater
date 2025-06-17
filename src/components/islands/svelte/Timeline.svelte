@@ -1,12 +1,12 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { useTimelineStore } from '@/lib/stores/timeline';
+  import { timelineStore } from '@/lib/stores/timeline';
   import type { TimelineType } from '@/lib/stores/timeline';
   import StatusCard from './StatusCard.svelte';
   
   let { type = 'home' }: { type?: TimelineType } = $props();
   
-  const store = useTimelineStore.getState();
+  const store = timelineStore;
   let timeline = $state(store[type]);
   let unsubscribe: () => void;
   

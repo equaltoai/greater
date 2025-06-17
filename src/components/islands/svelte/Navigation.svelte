@@ -1,9 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { useAuthStore } from '@/lib/stores/auth';
+  import { authStore } from '@/lib/stores/auth';
   import { unreadCount$, startNotificationStream } from '@/lib/stores/notifications';
-  
-  const authStore = useAuthStore.getState();
   
   interface NavItem {
     href: string;

@@ -1,8 +1,7 @@
 <script lang="ts">
-  import { useAuthStore } from '@/lib/stores/auth';
+  import { authStore } from '@/lib/stores/auth';
   
   // Get auth state
-  const authStore = useAuthStore();
   const { currentUser, logout } = authStore;
   
   let isOpen = $state(false);
