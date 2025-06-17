@@ -1,0 +1,17 @@
+---
+import MainLayout from '@/layouts/MainLayout.astro';
+import UserProfile from '@/components/islands/svelte/UserProfile.svelte';
+import UserTimeline from '@/components/islands/svelte/UserTimeline.svelte';
+
+const { handle } = Astro.params;
+
+// Parse handle to get username and domain
+const [username, domain] = handle.includes('@') 
+  ? handle.split('@') 
+  : [handle, null];
+---
+
+<MainLayout title={`@${handle}`} description={`Profile of @${handle}`}>
+  <UserProfile username={username} domain={domain} client:load />
+  <UserTimeline username={username} domain={domain} client:idle />
+</MainLayout>

@@ -1,0 +1,28 @@
+---
+import ThemeToggle from '@/components/islands/svelte/ThemeToggle.svelte';
+import SearchBar from '@/components/islands/svelte/SearchBar.svelte';
+import UserMenu from '@/components/islands/svelte/UserMenu.svelte';
+---
+
+<header class="fixed top-0 left-0 right-0 z-50 bg-surface/80 backdrop-blur-md border-b border-border h-16">
+  <div class="max-w-7xl mx-auto px-4 h-full flex items-center justify-between">
+    <div class="flex items-center">
+      <a href="/home" class="flex items-center gap-2 text-xl font-bold text-text hover:text-primary transition-colors">
+        <svg class="w-8 h-8" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+          <path d="M12 2L2 7v10c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-10-5z" fill="currentColor"/>
+        </svg>
+        <span class="hidden sm:block">Greater</span>
+      </a>
+    </div>
+    
+    <div class="flex-1 max-w-xl mx-4 hidden sm:block">
+      <SearchBar client:idle />
+    </div>
+    
+    <div class="flex items-center gap-4">
+      <ThemeToggle client:load />
+      <UserMenu client:load />
+    </div>
+  </div>
+</header>
+

@@ -1,0 +1,95 @@
+{
+  "name": "@greater/client",
+  "version": "0.1.0",
+  "description": "A modern, high-performance web client for Mastodon-compatible instances",
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "start": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "astro": "astro",
+    "lint": "eslint . --ext .ts,.tsx,.js,.jsx,.astro,.svelte",
+    "lint:fix": "npm run lint -- --fix",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "typecheck": "tsc --noEmit",
+    "test": "vitest",
+    "test:unit": "vitest run",
+    "test:watch": "vitest watch",
+    "test:coverage": "vitest run --coverage",
+    "test:e2e": "playwright test",
+    "test:e2e:ui": "playwright test --ui",
+    "analyze": "astro build && npx vite-bundle-visualizer",
+    "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit",
+    "prepare": "husky install"
+  },
+  "dependencies": {
+    "@astrojs/cloudflare": "^8.0.0",
+    "@astrojs/svelte": "^5.0.0",
+    "@astrojs/tailwind": "^5.0.0",
+    "@nanostores/persistent": "^0.9.1",
+    "@types/dompurify": "^3.0.5",
+    "astro": "^4.0.0",
+    "isomorphic-dompurify": "^2.25.0",
+    "nanostores": "^0.9.5",
+    "svelte": "^4.2.0",
+    "tailwindcss": "^3.4.0",
+    "zod": "^3.25.67",
+    "zustand": "^4.4.0"
+  },
+  "devDependencies": {
+    "@playwright/test": "^1.40.0",
+    "@testing-library/svelte": "^4.0.0",
+    "@types/node": "^20.10.0",
+    "@typescript-eslint/eslint-plugin": "^6.13.0",
+    "@typescript-eslint/parser": "^6.13.0",
+    "@vitest/coverage-v8": "^1.0.0",
+    "eslint": "^8.55.0",
+    "eslint-config-prettier": "^9.1.0",
+    "eslint-plugin-astro": "^0.31.0",
+    "eslint-plugin-svelte": "^2.35.0",
+    "husky": "^8.0.3",
+    "lint-staged": "^15.2.0",
+    "prettier": "^3.1.0",
+    "prettier-plugin-astro": "^0.12.0",
+    "prettier-plugin-svelte": "^3.1.0",
+    "prettier-plugin-tailwindcss": "^0.5.0",
+    "typescript": "^5.3.0",
+    "vite": "^5.0.0",
+    "vitest": "^1.0.0"
+  },
+  "lint-staged": {
+    "*.{js,jsx,ts,tsx,astro,svelte}": [
+      "prettier --write",
+      "eslint --fix"
+    ],
+    "*.{json,md,yml,yaml}": [
+      "prettier --write"
+    ]
+  },
+  "engines": {
+    "node": ">=20.0.0",
+    "npm": ">=10.0.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/greater-social/greater.git"
+  },
+  "keywords": [
+    "mastodon",
+    "activitypub",
+    "fediverse",
+    "social",
+    "client",
+    "astro",
+    "svelte",
+    "cloudflare"
+  ],
+  "author": "Greater Social Contributors",
+  "license": "AGPL-3.0",
+  "bugs": {
+    "url": "https://github.com/greater-social/greater/issues"
+  },
+  "homepage": "https://github.com/greater-social/greater#readme"
+}

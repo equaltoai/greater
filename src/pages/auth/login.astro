@@ -1,0 +1,47 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+import LoginForm from '@/components/islands/svelte/LoginForm.svelte';
+
+// Redirect if already authenticated
+// This will be handled client-side by the LoginForm component
+---
+
+<BaseLayout title="Login to Greater" description="Connect your Mastodon account to Greater">
+  <div class="min-h-screen flex items-center justify-center bg-background px-4 py-12">
+    <div class="w-full max-w-md">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-text mb-2">Welcome to Greater</h1>
+        <p class="text-text-muted">Connect your Mastodon account to get started</p>
+      </div>
+      
+      <div class="bg-surface rounded-lg shadow-lg p-6">
+        <LoginForm client:load />
+      </div>
+      
+      <div class="mt-8 text-center text-sm text-text-muted">
+        <p>Greater works with any Mastodon-compatible instance.</p>
+        <p class="mt-2">
+          Don't have an account? 
+          <a 
+            href="https://joinmastodon.org/servers" 
+            target="_blank" 
+            rel="noopener noreferrer"
+            class="text-primary hover:text-primary-hover underline"
+          >
+            Find an instance
+          </a>
+        </p>
+      </div>
+      
+      <div class="mt-8 text-center text-xs text-text-muted">
+        <p>
+          By logging in, you agree to Greater's open source 
+          <a href="/privacy" class="underline hover:text-text">privacy policy</a>.
+        </p>
+        <p class="mt-1">
+          Your data stays on your instance. Greater never stores your posts.
+        </p>
+      </div>
+    </div>
+  </div>
+</BaseLayout>

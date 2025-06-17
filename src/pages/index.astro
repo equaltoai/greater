@@ -1,0 +1,10 @@
+---
+// Redirect to home if authenticated, otherwise to login
+const isAuthenticated = Astro.cookies.get('auth-storage')?.value;
+
+if (isAuthenticated) {
+  return Astro.redirect('/home');
+} else {
+  return Astro.redirect('/auth/login');
+}
+---

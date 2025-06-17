@@ -1,0 +1,19 @@
+---
+import MainLayout from '@/layouts/MainLayout.astro';
+import Timeline from '@/components/islands/svelte/Timeline.svelte';
+import TrendingSidebar from '@/components/islands/svelte/TrendingSidebar.svelte';
+
+// This will be the home timeline page
+---
+
+<MainLayout title="Home" description="Your home timeline on Greater">
+  <div class="sticky top-[4rem] z-40 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3">
+    <h1 class="text-xl font-bold text-text">Home</h1>
+  </div>
+  
+  <Timeline type="home" client:load />
+  
+  <div slot="aside">
+    <TrendingSidebar client:idle />
+  </div>
+</MainLayout>

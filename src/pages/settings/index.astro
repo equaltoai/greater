@@ -1,0 +1,53 @@
+---
+import MainLayout from '@/layouts/MainLayout.astro';
+import SettingsNav from '@/components/islands/svelte/SettingsNav.svelte';
+---
+
+<MainLayout title="Settings" description="Manage your Greater settings">
+  <div class="grid grid-cols-1 lg:grid-cols-[240px_1fr] gap-6 max-w-4xl mx-auto">
+    <aside class="hidden lg:block">
+      <SettingsNav client:load />
+    </aside>
+    
+    <main class="space-y-6">
+      <h1 class="text-2xl font-bold text-text">Settings</h1>
+      <p class="text-text-muted">
+        Manage your account, preferences, and privacy settings.
+      </p>
+      
+      <div class="grid gap-4">
+        <a href="/settings/profile" class="flex items-start gap-4 p-4 bg-surface rounded-lg border border-border hover:bg-surface-hover transition-colors">
+          <span class="text-2xl">👤</span>
+          <div>
+            <h3 class="font-semibold text-text">Profile</h3>
+            <p class="text-sm text-text-muted">Update your profile information</p>
+          </div>
+        </a>
+        
+        <a href="/settings/preferences" class="flex items-start gap-4 p-4 bg-surface rounded-lg border border-border hover:bg-surface-hover transition-colors">
+          <span class="text-2xl">⚙️</span>
+          <div>
+            <h3 class="font-semibold text-text">Preferences</h3>
+            <p class="text-sm text-text-muted">Customize your experience</p>
+          </div>
+        </a>
+        
+        <a href="/settings/privacy" class="flex items-start gap-4 p-4 bg-surface rounded-lg border border-border hover:bg-surface-hover transition-colors">
+          <span class="text-2xl">🔒</span>
+          <div>
+            <h3 class="font-semibold text-text">Privacy & Safety</h3>
+            <p class="text-sm text-text-muted">Control who can see your content</p>
+          </div>
+        </a>
+        
+        <a href="/settings/accounts" class="flex items-start gap-4 p-4 bg-surface rounded-lg border border-border hover:bg-surface-hover transition-colors">
+          <span class="text-2xl">🔗</span>
+          <div>
+            <h3 class="font-semibold text-text">Accounts</h3>
+            <p class="text-sm text-text-muted">Manage connected accounts</p>
+          </div>
+        </a>
+      </div>
+    </main>
+  </div>
+</MainLayout>

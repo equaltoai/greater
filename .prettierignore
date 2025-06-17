@@ -1,0 +1,16 @@
+# Dependencies
+node_modules/
+.pnpm-store/
+
+# Build outputs
+dist/
+.astro/
+.output/
+
+# Coverage
+coverage/
+
+# Misc
+.env*
+*.log
+.DS_Store

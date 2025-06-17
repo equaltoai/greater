@@ -1,0 +1,95 @@
+name = "greater-client"
+compatibility_date = "2024-01-01"
+compatibility_flags = ["nodejs_compat"]
+
+[site]
+bucket = "./dist"
+
+[build]
+command = "npm run build"
+
+[build.upload]
+format = "service-worker"
+
+# Development environment
+[env.development]
+name = "greater-client-dev"
+
+[env.development.vars]
+ENVIRONMENT = "development"
+API_VERSION = "v1"
+
+# Production environment
+[env.production]
+name = "greater-client"
+
+[env.production.vars]
+ENVIRONMENT = "production"
+API_VERSION = "v1"
+
+# KV Namespaces
+[[env.production.kv_namespaces]]
+binding = "SESSIONS"
+id = "session-storage-production"
+
+[[env.production.kv_namespaces]]
+binding = "CACHE"
+id = "api-cache-production"
+
+[[env.production.kv_namespaces]]
+binding = "PREFERENCES"
+id = "user-preferences-production"
+
+[[env.development.kv_namespaces]]
+binding = "SESSIONS"
+id = "session-storage-dev"
+
+[[env.development.kv_namespaces]]
+binding = "CACHE"
+id = "api-cache-dev"
+
+[[env.development.kv_namespaces]]
+binding = "PREFERENCES"
+id = "user-preferences-dev"
+
+# R2 Buckets
+[[env.production.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "greater-media-production"
+
+[[env.development.r2_buckets]]
+binding = "MEDIA"
+bucket_name = "greater-media-dev"
+
+# D1 Databases
+[[env.production.d1_databases]]
+binding = "ANALYTICS"
+database_name = "greater-analytics"
+database_id = "analytics-db-production"
+
+[[env.development.d1_databases]]
+binding = "ANALYTICS"
+database_name = "greater-analytics-dev"
+database_id = "analytics-db-dev"
+
+# Durable Objects
+[[env.production.durable_objects.bindings]]
+name = "WEBSOCKET"
+class_name = "WebSocketHandler"
+script_name = "websocket-handler"
+
+[[env.development.durable_objects.bindings]]
+name = "WEBSOCKET"
+class_name = "WebSocketHandler"
+script_name = "websocket-handler"
+
+# Routes
+[[env.production.routes]]
+pattern = "greater.social/*"
+zone_name = "greater.social"
+
+# Rate limiting
+[env.production.rate_limiting]
+threshold = 50
+period = 60
+characteristics = ["cf.colo.id", "ip.src"]

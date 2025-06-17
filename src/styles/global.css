@@ -1,0 +1,248 @@
+/* Global styles - Tailwind is imported in app.css */
+
+/* CSS Custom Properties for theming */
+@layer base {
+  :root {
+    /* Light theme (default) */
+    --color-primary: #6366f1;
+    --color-primary-hover: #4f46e5;
+    --color-primary-dark: #4338ca;
+    --color-secondary: #8b5cf6;
+    --color-secondary-hover: #7c3aed;
+    --color-accent: #ec4899;
+    --color-accent-hover: #db2777;
+    
+    --color-background: #ffffff;
+    --color-surface: #f9fafb;
+    --color-surface-hover: #f3f4f6;
+    --color-border: #e5e7eb;
+    
+    --color-text: #111827;
+    --color-text-muted: #6b7280;
+    --color-text-inverse: #ffffff;
+    
+    --color-success: #10b981;
+    --color-warning: #f59e0b;
+    --color-error: #ef4444;
+    --color-info: #3b82f6;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow: 0 1px 3px 0 rgb(0 0 0 / 0.1), 0 1px 2px -1px rgb(0 0 0 / 0.1);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+  }
+  
+  /* Dark theme */
+  [data-theme="dark"] {
+    --color-primary: #818cf8;
+    --color-primary-hover: #6366f1;
+    --color-primary-dark: #4f46e5;
+    --color-secondary: #a78bfa;
+    --color-secondary-hover: #8b5cf6;
+    --color-accent: #f472b6;
+    --color-accent-hover: #ec4899;
+    
+    --color-background: #0f172a;
+    --color-surface: #1e293b;
+    --color-surface-hover: #334155;
+    --color-border: #334155;
+    
+    --color-text: #f1f5f9;
+    --color-text-muted: #94a3b8;
+    --color-text-inverse: #0f172a;
+    
+    --color-success: #34d399;
+    --color-warning: #fbbf24;
+    --color-error: #f87171;
+    --color-info: #60a5fa;
+  }
+  
+  /* High contrast theme */
+  [data-theme="high-contrast"] {
+    --color-primary: #0000ff;
+    --color-primary-hover: #0000cc;
+    --color-secondary: #ff00ff;
+    --color-accent: #ff0000;
+    
+    --color-background: #ffffff;
+    --color-surface: #ffffff;
+    --color-border: #000000;
+    
+    --color-text: #000000;
+    --color-text-muted: #333333;
+    --color-text-inverse: #ffffff;
+  }
+}
+
+/* Base styles */
+@layer base {
+  * {
+    @apply border-border;
+  }
+  
+  body {
+    @apply bg-background text-text;
+    @apply antialiased;
+  }
+  
+  /* Focus styles */
+  *:focus {
+    @apply outline-none;
+  }
+  
+  *:focus-visible {
+    @apply ring-2 ring-primary ring-offset-2 ring-offset-background;
+  }
+  
+  /* Scrollbar styles */
+  ::-webkit-scrollbar {
+    @apply w-2 h-2;
+  }
+  
+  ::-webkit-scrollbar-track {
+    @apply bg-surface;
+  }
+  
+  ::-webkit-scrollbar-thumb {
+    @apply bg-border rounded-full;
+  }
+  
+  ::-webkit-scrollbar-thumb:hover {
+    @apply bg-text-muted;
+  }
+  
+  /* Selection styles */
+  ::selection {
+    @apply bg-primary text-white;
+  }
+  
+  ::-moz-selection {
+    @apply bg-primary text-white;
+  }
+}
+
+/* Utility classes */
+@layer utilities {
+  /* Animations */
+  .animate-in {
+    animation: animateIn 0.3s ease-out;
+  }
+  
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  /* Text truncation */
+  .truncate-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  .truncate-3 {
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  
+  /* Loading skeleton */
+  .skeleton {
+    @apply animate-pulse bg-surface rounded;
+  }
+  
+  /* Glass morphism */
+  .glass {
+    @apply bg-surface/80 backdrop-blur-md;
+  }
+  
+  /* Safe area padding for mobile */
+  .safe-top {
+    padding-top: env(safe-area-inset-top);
+  }
+  
+  .safe-bottom {
+    padding-bottom: env(safe-area-inset-bottom);
+  }
+  
+  .safe-left {
+    padding-left: env(safe-area-inset-left);
+  }
+  
+  .safe-right {
+    padding-right: env(safe-area-inset-right);
+  }
+}
+
+/* Component styles */
+@layer components {
+  /* Buttons */
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-md font-medium transition-colors;
+    @apply focus:outline-none focus:ring-2 focus:ring-offset-2;
+  }
+  
+  .btn-primary {
+    @apply bg-primary text-white hover:bg-primary-hover focus:ring-primary;
+  }
+  
+  .btn-secondary {
+    @apply bg-surface text-text hover:bg-surface-hover focus:ring-border;
+  }
+  
+  .btn-ghost {
+    @apply text-text hover:bg-surface focus:ring-border;
+  }
+  
+  /* Cards */
+  .card {
+    @apply bg-surface rounded-lg shadow-sm border border-border;
+  }
+  
+  .card-hover {
+    @apply hover:shadow-md transition-shadow cursor-pointer;
+  }
+  
+  /* Inputs */
+  .input {
+    @apply block w-full px-3 py-2 border border-border rounded-md;
+    @apply bg-background text-text placeholder-text-muted;
+    @apply focus:ring-2 focus:ring-primary focus:border-primary;
+  }
+  
+  /* Links */
+  .link {
+    @apply text-primary hover:text-primary-hover underline;
+  }
+}
+
+/* Print styles */
+@media print {
+  body {
+    @apply bg-white text-black;
+  }
+  
+  .no-print {
+    @apply hidden;
+  }
+}
+
+/* Reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

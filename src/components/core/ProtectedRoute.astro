@@ -1,0 +1,15 @@
+---
+/**
+ * Protected route wrapper that ensures authentication
+ * Redirects to login if not authenticated
+ */
+
+// Check authentication status
+const isAuthenticated = Astro.cookies.get('auth-storage')?.value;
+
+if (!isAuthenticated && !Astro.url.pathname.startsWith('/auth')) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<slot />

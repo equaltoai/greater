@@ -1,0 +1,47 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Navigation from '@/components/islands/svelte/Navigation.svelte';
+import Header from '@/components/core/Header.astro';
+import ProtectedRoute from '@/components/core/ProtectedRoute.astro';
+
+export interface Props {
+  title: string;
+  description?: string;
+  protected?: boolean;
+}
+
+const { title, description, protected: isProtected = true } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  {isProtected ? (
+    <ProtectedRoute>
+      <div class="min-h-screen bg-background">
+        <Header />
+        
+        <div class="mx-auto max-w-7xl grid grid-cols-1 lg:grid-cols-[240px_1fr_320px] gap-4 px-4 pt-16 pb-20 lg:pb-0">
+          <nav class="hidden lg:block sticky top-20 h-fit">
+            <Navigation client:load />
+          </nav>
+          
+          <main class="min-h-screen w-full max-w-2xl mx-auto lg:mx-0">
+            <slot />
+          </main>
+          
+          <aside class="hidden xl:block sticky top-20 h-fit">
+            <!-- Trending, suggestions, etc. -->
+            <slot name="aside" />
+          </aside>
+        </div>
+      </div>
+    </ProtectedRoute>
+  ) : (
+    <div class="min-h-screen bg-background">
+      <Header />
+      <main class="min-h-screen w-full max-w-4xl mx-auto px-4 pt-16">
+        <slot />
+      </main>
+    </div>
+  )}
+</BaseLayout>
+
