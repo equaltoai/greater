@@ -18,7 +18,7 @@ export interface Instance {
   registrations: boolean;
   approval_required: boolean;
   invites_enabled: boolean;
-  configuration: InstanceConfiguration;
+  configuration?: InstanceConfiguration;
   urls: InstanceURLs;
   stats: InstanceStats;
   thumbnail: string | null;
@@ -29,7 +29,7 @@ export interface Instance {
 /**
  * Extended instance information (v2)
  */
-export interface InstanceV2 extends Instance {
+export interface InstanceV2 extends Omit<Instance, 'thumbnail'> {
   domain: string;
   source_url?: string;
   usage?: InstanceUsage;

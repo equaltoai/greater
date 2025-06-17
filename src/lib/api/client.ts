@@ -206,10 +206,10 @@ export class MastodonClient {
       if (error instanceof APIError) {
         throw error;
       }
-      if (error.name === 'AbortError') {
+      if (error instanceof Error && error.name === 'AbortError') {
         throw new APIError(0, 'Request timeout', error);
       }
-      throw new APIError(0, 'Network error', error);
+      throw new APIError(0, 'Network error', error instanceof Error ? error : new Error(String(error)));
     }
   }
 
@@ -252,27 +252,27 @@ export class MastodonClient {
 
   // Timelines
   async getHomeTimeline(params?: TimelineParams): Promise<Status[]> {
-    const data = await this.request<unknown>('GET', '/api/v1/timelines/home', { params });
+    const data = await this.request<unknown>('GET', '/api/v1/timelines/home', { params: params as Record<string, unknown> });
     return validateResponse(TimelineResponseSchema, data, 'getHomeTimeline');
   }
 
   async getPublicTimeline(params?: TimelineParams): Promise<Status[]> {
-    const data = await this.request<unknown>('GET', '/api/v1/timelines/public', { params });
+    const data = await this.request<unknown>('GET', '/api/v1/timelines/public', { params: params as Record<string, unknown> });
     return validateResponse(TimelineResponseSchema, data, 'getPublicTimeline');
   }
 
   async getLocalTimeline(params?: TimelineParams): Promise<Status[]> {
     return this.request<Status[]>('GET', '/api/v1/timelines/public', {
-      params: { ...params, local: true }
+      params: { ...params, local: true } as Record<string, unknown>
     });
   }
 
   async getTagTimeline(tag: string, params?: TimelineParams): Promise<Status[]> {
-    return this.request<Status[]>(`GET`, `/api/v1/timelines/tag/${tag}`, { params });
+    return this.request<Status[]>(`GET`, `/api/v1/timelines/tag/${tag}`, { params: params as Record<string, unknown> });
   }
 
   async getListTimeline(listId: string, params?: PaginationParams): Promise<Status[]> {
-    return this.request<Status[]>(`GET`, `/api/v1/timelines/list/${listId}`, { params });
+    return this.request<Status[]>(`GET`, `/api/v1/timelines/list/${listId}`, { params: params as Record<string, unknown> });
   }
 
   // Statuses
@@ -350,7 +350,7 @@ export class MastodonClient {
         } else if (Array.isArray(value)) {
           value.forEach((item, index) => {
             Object.entries(item).forEach(([fieldKey, fieldValue]) => {
-              formData.append(`${key}[${index}][${fieldKey}]`, fieldValue);
+              formData.append(`${key}[${index}][${fieldKey}]`, String(fieldValue));
             });
           });
         } else {
@@ -371,15 +371,15 @@ export class MastodonClient {
   }
 
   async getAccountStatuses(id: string, params?: AccountStatusesParams): Promise<Status[]> {
-    return this.request<Status[]>('GET', `/api/v1/accounts/${id}/statuses`, { params });
+    return this.request<Status[]>('GET', `/api/v1/accounts/${id}/statuses`, { params: params as Record<string, unknown> });
   }
 
   async getAccountFollowers(id: string, params?: PaginationParams): Promise<Account[]> {
-    return this.request<Account[]>('GET', `/api/v1/accounts/${id}/followers`, { params });
+    return this.request<Account[]>('GET', `/api/v1/accounts/${id}/followers`, { params: params as Record<string, unknown> });
   }
 
   async getAccountFollowing(id: string, params?: PaginationParams): Promise<Account[]> {
-    return this.request<Account[]>('GET', `/api/v1/accounts/${id}/following`, { params });
+    return this.request<Account[]>('GET', `/api/v1/accounts/${id}/following`, { params: params as Record<string, unknown> });
   }
 
   async getAccountFeaturedTags(id: string): Promise<FeaturedTag[]> {
@@ -422,13 +422,13 @@ export class MastodonClient {
 
   // Search
   async search(params: SearchParams): Promise<SearchResults> {
-    const data = await this.request<unknown>('GET', '/api/v2/search', { params });
+    const data = await this.request<unknown>('GET', '/api/v2/search', { params: { ...params } as Record<string, unknown> });
     return validateResponse(SearchResultsSchema, data, 'search');
   }
 
   // Notifications
   async getNotifications(params?: PaginationParams & { types?: string[]; exclude_types?: string[] }): Promise<Notification[]> {
-    return this.request<Notification[]>('GET', '/api/v1/notifications', { params });
+    return this.request<Notification[]>('GET', '/api/v1/notifications', { params: params as Record<string, unknown> });
   }
 
   async getNotification(id: string): Promise<Notification> {
@@ -469,7 +469,7 @@ export class MastodonClient {
   }
 
   async getListAccounts(id: string, params?: PaginationParams): Promise<Account[]> {
-    return this.request<Account[]>('GET', `/api/v1/lists/${id}/accounts`, { params });
+    return this.request<Account[]>('GET', `/api/v1/lists/${id}/accounts`, { params: params as Record<string, unknown> });
   }
 
   async addAccountsToList(id: string, accountIds: string[]): Promise<void> {

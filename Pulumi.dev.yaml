@@ -1,0 +1,7 @@
+config:
+  greater-client:domain: dev.greater.website
+  greater-client:environment: development
+  cloudflare:apiToken:
+    secure: AAABALX2CmFqNKmWM4dCjgoiOdlmlBuACs3NG4UU7xrhh3H0eVEb6T3Tc5vQQteWyDbEVMTlLilclZbwzFYnFBLmHAEpVCHU
+  greater-client:accountId: f32d4379a27d6dd9fe076cc3cf0dae44
+  greater-client:zoneId: 1319f9369b4dd36b8cac9d996f09c497

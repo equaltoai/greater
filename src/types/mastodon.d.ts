@@ -22,11 +22,11 @@ export interface Status {
   reblogs_count: number;
   favourites_count: number;
   edited_at: string | null;
-  favourited?: boolean;
-  reblogged?: boolean;
-  muted?: boolean;
-  bookmarked?: boolean;
-  pinned?: boolean;
+  favourited?: boolean | null;
+  reblogged?: boolean | null;
+  muted?: boolean | null;
+  bookmarked?: boolean | null;
+  pinned?: boolean | null;
   content: string;
   filtered?: FilterResult[];
   reblog: Status | null;
@@ -104,7 +104,7 @@ export interface Mention {
 export interface Tag {
   name: string;
   url: string;
-  history?: TagHistory[];
+  history?: TagHistory[] | null;
   following?: boolean;
 }
 

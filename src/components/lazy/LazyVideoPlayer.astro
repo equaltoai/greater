@@ -1,0 +1,78 @@
+---
+export interface Props {
+  src: string
+  poster?: string
+  blurhash?: string
+}
+
+const { src, poster, blurhash } = Astro.props
+---
+
+<div 
+  class="lazy-video-player" 
+  data-src={src}
+  data-poster={poster || ''}
+  data-blurhash={blurhash || ''}
+>
+  <div class="loading-placeholder">
+    <div class="play-button">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+        <path d="M8 5v14l11-7z"/>
+      </svg>
+    </div>
+  </div>
+</div>
+
+<script>
+  class LazyVideoPlayer extends HTMLElement {
+    async connectedCallback() {
+      const container = this.querySelector('.lazy-video-player')
+      if (!container) return
+
+      const src = container.dataset.src
+      const poster = container.dataset.poster
+      const blurhash = container.dataset.blurhash
+
+      container.addEventListener('click', async () => {
+        const { default: VideoPlayer } = await import('../islands/svelte/VideoPlayer.svelte')
+        const player = new VideoPlayer({
+          target: container,
+          props: { src, poster, blurhash }
+        })
+        
+        container.innerHTML = ''
+      }, { once: true })
+    }
+  }
+
+  customElements.define('lazy-video-player', LazyVideoPlayer)
+</script>
+
+<style>
+  .loading-placeholder {
+    aspect-ratio: 16/9;
+    background: var(--color-bg-secondary);
+    border-radius: 8px;
+    position: relative;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .play-button {
+    width: 64px;
+    height: 64px;
+    background: rgba(0, 0, 0, 0.7);
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    transition: transform 0.2s;
+  }
+
+  .loading-placeholder:hover .play-button {
+    transform: scale(1.1);
+  }
+</style>

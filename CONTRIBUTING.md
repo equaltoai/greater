@@ -136,7 +136,7 @@ We use [Conventional Commits](https://www.conventionalcommits.org/):
 
 - Join our [Discord server](https://discord.gg/greater)
 - Follow [@greater@mastodon.social](https://mastodon.social/@greater)
-- Participate in [GitHub Discussions](https://github.com/greater-social/greater/discussions)
+- Participate in [GitHub Discussions](https://github.com/greater-website/greater/discussions)
 
 ## Recognition
 

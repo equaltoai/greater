@@ -50,7 +50,7 @@ export async function registerApp(instance: string): Promise<OAuthApp> {
     client_name: 'Greater',
     redirect_uris: REDIRECT_URI,
     scopes: OAUTH_SCOPES,
-    website: 'https://greater.social'
+    website: 'https://greater.website'
   });
 
   const response = await fetch(`${instanceUrl}/api/v1/apps`, {

@@ -2,6 +2,9 @@ import { defineConfig } from 'astro/config';
 import cloudflare from '@astrojs/cloudflare';
 import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
+import { visualizer } from 'rollup-plugin-visualizer';
+
+import sentry from '@sentry/astro';
 
 // https://astro.build/config
 export default defineConfig({
@@ -10,9 +13,7 @@ export default defineConfig({
     mode: 'directory',
     functionPerRoute: true,
   }),
-  integrations: [
-    svelte(),
-  ],
+  integrations: [svelte(), sentry()],
   vite: {
     plugins: [tailwindcss()],
     resolve: {
@@ -29,10 +30,36 @@ export default defineConfig({
     optimizeDeps: {
       exclude: ['@nanostores/persistent'],
     },
+    build: {
+      rollupOptions: {
+        output: {
+          manualChunks: {
+            'vendor': ['svelte', 'svelte/store', 'zustand', 'nanostores'],
+            'mastodon': ['megalodon'],
+            'ui': ['focus-trap', 'tippy.js'],
+          },
+        },
+        plugins: [
+          process.env.ANALYZE && visualizer({
+            open: true,
+            filename: 'dist/stats.html',
+            gzipSize: true,
+            brotliSize: true,
+          }),
+        ].filter(Boolean),
+      },
+    },
   },
   security: {
     checkOrigin: true,
   },
   // View transitions are now stable in Astro 5, no longer experimental
   transitions: true,
+  build: {
+    inlineStylesheets: 'auto',
+  },
+  prefetch: {
+    prefetchAll: false,
+    defaultStrategy: 'viewport',
+  },
 });

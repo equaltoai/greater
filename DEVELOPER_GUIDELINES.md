@@ -63,7 +63,7 @@ git >= 2.30.0
 
 ```bash
 # Clone the repository
-git clone https://github.com/greater-social/greater.git
+git clone https://github.com/greater-website/greater.git
 cd greater
 
 # Install dependencies

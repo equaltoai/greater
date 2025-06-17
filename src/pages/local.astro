@@ -1,6 +1,6 @@
 ---
 import MainLayout from '@/layouts/MainLayout.astro';
-import Timeline from '@/components/islands/svelte/Timeline.svelte';
+import VirtualizedTimeline from '@/components/islands/svelte/VirtualizedTimeline.svelte';
 import InstanceInfo from '@/components/islands/svelte/InstanceInfo.svelte';
 
 // Local timeline - posts from this instance only
@@ -12,7 +12,9 @@ import InstanceInfo from '@/components/islands/svelte/InstanceInfo.svelte';
     <p class="text-sm text-text-muted">Posts from this instance</p>
   </div>
   
-  <Timeline type="local" client:load />
+  <div class="flex-1 h-full">
+    <VirtualizedTimeline type="local" client:load />
+  </div>
   
   <div slot="aside">
     <InstanceInfo client:idle />

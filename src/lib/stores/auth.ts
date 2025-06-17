@@ -335,8 +335,8 @@ export async function getAccessToken(): Promise<string | null> {
   }
 }
 
-// Helper function to get access token (for API client)
-export async function getAccessToken(instance: string): Promise<string | null> {
+// Helper function to get access token for a specific instance
+export async function getAccessTokenForInstance(instance: string): Promise<string | null> {
   const token = await secureAuthClient.getToken(instance);
   return token?.access_token || null;
 }

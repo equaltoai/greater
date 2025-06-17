@@ -15,37 +15,43 @@ export type Layout = 'single' | 'multi' | 'focus';
 export const layout$ = persistentAtom<Layout>('layout', 'single');
 
 // Timeline preferences
-export const timelinePrefs$ = persistentMap<{
+export const timelinePrefs$ = persistentAtom<{
   autoRefresh: boolean;
   showReplies: boolean;
   showBoosts: boolean;
   mediaPreview: 'show' | 'hide' | 'blur';
   fontSize: 'small' | 'medium' | 'large';
-}>('timeline-prefs:', {
+}>('timeline-prefs', {
   autoRefresh: true,
   showReplies: true,
   showBoosts: true,
   mediaPreview: 'show',
   fontSize: 'medium'
+}, {
+  encode: JSON.stringify,
+  decode: JSON.parse
 });
 
 // Compose preferences
-export const composePrefs$ = persistentMap<{
+export const composePrefs$ = persistentAtom<{
   defaultVisibility: 'public' | 'unlisted' | 'private' | 'direct';
   defaultSensitive: boolean;
   defaultLanguage: string | null;
   saveDrafts: boolean;
   showPreview: boolean;
-}>('compose-prefs:', {
+}>('compose-prefs', {
   defaultVisibility: 'public',
   defaultSensitive: false,
   defaultLanguage: null,
   saveDrafts: true,
   showPreview: true
+}, {
+  encode: JSON.stringify,
+  decode: JSON.parse
 });
 
 // Notification preferences
-export const notificationPrefs$ = persistentMap<{
+export const notificationPrefs$ = persistentAtom<{
   desktop: boolean;
   sounds: boolean;
   filterFollows: boolean;
@@ -53,7 +59,7 @@ export const notificationPrefs$ = persistentMap<{
   filterFavorites: boolean;
   filterMentions: boolean;
   filterPolls: boolean;
-}>('notification-prefs:', {
+}>('notification-prefs', {
   desktop: false,
   sounds: false,
   filterFollows: false,
@@ -61,21 +67,27 @@ export const notificationPrefs$ = persistentMap<{
   filterFavorites: false,
   filterMentions: false,
   filterPolls: false
+}, {
+  encode: JSON.stringify,
+  decode: JSON.parse
 });
 
 // Accessibility preferences
-export const a11yPrefs$ = persistentMap<{
+export const a11yPrefs$ = persistentAtom<{
   reduceMotion: boolean;
   highContrast: boolean;
   largeText: boolean;
   showCaptions: boolean;
   keyboardShortcuts: boolean;
-}>('a11y-prefs:', {
+}>('a11y-prefs', {
   reduceMotion: false,
   highContrast: false,
   largeText: false,
   showCaptions: true,
   keyboardShortcuts: true
+}, {
+  encode: JSON.stringify,
+  decode: JSON.parse
 });
 
 // Computed values

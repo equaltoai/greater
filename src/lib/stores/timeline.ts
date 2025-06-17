@@ -9,19 +9,19 @@ import type { Status, TimelineParams } from '@/types/mastodon';
 import { getClient } from '@/lib/api/client';
 
 interface TimelineState {
-  // Timeline data
-  home: TimelineData;
-  local: TimelineData;
-  federated: TimelineData;
+  // Timeline data - supports dynamic timeline types
+  timelines: Record<string, TimelineData>;
+  isLoading: boolean;
+  error: string | null;
   
   // Actions
-  loadTimeline: (type: TimelineType, params?: TimelineParams) => Promise<void>;
-  loadMore: (type: TimelineType) => Promise<void>;
-  refresh: (type: TimelineType) => Promise<void>;
-  prependStatus: (type: TimelineType, status: Status) => void;
+  loadTimeline: (type: string, params?: TimelineParams) => Promise<void>;
+  loadMore: (type: string) => Promise<void>;
+  refreshTimeline: (type: string) => Promise<void>;
+  prependStatus: (type: string, status: Status) => void;
   updateStatus: (statusId: string, updates: Partial<Status>) => void;
   removeStatus: (statusId: string) => void;
-  clearTimeline: (type: TimelineType) => void;
+  clearTimeline: (type: string) => void;
   
   // Interactions
   favoriteStatus: (statusId: string) => Promise<void>;
@@ -30,10 +30,11 @@ interface TimelineState {
   unreblogStatus: (statusId: string) => Promise<void>;
   bookmarkStatus: (statusId: string) => Promise<void>;
   unbookmarkStatus: (statusId: string) => Promise<void>;
+  deleteStatus: (statusId: string) => Promise<void>;
   
   // Streaming
-  connectStream: (type: TimelineType) => void;
-  disconnectStream: (type: TimelineType) => void;
+  connectStream: (type: string) => Promise<void>;
+  disconnectStream: (type: string) => void;
 }
 
 interface TimelineData {
@@ -69,12 +70,12 @@ const initialTimelineData: TimelineData = {
 
 export const useTimelineStore = create<TimelineState>()(
   subscribeWithSelector((set, get) => ({
-    home: { ...initialTimelineData },
-    local: { ...initialTimelineData },
-    federated: { ...initialTimelineData },
+    timelines: {},
+    isLoading: false,
+    error: null,
     
-    loadTimeline: async (type: TimelineType, params?: TimelineParams) => {
-      const timeline = get()[type];
+    loadTimeline: async (type: string, params?: TimelineParams) => {
+      const timeline = get().timelines[type] || { ...initialTimelineData };
       const now = Date.now();
       
       // Skip if recently fetched and not forcing refresh
@@ -82,60 +83,91 @@ export const useTimelineStore = create<TimelineState>()(
         return;
       }
       
+      set({ isLoading: true, error: null });
+      
+      // Initialize timeline if doesn't exist
+      if (!get().timelines[type]) {
+        set(state => ({
+          timelines: { ...state.timelines, [type]: { ...initialTimelineData } }
+        }));
+      }
+      
       set(state => ({
-        [type]: { ...state[type], isLoading: true, error: null }
+        timelines: {
+          ...state.timelines,
+          [type]: { ...state.timelines[type], isLoading: true, error: null }
+        }
       }));
       
       try {
         const client = getClient();
         let statuses: Status[];
         
-        switch (type) {
-          case 'home':
-            statuses = await client.getHomeTimeline(params);
-            break;
-          case 'local':
-            statuses = await client.getLocalTimeline(params);
-            break;
-          case 'federated':
-            statuses = await client.getPublicTimeline(params);
-            break;
+        if (type.startsWith('list:')) {
+          const listId = type.replace('list:', '');
+          statuses = await client.getListTimeline(listId, params);
+        } else {
+          switch (type) {
+            case 'home':
+              statuses = await client.getHomeTimeline(params);
+              break;
+            case 'local':
+              statuses = await client.getLocalTimeline(params);
+              break;
+            case 'federated':
+              statuses = await client.getPublicTimeline(params);
+              break;
+            default:
+              throw new Error(`Unknown timeline type: ${type}`);
+          }
         }
         
         set(state => ({
-          [type]: {
-            ...state[type],
-            statuses: params?.since_id 
-              ? [...statuses, ...state[type].statuses]
-              : statuses,
-            hasMore: statuses.length >= (params?.limit || 20),
-            isLoading: false,
-            lastFetch: now,
-            error: null
-          }
+          timelines: {
+            ...state.timelines,
+            [type]: {
+              ...state.timelines[type],
+              statuses: params?.since_id 
+                ? [...statuses, ...state.timelines[type].statuses]
+                : statuses,
+              hasMore: statuses.length >= (params?.limit || 20),
+              isLoading: false,
+              lastFetch: now,
+              error: null
+            }
+          },
+          isLoading: false
         }));
       } catch (error) {
         set(state => ({
-          [type]: {
-            ...state[type],
-            isLoading: false,
-            error: error as Error
-          }
+          timelines: {
+            ...state.timelines,
+            [type]: {
+              ...state.timelines[type],
+              isLoading: false,
+              error: error as Error
+            }
+          },
+          isLoading: false,
+          error: error instanceof Error ? error.message : 'Failed to load timeline'
         }));
       }
     },
     
-    loadMore: async (type: TimelineType) => {
-      const timeline = get()[type];
+    loadMore: async (type: string) => {
+      const timeline = get().timelines[type];
       
-      if (!timeline.hasMore || timeline.isLoadingMore || timeline.statuses.length === 0) {
+      if (!timeline || !timeline.hasMore || timeline.isLoadingMore || timeline.statuses.length === 0) {
         return;
       }
       
       const lastStatus = timeline.statuses[timeline.statuses.length - 1];
       
       set(state => ({
-        [type]: { ...state[type], isLoadingMore: true }
+        timelines: {
+          ...state.timelines,
+          [type]: { ...state.timelines[type], isLoadingMore: true }
+        }
       }));
       
       try {
@@ -147,41 +179,54 @@ export const useTimelineStore = create<TimelineState>()(
           limit: 20
         };
         
-        switch (type) {
-          case 'home':
-            statuses = await client.getHomeTimeline(params);
-            break;
-          case 'local':
-            statuses = await client.getLocalTimeline(params);
-            break;
-          case 'federated':
-            statuses = await client.getPublicTimeline(params);
-            break;
+        if (type.startsWith('list:')) {
+          const listId = type.replace('list:', '');
+          statuses = await client.getListTimeline(listId, params);
+        } else {
+          switch (type) {
+            case 'home':
+              statuses = await client.getHomeTimeline(params);
+              break;
+            case 'local':
+              statuses = await client.getLocalTimeline(params);
+              break;
+            case 'federated':
+              statuses = await client.getPublicTimeline(params);
+              break;
+            default:
+              throw new Error(`Unknown timeline type: ${type}`);
+          }
         }
         
         set(state => ({
-          [type]: {
-            ...state[type],
-            statuses: [...state[type].statuses, ...statuses],
-            hasMore: statuses.length >= 20,
-            isLoadingMore: false
+          timelines: {
+            ...state.timelines,
+            [type]: {
+              ...state.timelines[type],
+              statuses: [...state.timelines[type].statuses, ...statuses],
+              hasMore: statuses.length >= 20,
+              isLoadingMore: false
+            }
           }
         }));
       } catch (error) {
         set(state => ({
-          [type]: {
-            ...state[type],
-            isLoadingMore: false,
-            error: error as Error
+          timelines: {
+            ...state.timelines,
+            [type]: {
+              ...state.timelines[type],
+              isLoadingMore: false,
+              error: error as Error
+            }
           }
         }));
       }
     },
     
-    refresh: async (type: TimelineType) => {
-      const timeline = get()[type];
+    refreshTimeline: async (type: string) => {
+      const timeline = get().timelines[type];
       
-      if (timeline.statuses.length === 0) {
+      if (!timeline || timeline.statuses.length === 0) {
         return get().loadTimeline(type);
       }
       
@@ -194,24 +239,27 @@ export const useTimelineStore = create<TimelineState>()(
       }
     },
     
-    prependStatus: (type: TimelineType, status: Status) => {
+    prependStatus: (type: string, status: Status) => {
       set(state => ({
-        [type]: {
-          ...state[type],
-          statuses: [status, ...state[type].statuses]
+        timelines: {
+          ...state.timelines,
+          [type]: {
+            ...state.timelines[type],
+            statuses: [status, ...state.timelines[type].statuses]
+          }
         }
       }));
     },
     
     updateStatus: (statusId: string, updates: Partial<Status>) => {
       set(state => {
-        const updatedState = { ...state };
+        const updatedTimelines: Record<string, TimelineData> = {};
         
         // Update in all timelines
-        (['home', 'local', 'federated'] as TimelineType[]).forEach(type => {
-          updatedState[type] = {
-            ...state[type],
-            statuses: state[type].statuses.map(status => {
+        Object.entries(state.timelines).forEach(([type, timeline]) => {
+          updatedTimelines[type] = {
+            ...timeline,
+            statuses: timeline.statuses.map(status => {
               if (status.id === statusId) {
                 return { ...status, ...updates };
               }
@@ -227,41 +275,51 @@ export const useTimelineStore = create<TimelineState>()(
           };
         });
         
-        return updatedState;
+        return { ...state, timelines: updatedTimelines };
       });
     },
     
     removeStatus: (statusId: string) => {
       set(state => {
-        const updatedState = { ...state };
+        const updatedTimelines: Record<string, TimelineData> = {};
         
         // Remove from all timelines
-        (['home', 'local', 'federated'] as TimelineType[]).forEach(type => {
-          updatedState[type] = {
-            ...state[type],
-            statuses: state[type].statuses.filter(status => 
+        Object.entries(state.timelines).forEach(([type, timeline]) => {
+          updatedTimelines[type] = {
+            ...timeline,
+            statuses: timeline.statuses.filter(status => 
               status.id !== statusId && status.reblog?.id !== statusId
             )
           };
         });
         
-        return updatedState;
+        return { ...state, timelines: updatedTimelines };
       });
     },
     
-    clearTimeline: (type: TimelineType) => {
+    clearTimeline: (type: string) => {
       set(state => ({
-        [type]: { ...initialTimelineData }
+        timelines: {
+          ...state.timelines,
+          [type]: { ...initialTimelineData }
+        }
       }));
     },
     
     favoriteStatus: async (statusId: string) => {
       const client = getClient();
       
+      // Find the status in any timeline
+      let originalStatus: Status | undefined;
+      for (const timeline of Object.values(get().timelines)) {
+        originalStatus = timeline.statuses.find(s => s.id === statusId || s.reblog?.id === statusId);
+        if (originalStatus) break;
+      }
+      
       // Optimistic update
       get().updateStatus(statusId, { 
         favourited: true,
-        favourites_count: (get().home.statuses.find(s => s.id === statusId || s.reblog?.id === statusId)?.favourites_count || 0) + 1
+        favourites_count: (originalStatus?.favourites_count || 0) + 1
       });
       
       try {
@@ -271,7 +329,7 @@ export const useTimelineStore = create<TimelineState>()(
         // Revert on error
         get().updateStatus(statusId, { 
           favourited: false,
-          favourites_count: (get().home.statuses.find(s => s.id === statusId || s.reblog?.id === statusId)?.favourites_count || 1) - 1
+          favourites_count: (originalStatus?.favourites_count || 1) - 1
         });
         throw error;
       }
@@ -280,10 +338,17 @@ export const useTimelineStore = create<TimelineState>()(
     unfavoriteStatus: async (statusId: string) => {
       const client = getClient();
       
+      // Find the status in any timeline
+      let originalStatus: Status | undefined;
+      for (const timeline of Object.values(get().timelines)) {
+        originalStatus = timeline.statuses.find(s => s.id === statusId || s.reblog?.id === statusId);
+        if (originalStatus) break;
+      }
+      
       // Optimistic update
       get().updateStatus(statusId, { 
         favourited: false,
-        favourites_count: Math.max(0, (get().home.statuses.find(s => s.id === statusId || s.reblog?.id === statusId)?.favourites_count || 1) - 1)
+        favourites_count: Math.max(0, (originalStatus?.favourites_count || 1) - 1)
       });
       
       try {
@@ -293,7 +358,7 @@ export const useTimelineStore = create<TimelineState>()(
         // Revert on error
         get().updateStatus(statusId, { 
           favourited: true,
-          favourites_count: (get().home.statuses.find(s => s.id === statusId || s.reblog?.id === statusId)?.favourites_count || 0) + 1
+          favourites_count: (originalStatus?.favourites_count || 0) + 1
         });
         throw error;
       }
@@ -302,10 +367,17 @@ export const useTimelineStore = create<TimelineState>()(
     reblogStatus: async (statusId: string) => {
       const client = getClient();
       
+      // Find the status in any timeline
+      let originalStatus: Status | undefined;
+      for (const timeline of Object.values(get().timelines)) {
+        originalStatus = timeline.statuses.find(s => s.id === statusId || s.reblog?.id === statusId);
+        if (originalStatus) break;
+      }
+      
       // Optimistic update
       get().updateStatus(statusId, { 
         reblogged: true,
-        reblogs_count: (get().home.statuses.find(s => s.id === statusId || s.reblog?.id === statusId)?.reblogs_count || 0) + 1
+        reblogs_count: (originalStatus?.reblogs_count || 0) + 1
       });
       
       try {
@@ -315,7 +387,7 @@ export const useTimelineStore = create<TimelineState>()(
         // Revert on error
         get().updateStatus(statusId, { 
           reblogged: false,
-          reblogs_count: (get().home.statuses.find(s => s.id === statusId || s.reblog?.id === statusId)?.reblogs_count || 1) - 1
+          reblogs_count: (originalStatus?.reblogs_count || 1) - 1
         });
         throw error;
       }
@@ -324,10 +396,17 @@ export const useTimelineStore = create<TimelineState>()(
     unreblogStatus: async (statusId: string) => {
       const client = getClient();
       
+      // Find the status in any timeline
+      let originalStatus: Status | undefined;
+      for (const timeline of Object.values(get().timelines)) {
+        originalStatus = timeline.statuses.find(s => s.id === statusId || s.reblog?.id === statusId);
+        if (originalStatus) break;
+      }
+      
       // Optimistic update
       get().updateStatus(statusId, { 
         reblogged: false,
-        reblogs_count: Math.max(0, (get().home.statuses.find(s => s.id === statusId || s.reblog?.id === statusId)?.reblogs_count || 1) - 1)
+        reblogs_count: Math.max(0, (originalStatus?.reblogs_count || 1) - 1)
       });
       
       try {
@@ -337,7 +416,7 @@ export const useTimelineStore = create<TimelineState>()(
         // Revert on error
         get().updateStatus(statusId, { 
           reblogged: true,
-          reblogs_count: (get().home.statuses.find(s => s.id === statusId || s.reblog?.id === statusId)?.reblogs_count || 0) + 1
+          reblogs_count: (originalStatus?.reblogs_count || 0) + 1
         });
         throw error;
       }
@@ -374,28 +453,47 @@ export const useTimelineStore = create<TimelineState>()(
         throw error;
       }
     },
+
+    deleteStatus: async (statusId: string) => {
+      const client = getClient();
+      
+      try {
+        await client.deleteStatus(statusId);
+        // Remove from all timelines
+        get().removeStatus(statusId);
+      } catch (error) {
+        throw error;
+      }
+    },
     
-    connectStream: (type: TimelineType) => {
-      const timeline = get()[type];
+    connectStream: async (type: string) => {
+      const timeline = get().timelines[type];
       
       // Don't connect if already connected
-      if (timeline.stream) {
+      if (timeline?.stream) {
         return;
       }
       
       const client = getClient();
       let stream: EventSource;
       
-      switch (type) {
-        case 'home':
-          stream = client.streamUser();
-          break;
-        case 'local':
-          stream = client.streamPublic({ local: true });
-          break;
-        case 'federated':
-          stream = client.streamPublic();
-          break;
+      if (type.startsWith('list:')) {
+        const listId = type.replace('list:', '');
+        stream = await client.streamList(listId);
+      } else {
+        switch (type) {
+          case 'home':
+            stream = await client.streamUser();
+            break;
+          case 'local':
+            stream = await client.streamPublic({ local: true });
+            break;
+          case 'federated':
+            stream = await client.streamPublic();
+            break;
+          default:
+            throw new Error(`Unknown timeline type for streaming: ${type}`);
+        }
       }
       
       stream.addEventListener('update', (event) => {
@@ -423,17 +521,23 @@ export const useTimelineStore = create<TimelineState>()(
       });
       
       set(state => ({
-        [type]: { ...state[type], stream }
+        timelines: {
+          ...state.timelines,
+          [type]: { ...state.timelines[type], stream }
+        }
       }));
     },
     
-    disconnectStream: (type: TimelineType) => {
-      const timeline = get()[type];
+    disconnectStream: (type: string) => {
+      const timeline = get().timelines[type];
       
-      if (timeline.stream) {
+      if (timeline?.stream) {
         timeline.stream.close();
         set(state => ({
-          [type]: { ...state[type], stream: null }
+          timelines: {
+            ...state.timelines,
+            [type]: { ...state.timelines[type], stream: null }
+          }
         }));
       }
     }
@@ -443,15 +547,18 @@ export const useTimelineStore = create<TimelineState>()(
 // Subscribe to auth changes to clear timelines
 import { useAuthStore } from './auth';
 
-useAuthStore.subscribe(
-  state => state.currentInstance,
-  (instance, previousInstance) => {
-    if (instance !== previousInstance) {
-      // Clear all timelines when switching instances
+// Subscribe to auth changes to clear timelines
+let previousInstance: string | null = null;
+useAuthStore.subscribe((state) => {
+  if (state.currentInstance !== previousInstance) {
+    // Clear all timelines when switching instances
+    if (previousInstance !== null) {
       const store = useTimelineStore.getState();
-      store.clearTimeline('home');
-      store.clearTimeline('local');
-      store.clearTimeline('federated');
+      Object.keys(store.timelines).forEach(type => {
+        store.disconnectStream(type);
+        store.clearTimeline(type);
+      });
     }
+    previousInstance = state.currentInstance;
   }
-);
+});

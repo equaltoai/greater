@@ -51,7 +51,7 @@ jobs:
           CLOUDFLARE_EMAIL: ${{ secrets.CLOUDFLARE_EMAIL }}
           CLOUDFLARE_API_KEY: ${{ secrets.CLOUDFLARE_API_KEY }}
           CLOUDFLARE_ZONE: ${{ secrets.CLOUDFLARE_ZONE }}
-          PURGE_URLS: '["https://greater.social/*"]'
+          PURGE_URLS: '["https://greater.website/*"]'
 
       - name: Create deployment
         uses: actions/github-script@v7
@@ -72,6 +72,6 @@ jobs:
               repo: context.repo.repo,
               deployment_id: deployment.data.id,
               state: 'success',
-              environment_url: 'https://greater.social',
+              environment_url: 'https://greater.website',
               description: 'Deployment completed successfully'
             });

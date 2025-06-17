@@ -45,8 +45,8 @@ export function createAPIStore<T>(
 
 // Timeline store
 export function createTimelineStore(
-  endpoint: string,
-  params?: TimelineParams
+  endpoint: 'home' | 'public' | 'local' | 'tag' | 'list',
+  params?: TimelineParams & { tag?: string; listId?: string }
 ) {
   const statuses = writable<Status[]>([]);
   const loading = writable(false);
@@ -68,10 +68,42 @@ export function createTimelineStore(
     try {
       const client = await getClient();
       const lastStatus = $statuses[$statuses.length - 1];
-      const newStatuses = await client.getTimeline(endpoint, {
-        ...params,
-        max_id: lastStatus.id,
-      });
+      let newStatuses: Status[] = [];
+      switch (endpoint) {
+        case 'home':
+          newStatuses = await client.getHomeTimeline({
+            ...params,
+            max_id: lastStatus.id,
+          });
+          break;
+        case 'public':
+          newStatuses = await client.getPublicTimeline({
+            ...params,
+            max_id: lastStatus.id,
+          });
+          break;
+        case 'local':
+          newStatuses = await client.getLocalTimeline({
+            ...params,
+            max_id: lastStatus.id,
+          });
+          break;
+        case 'tag':
+          if (params?.tag) {
+            newStatuses = await client.getTagTimeline(params.tag, {
+              ...params,
+              max_id: lastStatus.id,
+            });
+          }
+          break;
+        case 'list':
+          if (params?.listId) {
+            newStatuses = await client.getListTimeline(params.listId, {
+              max_id: lastStatus.id,
+            });
+          }
+          break;
+      }
 
       if (newStatuses.length === 0) {
         hasMore.set(false);
@@ -91,7 +123,28 @@ export function createTimelineStore(
 
     try {
       const client = await getClient();
-      const newStatuses = await client.getTimeline(endpoint, params);
+      let newStatuses: Status[] = [];
+      switch (endpoint) {
+        case 'home':
+          newStatuses = await client.getHomeTimeline(params);
+          break;
+        case 'public':
+          newStatuses = await client.getPublicTimeline(params);
+          break;
+        case 'local':
+          newStatuses = await client.getLocalTimeline(params);
+          break;
+        case 'tag':
+          if (params?.tag) {
+            newStatuses = await client.getTagTimeline(params.tag, params);
+          }
+          break;
+        case 'list':
+          if (params?.listId) {
+            newStatuses = await client.getListTimeline(params.listId);
+          }
+          break;
+      }
       statuses.set(newStatuses);
       hasMore.set(true);
     } catch (e) {

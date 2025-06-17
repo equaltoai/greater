@@ -1,0 +1,80 @@
+---
+export interface Props {
+  currentTheme?: string
+}
+
+const { currentTheme = 'system' } = Astro.props
+---
+
+<div class="lazy-theme-settings" data-theme={currentTheme}>
+  <button class="load-settings-btn">
+    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+      <circle cx="12" cy="12" r="10"/>
+      <path d="M12 2v20M2 12h20"/>
+      <circle cx="12" cy="12" r="3"/>
+    </svg>
+    <span>Customize Theme</span>
+  </button>
+</div>
+
+<script>
+  class LazyThemeSettings extends HTMLElement {
+    async connectedCallback() {
+      const container = this.querySelector('.lazy-theme-settings')
+      if (!container) return
+
+      const button = container.querySelector('.load-settings-btn')
+      const currentTheme = container.dataset.theme
+
+      button?.addEventListener('click', async () => {
+        button.disabled = true
+        button.innerHTML = '<span class="loading">Loading...</span>'
+
+        const { default: ThemeSettings } = await import('../islands/svelte/ThemeSettings.svelte')
+        const settings = new ThemeSettings({
+          target: container,
+          props: { currentTheme }
+        })
+        
+        container.innerHTML = ''
+      })
+    }
+  }
+
+  customElements.define('lazy-theme-settings', LazyThemeSettings)
+</script>
+
+<style>
+  .load-settings-btn {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    background: var(--color-primary);
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    transition: opacity 0.2s;
+  }
+
+  .load-settings-btn:hover {
+    opacity: 0.9;
+  }
+
+  .load-settings-btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+  }
+
+  .loading {
+    display: inline-block;
+    animation: pulse 1s infinite;
+  }
+
+  @keyframes pulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+  }
+</style>

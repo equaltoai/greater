@@ -5,7 +5,7 @@
 
 import { atom, map, computed } from 'nanostores';
 import { persistentAtom, persistentMap } from '@nanostores/persistent';
-import type { CreateStatusParams, MediaAttachment, Poll } from '@/types/mastodon';
+import type { CreateStatusParams, MediaAttachment, CreatePollParams } from '@/types/mastodon';
 import { getClient } from '@/lib/api/client';
 
 // Current compose state
@@ -15,7 +15,7 @@ export const composeSensitive$ = atom<boolean>(false);
 export const composeSpoilerText$ = atom<string>('');
 export const composeReplyTo$ = atom<string | null>(null);
 export const composeMedia$ = atom<MediaAttachment[]>([]);
-export const composePoll$ = atom<Poll | null>(null);
+export const composePoll$ = atom<CreatePollParams | null>(null);
 export const composeLanguage$ = atom<string | null>(null);
 
 // UI state
@@ -33,12 +33,16 @@ export interface Draft {
   spoilerText: string;
   replyTo: string | null;
   mediaIds: string[];
-  poll: Poll | null;
+  poll: CreatePollParams | null;
   createdAt: number;
   updatedAt: number;
 }
 
-export const drafts$ = persistentMap<Record<string, Draft>>('drafts:', {});
+// Use persistentAtom with JSON serialization for complex objects
+export const drafts$ = persistentAtom<Record<string, Draft>>('drafts', {}, {
+  encode: JSON.stringify,
+  decode: JSON.parse
+});
 
 // Computed values
 export const currentDraftId$ = atom<string | null>(null);
@@ -65,7 +69,7 @@ export const canPost$ = computed(
 );
 
 // Actions
-export const saveDraft = action(drafts$, 'saveDraft', (store) => {
+export function saveDraft() {
   const id = currentDraftId$.get() || crypto.randomUUID();
   const now = Date.now();
   
@@ -78,18 +82,18 @@ export const saveDraft = action(drafts$, 'saveDraft', (store) => {
     replyTo: composeReplyTo$.get(),
     mediaIds: composeMedia$.get().map(m => m.id),
     poll: composePoll$.get(),
-    createdAt: store.get()[id]?.createdAt || now,
+    createdAt: drafts$.get()[id]?.createdAt || now,
     updatedAt: now
   };
   
-  store.setKey(id, draft);
+  drafts$.set({ ...drafts$.get(), [id]: draft });
   currentDraftId$.set(id);
   
   return id;
-});
+}
 
-export const loadDraft = action(drafts$, 'loadDraft', (store, draftId: string) => {
-  const draft = store.get()[draftId];
+export function loadDraft(draftId: string) {
+  const draft = drafts$.get()[draftId];
   if (!draft) return;
   
   composeText$.set(draft.text);
@@ -102,17 +106,17 @@ export const loadDraft = action(drafts$, 'loadDraft', (store, draftId: string) =
   
   // TODO: Reload media attachments from IDs
   composeMedia$.set([]);
-});
+}
 
-export const deleteDraft = action(drafts$, 'deleteDraft', (store, draftId: string) => {
-  const drafts = { ...store.get() };
+export function deleteDraft(draftId: string) {
+  const drafts = { ...drafts$.get() };
   delete drafts[draftId];
-  store.set(drafts);
+  drafts$.set(drafts);
   
   if (currentDraftId$.get() === draftId) {
     clearCompose();
   }
-});
+}
 
 export const clearCompose = () => {
   composeText$.set('');
@@ -168,19 +172,40 @@ export const createPost = async (): Promise<boolean> => {
   isComposing$.set(true);
   composeError$.set(null);
   
+  const params: CreateStatusParams = {
+    status: composeText$.get(),
+    visibility: composeVisibility$.get(),
+    sensitive: composeSensitive$.get(),
+    spoiler_text: composeSpoilerText$.get() || undefined,
+    in_reply_to_id: composeReplyTo$.get() || undefined,
+    media_ids: composeMedia$.get().map(m => m.id),
+    language: composeLanguage$.get() || undefined,
+    poll: composePoll$.get() || undefined
+  };
+  
   try {
     const client = getClient();
     
-    const params: CreateStatusParams = {
-      status: composeText$.get(),
-      visibility: composeVisibility$.get(),
-      sensitive: composeSensitive$.get(),
-      spoiler_text: composeSpoilerText$.get() || undefined,
-      in_reply_to_id: composeReplyTo$.get() || undefined,
-      media_ids: composeMedia$.get().map(m => m.id),
-      language: composeLanguage$.get() || undefined,
-      poll: composePoll$.get() || undefined
-    };
+    // Check if online
+    if (!navigator.onLine) {
+      // Add to offline queue
+      const { useOfflineStore } = await import('./offline');
+      const offlineStore = useOfflineStore.getState();
+      const postId = offlineStore.addPost(params);
+      
+      composeError$.set('You\'re offline. Your post will be sent when you\'re back online.');
+      
+      // Clear compose after queueing
+      clearCompose();
+      
+      // Delete draft if it was saved
+      const draftId = currentDraftId$.get();
+      if (draftId) {
+        deleteDraft(draftId);
+      }
+      
+      return true;
+    }
     
     await client.createStatus(params);
     
@@ -195,6 +220,22 @@ export const createPost = async (): Promise<boolean> => {
     
     return true;
   } catch (error) {
+    // If network error, add to offline queue
+    if (error instanceof Error && 
+        (error.message.includes('Failed to fetch') || 
+         error.message.includes('Network request failed'))) {
+      const { useOfflineStore } = await import('./offline');
+      const offlineStore = useOfflineStore.getState();
+      offlineStore.addPost(params);
+      
+      composeError$.set('Network error. Your post has been queued and will be sent when connection is restored.');
+      
+      // Clear compose after queueing
+      clearCompose();
+      
+      return true;
+    }
+    
     composeError$.set(error instanceof Error ? error.message : 'Failed to post');
     return false;
   } finally {

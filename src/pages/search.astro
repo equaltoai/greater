@@ -1,0 +1,16 @@
+---
+import MainLayout from '../layouts/MainLayout.astro';
+import SearchResults from '../components/islands/svelte/SearchResults.svelte';
+
+const isAuthenticated = Astro.cookies.get('auth-storage')?.value;
+
+if (!isAuthenticated) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<MainLayout title="Search">
+  <div class="max-w-2xl mx-auto">
+    <SearchResults client:load />
+  </div>
+</MainLayout>

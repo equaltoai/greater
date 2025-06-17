@@ -1,6 +1,7 @@
 <script lang="ts">
-  import { onMount } from 'svelte';
+  import { onMount, onDestroy } from 'svelte';
   import { useAuthStore } from '@/lib/stores/auth';
+  import { unreadCount$, startNotificationStream } from '@/lib/stores/notifications';
   
   const authStore = useAuthStore.getState();
   
@@ -23,9 +24,25 @@
   ];
   
   let currentPath = $state('');
+  let unreadCount = 0;
+  let unsubscribe: () => void;
   
   onMount(() => {
     currentPath = window.location.pathname;
+    
+    // Subscribe to unread count
+    unsubscribe = unreadCount$.subscribe(count => {
+      unreadCount = count;
+    });
+    
+    // Start notification streaming if user is logged in
+    if (authStore.currentUser) {
+      startNotificationStream();
+    }
+  });
+  
+  onDestroy(() => {
+    if (unsubscribe) unsubscribe();
   });
   
   function isActive(href: string, exact = false): boolean {
@@ -48,7 +65,14 @@
           {#if isActive(item.href, item.exact)}
             <span class="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-8 bg-primary rounded-r"></span>
           {/if}
-          <span class="text-xl">{item.icon}</span>
+          <span class="text-xl relative">
+            {item.icon}
+            {#if item.href === '/notifications' && unreadCount > 0}
+              <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                {unreadCount > 99 ? '99+' : unreadCount}
+              </span>
+            {/if}
+          </span>
           <span class="text-base">{item.label}</span>
         </a>
       </li>
@@ -81,7 +105,14 @@
     {#if isActive('/notifications')}
       <span class="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-primary rounded-b"></span>
     {/if}
-    <span>🔔</span>
+    <span class="relative">
+      🔔
+      {#if unreadCount > 0}
+        <span class="absolute -top-1 -right-1 bg-red-500 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+          {unreadCount > 99 ? '99+' : unreadCount}
+        </span>
+      {/if}
+    </span>
   </a>
   <a href="/compose" class="flex items-center justify-center text-white bg-primary rounded-full w-14 h-14 -mt-4">
     <span>✏️</span>

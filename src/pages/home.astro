@@ -1,6 +1,6 @@
 ---
 import MainLayout from '@/layouts/MainLayout.astro';
-import Timeline from '@/components/islands/svelte/Timeline.svelte';
+import VirtualizedTimeline from '@/components/islands/svelte/VirtualizedTimeline.svelte';
 import TrendingSidebar from '@/components/islands/svelte/TrendingSidebar.svelte';
 
 // This will be the home timeline page
@@ -11,7 +11,9 @@ import TrendingSidebar from '@/components/islands/svelte/TrendingSidebar.svelte'
     <h1 class="text-xl font-bold text-text">Home</h1>
   </div>
   
-  <Timeline type="home" client:load />
+  <div class="flex-1 h-full">
+    <VirtualizedTimeline type="home" client:load />
+  </div>
   
   <div slot="aside">
     <TrendingSidebar client:idle />

@@ -1,95 +1,81 @@
-name = "greater-client"
+# Cloudflare Pages Configuration
+name = "greater"
 compatibility_date = "2024-01-01"
 compatibility_flags = ["nodejs_compat"]
 
-[site]
-bucket = "./dist"
-
+# Pages build configuration
 [build]
 command = "npm run build"
 
-[build.upload]
-format = "service-worker"
+# Pages-specific configuration
+pages_build_output_dir = "dist"
 
-# Development environment
-[env.development]
-name = "greater-client-dev"
+# Development environment bindings
+# Note: For Pages, these are configured differently than Workers
+# You'll need to use `wrangler pages secret` and dashboard for production
 
-[env.development.vars]
+# Local development bindings (for wrangler pages dev)
+[vars]
 ENVIRONMENT = "development"
 API_VERSION = "v1"
 
-# Production environment
-[env.production]
-name = "greater-client"
-
-[env.production.vars]
-ENVIRONMENT = "production"
-API_VERSION = "v1"
-
-# KV Namespaces
-[[env.production.kv_namespaces]]
+# KV Namespaces - These need to be created first with:
+# wrangler kv:namespace create "SESSIONS"
+# wrangler kv:namespace create "CACHE"
+# wrangler kv:namespace create "PREFERENCES"
+[[kv_namespaces]]
 binding = "SESSIONS"
-id = "session-storage-production"
+# Replace with actual ID from creation command
+id = "YOUR_SESSIONS_KV_ID"
 
-[[env.production.kv_namespaces]]
+[[kv_namespaces]]
 binding = "CACHE"
-id = "api-cache-production"
+# Replace with actual ID from creation command
+id = "YOUR_CACHE_KV_ID"
 
-[[env.production.kv_namespaces]]
+[[kv_namespaces]]
 binding = "PREFERENCES"
-id = "user-preferences-production"
+# Replace with actual ID from creation command
+id = "YOUR_PREFERENCES_KV_ID"
 
-[[env.development.kv_namespaces]]
-binding = "SESSIONS"
-id = "session-storage-dev"
+[[kv_namespaces]]
+binding = "OFFLINE"
+# Replace with actual ID from creation command
+id = "YOUR_OFFLINE_KV_ID"
 
-[[env.development.kv_namespaces]]
-binding = "CACHE"
-id = "api-cache-dev"
-
-[[env.development.kv_namespaces]]
-binding = "PREFERENCES"
-id = "user-preferences-dev"
-
-# R2 Buckets
-[[env.production.r2_buckets]]
+# R2 Buckets - Create with:
+# wrangler r2 bucket create greater-media
+# wrangler r2 bucket create greater-static
+[[r2_buckets]]
 binding = "MEDIA"
-bucket_name = "greater-media-production"
+bucket_name = "greater-media"
 
-[[env.development.r2_buckets]]
-binding = "MEDIA"
-bucket_name = "greater-media-dev"
+[[r2_buckets]]
+binding = "STATIC"
+bucket_name = "greater-static"
 
-# D1 Databases
-[[env.production.d1_databases]]
+# D1 Databases - Create with:
+# wrangler d1 create greater-analytics
+[[d1_databases]]
 binding = "ANALYTICS"
 database_name = "greater-analytics"
-database_id = "analytics-db-production"
+# Replace with actual ID from creation command
+database_id = "YOUR_D1_DATABASE_ID"
 
-[[env.development.d1_databases]]
-binding = "ANALYTICS"
-database_name = "greater-analytics-dev"
-database_id = "analytics-db-dev"
+# Durable Objects - For Pages, configure in dashboard
+# [[durable_objects.bindings]]
+# name = "WEBSOCKET"
+# class_name = "WebSocketHandler"
+# script_name = "websocket-handler"
 
-# Durable Objects
-[[env.production.durable_objects.bindings]]
-name = "WEBSOCKET"
-class_name = "WebSocketHandler"
-script_name = "websocket-handler"
+# Note: Routes are configured in Cloudflare Pages dashboard
+# Custom domains, preview URLs, etc. are managed there
 
-[[env.development.durable_objects.bindings]]
-name = "WEBSOCKET"
-class_name = "WebSocketHandler"
-script_name = "websocket-handler"
+# Analytics Engine binding (optional)
+# [[analytics_engine_datasets]]
+# binding = "ANALYTICS_ENGINE"
+# dataset = "greater_analytics"
 
-# Routes
-[[env.production.routes]]
-pattern = "greater.social/*"
-zone_name = "greater.social"
-
-# Rate limiting
-[env.production.rate_limiting]
-threshold = 50
-period = 60
-characteristics = ["cf.colo.id", "ip.src"]
+# Browser Rendering binding (optional, for screenshots)
+# [browser]
+# binding = "BROWSER"

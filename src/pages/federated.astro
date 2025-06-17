@@ -1,6 +1,6 @@
 ---
 import MainLayout from '@/layouts/MainLayout.astro';
-import Timeline from '@/components/islands/svelte/Timeline.svelte';
+import VirtualizedTimeline from '@/components/islands/svelte/VirtualizedTimeline.svelte';
 
 // Federated timeline - all known public posts
 ---
@@ -11,5 +11,7 @@ import Timeline from '@/components/islands/svelte/Timeline.svelte';
     <p class="text-sm text-text-muted">Public posts from known instances</p>
   </div>
   
-  <Timeline type="federated" client:load />
+  <div class="flex-1 h-full">
+    <VirtualizedTimeline type="federated" client:load />
+  </div>
 </MainLayout>

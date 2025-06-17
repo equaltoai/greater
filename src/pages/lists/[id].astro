@@ -1,0 +1,14 @@
+---
+import MainLayout from '@/layouts/MainLayout.astro';
+import ListTimeline from '@/components/islands/svelte/ListTimeline.svelte';
+
+const { id } = Astro.params;
+
+if (!id) {
+  return Astro.redirect('/lists');
+}
+---
+
+<MainLayout title="List Timeline">
+  <ListTimeline listId={id} client:load />
+</MainLayout>

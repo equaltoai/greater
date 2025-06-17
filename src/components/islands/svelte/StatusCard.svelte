@@ -1,8 +1,12 @@
 <script lang="ts">
-	import type { Status } from '@/types/mastodon';
+	import { onMount } from 'svelte';
+	import type { Status, Relationship } from '@/types/mastodon';
 	import { sanitizeMastodonHtml } from '@/lib/utils/sanitize';
 	import { useTimelineStore } from '@/lib/stores/timeline';
 	import { useAuthStore } from '@/lib/stores/auth';
+	import { getClient } from '@/lib/api/client';
+	import Button from './Button.svelte';
+	import MediaGallery from './MediaGallery.svelte';
 	
 	interface Props {
 		status: Status;
@@ -41,6 +45,39 @@
 	});
 	
 	let isInteracting = $state(false);
+	let showMenu = $state(false);
+	let relationship: Relationship | null = null;
+	let followLoading = false;
+	
+	const isOwnStatus = $derived(displayStatus.account.id === authStore.currentAccount?.id);
+	
+	onMount(() => {
+		// Close menu when clicking outside
+		const handleClickOutside = (e: MouseEvent) => {
+			if (showMenu) {
+				const target = e.target as HTMLElement;
+				if (!target.closest('.relative')) {
+					showMenu = false;
+				}
+			}
+		};
+		
+		document.addEventListener('click', handleClickOutside);
+		return () => document.removeEventListener('click', handleClickOutside);
+	});
+	
+	// Load relationship on mount if not own status
+	onMount(async () => {
+		if (!isOwnStatus && authStore.currentAccount) {
+			try {
+				const client = getClient();
+				const relationships = await client.getRelationships([displayStatus.account.id]);
+				relationship = relationships[0];
+			} catch (err) {
+				console.error('Failed to load relationship:', err);
+			}
+		}
+	});
 	
 	async function handleFavorite() {
 		if (isInteracting || !authStore.currentAccount) return;
@@ -88,8 +125,15 @@
 	}
 	
 	function handleReply() {
-		// TODO: Open compose modal with reply context
-		console.log('Reply to:', displayStatus.id);
+		// Set reply context in compose store
+		import('../../../lib/stores/compose').then(({ composeReplyTo$, composeText$ }) => {
+			composeReplyTo$.set(displayStatus.id);
+			// Add mention to the beginning of the compose text
+			const mention = `@${displayStatus.account.acct} `;
+			composeText$.set(mention);
+			// Navigate to compose page
+			window.location.href = '/compose';
+		});
 	}
 	
 	function handleShare() {
@@ -103,9 +147,64 @@
 			navigator.clipboard.writeText(displayStatus.url || displayStatus.uri);
 		}
 	}
+	
+	async function handleDelete() {
+		if (!confirm('Are you sure you want to delete this post?')) return;
+		
+		isInteracting = true;
+		try {
+			await timelineStore.deleteStatus(displayStatus.id);
+			// If we're on the status page, navigate back
+			if (window.location.pathname.startsWith('/status/')) {
+				window.history.back();
+			}
+		} catch (error) {
+			console.error('Failed to delete status:', error);
+			alert('Failed to delete post');
+		} finally {
+			isInteracting = false;
+		}
+	}
+	
+	async function handleFollow() {
+		if (!authStore.currentAccount || followLoading) return;
+		
+		followLoading = true;
+		try {
+			const client = getClient();
+			
+			if (relationship?.following) {
+				relationship = await client.unfollowAccount(displayStatus.account.id);
+			} else {
+				relationship = await client.followAccount(displayStatus.account.id);
+			}
+		} catch (err) {
+			console.error('Follow/unfollow failed:', err);
+		} finally {
+			followLoading = false;
+		}
+	}
 </script>
 
-<article class="card p-4 space-y-3">
+<article 
+	class="card p-4 space-y-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
+	onclick={(e) => {
+		// Don't navigate if clicking on interactive elements
+		const target = e.target as HTMLElement;
+		if (target.closest('button') || target.closest('a') || target.closest('video') || target.closest('audio')) {
+			return;
+		}
+		window.location.href = `/status/${displayStatus.id}`;
+	}}
+	role="article"
+	aria-label="Post by {displayStatus.account.display_name || displayStatus.account.username}"
+	tabindex="0"
+	onkeydown={(e) => {
+		if (e.key === 'Enter' && !e.target.closest('button') && !e.target.closest('a')) {
+			window.location.href = `/status/${displayStatus.id}`;
+		}
+	}}
+>
 	{#if isReblog}
 		<div class="flex items-center gap-2 text-sm text-text-secondary">
 			<svg class="w-4 h-4" fill="currentColor" viewBox="0 0 20 20">
@@ -140,6 +239,24 @@
 					{displayStatus.account.display_name || displayStatus.account.username}
 				</a>
 				<span class="text-text-secondary">@{displayStatus.account.acct}</span>
+				{#if !isOwnStatus && authStore.currentAccount && relationship}
+					<Button
+						onclick={(e) => {
+							e.stopPropagation();
+							handleFollow();
+						}}
+						loading={followLoading}
+						variant={relationship.following ? 'secondary' : 'primary'}
+						size="sm"
+						class="ml-auto rounded-full"
+					>
+						{#if relationship.following}
+							Following
+						{:else}
+							Follow
+						{/if}
+					</Button>
+				{/if}
 				<span class="text-text-secondary">·</span>
 				<time class="text-text-secondary" datetime={displayStatus.created_at}>
 					{relativeTime}
@@ -167,52 +284,11 @@
 			{/if}
 			
 			{#if displayStatus.media_attachments.length > 0}
-				<div class="mt-3 grid gap-2 {displayStatus.media_attachments.length === 1 ? 'grid-cols-1' : 'grid-cols-2'} max-w-md">
-					{#each displayStatus.media_attachments as media}
-						{#if media.type === 'image'}
-							<button
-								class="relative overflow-hidden rounded-lg bg-surface-variant"
-								onclick={() => window.open(media.url, '_blank')}
-							>
-								<img
-									src={media.preview_url}
-									alt={media.description || 'Image attachment'}
-									class="w-full h-full object-cover"
-									loading="lazy"
-								/>
-								{#if media.description}
-									<span class="sr-only">{media.description}</span>
-								{/if}
-							</button>
-						{:else if media.type === 'video'}
-							<video
-								src={media.url}
-								poster={media.preview_url}
-								controls
-								class="w-full rounded-lg"
-								preload="none"
-							>
-								<track kind="captions" />
-							</video>
-						{:else if media.type === 'gifv'}
-							<video
-								src={media.url}
-								poster={media.preview_url}
-								autoplay
-								loop
-								muted
-								playsinline
-								class="w-full rounded-lg"
-							/>
-						{:else if media.type === 'audio'}
-							<audio
-								src={media.url}
-								controls
-								class="w-full"
-								preload="none"
-							/>
-						{/if}
-					{/each}
+				<div class="mt-3">
+					<MediaGallery 
+						media={displayStatus.media_attachments} 
+						sensitive={displayStatus.sensitive}
+					/>
 				</div>
 			{/if}
 			
@@ -281,12 +357,13 @@
 					onclick={handleReply}
 					class="flex items-center gap-1 px-2 py-1 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
 					title="Reply"
+					aria-label="Reply to post{displayStatus.replies_count > 0 ? `, ${displayStatus.replies_count} replies` : ''}"
 				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6" />
 					</svg>
 					{#if displayStatus.replies_count > 0}
-						<span class="text-sm">{displayStatus.replies_count}</span>
+						<span class="text-sm" aria-hidden="true">{displayStatus.replies_count}</span>
 					{/if}
 				</button>
 				
@@ -294,13 +371,15 @@
 					onclick={handleReblog}
 					class="flex items-center gap-1 px-2 py-1 rounded-lg transition-colors {displayStatus.reblogged ? 'text-green-500' : 'text-text-secondary'} hover:text-green-500 hover:bg-green-500/10"
 					title="Boost"
+					aria-label="{displayStatus.reblogged ? 'Unboost' : 'Boost'} post{displayStatus.reblogs_count > 0 ? `, ${displayStatus.reblogs_count} boosts` : ''}"
+					aria-pressed={displayStatus.reblogged}
 					disabled={displayStatus.visibility === 'private' || displayStatus.visibility === 'direct'}
 				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
 					</svg>
 					{#if displayStatus.reblogs_count > 0}
-						<span class="text-sm">{displayStatus.reblogs_count}</span>
+						<span class="text-sm" aria-hidden="true">{displayStatus.reblogs_count}</span>
 					{/if}
 				</button>
 				
@@ -308,12 +387,14 @@
 					onclick={handleFavorite}
 					class="flex items-center gap-1 px-2 py-1 rounded-lg transition-colors {displayStatus.favourited ? 'text-amber-500' : 'text-text-secondary'} hover:text-amber-500 hover:bg-amber-500/10"
 					title="Favorite"
+					aria-label="{displayStatus.favourited ? 'Unfavorite' : 'Favorite'} post{displayStatus.favourites_count > 0 ? `, ${displayStatus.favourites_count} favorites` : ''}"
+					aria-pressed={displayStatus.favourited}
 				>
-					<svg class="w-5 h-5" fill={displayStatus.favourited ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-5 h-5" fill={displayStatus.favourited ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11.049 2.927c.3-.921 1.603-.921 1.902 0l1.519 4.674a1 1 0 00.95.69h4.915c.969 0 1.371 1.24.588 1.81l-3.976 2.888a1 1 0 00-.363 1.118l1.518 4.674c.3.922-.755 1.688-1.538 1.118l-3.976-2.888a1 1 0 00-1.176 0l-3.976 2.888c-.783.57-1.838-.197-1.538-1.118l1.518-4.674a1 1 0 00-.363-1.118l-3.976-2.888c-.784-.57-.38-1.81.588-1.81h4.914a1 1 0 00.951-.69l1.519-4.674z" />
 					</svg>
 					{#if displayStatus.favourites_count > 0}
-						<span class="text-sm">{displayStatus.favourites_count}</span>
+						<span class="text-sm" aria-hidden="true">{displayStatus.favourites_count}</span>
 					{/if}
 				</button>
 				
@@ -321,8 +402,10 @@
 					onclick={handleBookmark}
 					class="flex items-center gap-1 px-2 py-1 rounded-lg transition-colors {displayStatus.bookmarked ? 'text-primary' : 'text-text-secondary'} hover:text-primary hover:bg-primary/10"
 					title="Bookmark"
+					aria-label="{displayStatus.bookmarked ? 'Remove bookmark' : 'Bookmark'} post"
+					aria-pressed={displayStatus.bookmarked}
 				>
-					<svg class="w-5 h-5" fill={displayStatus.bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-5 h-5" fill={displayStatus.bookmarked ? 'currentColor' : 'none'} stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 5a2 2 0 012-2h10a2 2 0 012 2v16l-7-3.5L5 21V5z" />
 					</svg>
 				</button>
@@ -331,38 +414,51 @@
 					onclick={handleShare}
 					class="flex items-center gap-1 px-2 py-1 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors ml-auto"
 					title="Share"
+					aria-label="Share post"
 				>
-					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.684 13.342C8.886 12.938 9 12.482 9 12c0-.482-.114-.938-.316-1.342m0 2.684a3 3 0 110-2.684m9.632 4.658a3 3 0 01-5.266 0m5.266 0a3 3 0 00-5.266 0m5.266 0L18 18m-5.684-2.342a3 3 0 01-5.266 0M6.75 6l1.266 1.342M18 6l-1.266 1.342M12 12h.01" />
 					</svg>
 				</button>
+				
+				{#if isOwnStatus}
+					<div class="relative">
+						<button
+							onclick={(e) => {
+								e.stopPropagation();
+								showMenu = !showMenu;
+							}}
+							class="flex items-center gap-1 px-2 py-1 rounded-lg text-text-secondary hover:text-primary hover:bg-primary/10 transition-colors"
+							title="More options"
+							aria-label="More options for this post"
+							aria-expanded={showMenu}
+							aria-haspopup="menu"
+						>
+							<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 5v.01M12 12v.01M12 19v.01M12 6a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2zm0 7a1 1 0 110-2 1 1 0 010 2z" />
+							</svg>
+						</button>
+						
+						{#if showMenu}
+							<div class="absolute right-0 bottom-full mb-1 w-48 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 z-10">
+								<button
+									onclick={(e) => {
+										e.stopPropagation();
+										showMenu = false;
+										handleDelete();
+									}}
+									class="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 transition-colors flex items-center gap-2"
+								>
+									<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+										<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+									</svg>
+									Delete
+								</button>
+							</div>
+						{/if}
+					</div>
+				{/if}
 			</div>
 		</div>
 	</div>
 </article>
-
-<style>
-	.line-clamp-2 {
-		display: -webkit-box;
-		-webkit-line-clamp: 2;
-		-webkit-box-orient: vertical;
-		overflow: hidden;
-	}
-	
-	.prose :global(a) {
-		color: var(--color-primary);
-		text-decoration: underline;
-	}
-	
-	.prose :global(a:hover) {
-		text-decoration: none;
-	}
-	
-	.prose :global(p) {
-		margin: 0;
-	}
-	
-	.prose :global(p + p) {
-		margin-top: 1em;
-	}
-</style>

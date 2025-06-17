@@ -1,8 +1,8 @@
 # Greater - A Modern Mastodon Client
 
 [![License: AGPL v3](https://img.shields.io/badge/License-AGPL%20v3-blue.svg)](https://www.gnu.org/licenses/agpl-3.0)
-[![CI](https://github.com/greater-social/greater/workflows/CI/badge.svg)](https://github.com/greater-social/greater/actions)
-[![Deploy](https://github.com/greater-social/greater/workflows/Deploy/badge.svg)](https://github.com/greater-social/greater/actions)
+[![CI](https://github.com/aron23/greater/workflows/CI/badge.svg)](https://github.com/aron23/greater/actions)
+[![Deploy](https://github.com/aron23/greater/workflows/Deploy/badge.svg)](https://github.com/aron23/greater/actions)
 
 Greater is a modern, high-performance web client for Mastodon-compatible instances (including Lesser). Built with Astro and deployed on Cloudflare's edge network, it offers a lightning-fast, customizable, and privacy-focused alternative to existing ActivityPub clients.
 
@@ -22,13 +22,13 @@ Greater is a modern, high-performance web client for Mastodon-compatible instanc
 
 ### Using Greater
 
-Visit [greater.social](https://greater.social) and connect your Mastodon account to get started!
+Visit [greater.website](https://greater.website) and connect your Mastodon account to get started!
 
 ### Self-Hosting
 
 ```bash
 # Clone the repository
-git clone https://github.com/greater-social/greater.git
+git clone https://github.com/aron23/greater.git
 cd greater
 
 # Install dependencies
@@ -149,7 +149,7 @@ Greater is designed for exceptional performance:
 - **Discord**: [Join our community](https://discord.gg/greater)
 - **Matrix**: #greater:matrix.org
 - **Mastodon**: [@greater@mastodon.social](https://mastodon.social/@greater)
-- **GitHub Issues**: [Report bugs or request features](https://github.com/greater-social/greater/issues)
+- **GitHub Issues**: [Report bugs or request features](https://github.com/aron23/greater/issues)
 
 ## 📄 License
 

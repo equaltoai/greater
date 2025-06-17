@@ -55,7 +55,7 @@ export const MediaAttachmentSchema = z.object({
 });
 
 // Status schemas
-export const StatusSchema = z.object({
+export const StatusSchema: z.ZodSchema<any> = z.object({
   id: z.string(),
   created_at: DateStringSchema,
   in_reply_to_id: z.string().nullable(),
@@ -122,7 +122,17 @@ export const InstanceSchema = z.object({
   registrations: z.boolean(),
   approval_required: z.boolean(),
   invites_enabled: z.boolean(),
-  configuration: z.any(),
+  configuration: z.any().optional(),
+  urls: z.object({
+    streaming_api: z.string(),
+    status: z.string().optional()
+  }).optional(),
+  stats: z.object({
+    user_count: z.number(),
+    status_count: z.number(),
+    domain_count: z.number()
+  }).optional(),
+  thumbnail: z.string().nullable().optional(),
   contact_account: AccountSchema.nullable(),
   rules: z.array(z.object({
     id: z.string(),

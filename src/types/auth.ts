@@ -12,7 +12,7 @@ export interface MastodonAccount {
   display_name: string;
   locked: boolean;
   bot: boolean;
-  discoverable: boolean;
+  discoverable: boolean | null;
   group: boolean;
   created_at: string;
   note: string;
