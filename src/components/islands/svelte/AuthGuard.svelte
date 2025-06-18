@@ -11,9 +11,12 @@
   let isChecking = $state(true);
   let isAuthenticated = $state(false);
   
-  onMount(() => {
+  onMount(async () => {
     // Initialize auth store
     authStore.initialize();
+    
+    // Wait a bit for auth store to load from localStorage
+    await new Promise(resolve => setTimeout(resolve, 100));
     
     // Check authentication status
     isAuthenticated = authStore.isAuthenticated;

@@ -6,9 +6,15 @@ import UserTimeline from '@/components/islands/svelte/UserTimeline.svelte';
 const { handle } = Astro.params;
 
 // Parse handle to get username and domain
-const [username, domain] = handle.includes('@') 
-  ? handle.split('@') 
-  : [handle, null];
+let username, domain;
+if (handle.includes('@')) {
+  const parts = handle.split('@');
+  username = parts[0];
+  domain = parts.slice(1).join('@'); // Handle cases where domain might contain @
+} else {
+  username = handle;
+  domain = null;
+}
 ---
 
 <MainLayout title={`@${handle}`} description={`Profile of @${handle}`}>

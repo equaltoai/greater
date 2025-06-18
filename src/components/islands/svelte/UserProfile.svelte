@@ -14,17 +14,24 @@
   
   ;
   
-  let account: Account | null = null;
-  let relationship: Relationship | null = null;
-  let loading = true;
-  let error = '';
-  let isInteracting = false;
+  let account = $state<Account | null>(null);
+  let relationship = $state<Relationship | null>(null);
+  let loading = $state(true);
+  let error = $state('');
+  let isInteracting = $state(false);
   
   // Derived state
   const isOwnProfile = $derived(
-    account && authStore.currentAccount && 
-    account.id === authStore.currentAccount.id
+    account && authStore.currentUser && 
+    account.id === authStore.currentUser.id
   );
+  
+  // Watch for auth store changes if viewing own profile
+  $effect(() => {
+    if (isOwnProfile && authStore.currentUser) {
+      account = authStore.currentUser;
+    }
+  });
   
   onMount(async () => {
     await loadProfile();
@@ -37,18 +44,55 @@
     try {
       const client = getClient();
       
-      // Search for the account
-      const searchAcct = domain ? `${username}@${domain}` : username;
-      const searchResults = await client.search({ q: searchAcct, type: 'accounts', limit: 1, resolve: true });
+      // Check if this is the current user first
       
-      if (searchResults.accounts.length === 0) {
-        throw new Error('User not found');
+      if (!domain && authStore.currentUser && authStore.currentUser.username === username) {
+        account = authStore.currentUser;
+      } else {
+        // For local users on the same instance, we need to search with @username format
+        // For remote users, use the full @username@domain format
+        let searchAcct = username;
+        
+        if (!domain && authStore.currentInstance) {
+          // Local user on the current instance - search with @ prefix
+          searchAcct = `@${username}`;
+        } else if (domain) {
+          // Remote user - use full format
+          searchAcct = `@${username}@${domain}`;
+        }
+        
+        const searchResults = await client.search({ 
+          q: searchAcct, 
+          type: 'accounts', 
+          limit: 5, 
+          resolve: true 
+        });
+        
+        // Try to find exact match
+        let foundAccount = searchResults.accounts.find(acc => {
+          if (domain) {
+            // For remote users, match the full acct
+            return acc.acct === `${username}@${domain}` || acc.username === username;
+          } else {
+            // For local users, match just the username (acct won't have domain)
+            return acc.username === username && !acc.acct.includes('@');
+          }
+        });
+        
+        if (!foundAccount && searchResults.accounts.length > 0) {
+          // If no exact match, take the first result
+          foundAccount = searchResults.accounts[0];
+        }
+        
+        if (!foundAccount) {
+          throw new Error('User not found');
+        }
+        
+        account = foundAccount;
       }
       
-      account = searchResults.accounts[0];
-      
-      // Get relationship if logged in
-      if (authStore.currentAccount) {
+      // Get relationship if logged in and not own profile
+      if (authStore.currentUser && account.id !== authStore.currentUser.id) {
         const relationships = await client.getRelationships([account.id]);
         relationship = relationships[0];
       }
@@ -61,7 +105,7 @@
   }
   
   async function handleFollow() {
-    if (!account || !authStore.currentAccount || isInteracting) return;
+    if (!account || !authStore.currentUser || isInteracting) return;
     
     isInteracting = true;
     try {
@@ -131,7 +175,7 @@
           class="w-24 h-24 rounded-full border-4 border-white dark:border-gray-900"
         />
         
-        {#if !isOwnProfile && authStore.currentAccount}
+        {#if !isOwnProfile && authStore.currentUser}
           <Button
             onclick={handleFollow}
             loading={isInteracting}
@@ -186,11 +230,15 @@
               <dt class="font-medium text-gray-600 dark:text-gray-400 min-w-[100px]">
                 {field.name}
               </dt>
-              <dd class="flex-1">
-                {#if field.verified_at}
-                  <span class="text-green-600 dark:text-green-400">✓</span>
-                {/if}
+              <dd class="flex-1 flex items-center gap-1">
                 {@html field.value}
+                {#if field.verified_at}
+                  <span class="text-green-600 dark:text-green-400" title="Verified on {new Date(field.verified_at).toLocaleDateString()}">
+                    <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20">
+                      <path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd" />
+                    </svg>
+                  </span>
+                {/if}
               </dd>
             </div>
           {/each}
@@ -199,11 +247,11 @@
       
       <!-- Stats -->
       <div class="flex gap-6 text-sm">
-        <a href={`/@${account.acct}/following`} class="hover:underline">
+        <a href={`/@${username}${domain ? `@${domain}` : ''}/following`} class="hover:underline">
           <strong class="font-semibold">{formatCount(account.following_count)}</strong>
           <span class="text-gray-600 dark:text-gray-400"> Following</span>
         </a>
-        <a href={`/@${account.acct}/followers`} class="hover:underline">
+        <a href={`/@${username}${domain ? `@${domain}` : ''}/followers`} class="hover:underline">
           <strong class="font-semibold">{formatCount(account.followers_count)}</strong>
           <span class="text-gray-600 dark:text-gray-400"> Followers</span>
         </a>

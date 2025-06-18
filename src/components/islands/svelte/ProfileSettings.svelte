@@ -123,6 +123,7 @@
         fields_attributes: fields.filter(f => f.name || f.value)
       };
       
+      
       if (avatarFile) {
         params.avatar = avatarFile;
       }
@@ -135,7 +136,7 @@
       account = updatedAccount;
       
       // Update auth store
-      if (authStore.currentAccount?.id === updatedAccount.id) {
+      if (authStore.currentUser?.id === updatedAccount.id) {
         authStore.updateAccount(updatedAccount);
       }
       

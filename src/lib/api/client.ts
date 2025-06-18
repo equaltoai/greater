@@ -124,7 +124,12 @@ export class MastodonClient {
     if (options.params) {
       Object.entries(options.params).forEach(([key, value]) => {
         if (value !== undefined && value !== null) {
-          url.searchParams.append(key, String(value));
+          if (Array.isArray(value)) {
+            // Handle array parameters (e.g., id[] for relationships)
+            value.forEach(v => url.searchParams.append(key, String(v)));
+          } else {
+            url.searchParams.append(key, String(value));
+          }
         }
       });
     }
@@ -140,9 +145,13 @@ export class MastodonClient {
 
     // Build headers
     const headers: Record<string, string> = {
-      'Content-Type': 'application/json',
       ...options.headers
     };
+    
+    // Only set Content-Type if not already set (FormData needs to set its own boundary)
+    if (!headers['Content-Type'] && !(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
 
     if (!options.skipAuth) {
       const accessToken = await this.getAccessToken();
@@ -158,11 +167,23 @@ export class MastodonClient {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
+    // Prepare body
+    let body: any = undefined;
+    if (options.body) {
+      if (options.body instanceof FormData) {
+        body = options.body;
+        // Remove Content-Type header for FormData - browser will set it with boundary
+        delete headers['Content-Type'];
+      } else {
+        body = JSON.stringify(options.body);
+      }
+    }
+    
     try {
       const response = await fetch(url.toString(), {
         method,
         headers,
-        body: options.body ? JSON.stringify(options.body) : undefined,
+        body,
         signal: options.signal || controller.signal
       });
       
@@ -343,6 +364,7 @@ export class MastodonClient {
   async updateCredentials(params: UpdateCredentialsParams): Promise<Account> {
     const formData = new FormData();
     
+    
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) {
         if (value instanceof File) {
@@ -358,11 +380,13 @@ export class MastodonClient {
         }
       }
     });
+    
 
-    return this.request<Account>('PATCH', '/api/v1/accounts/update_credentials', {
+    const result = await this.request<Account>('PATCH', '/api/v1/accounts/update_credentials', {
       body: formData,
       headers: {} // Let browser set Content-Type for FormData
     });
+    return result;
   }
 
   async getAccount(id: string): Promise<Account> {
@@ -415,15 +439,17 @@ export class MastodonClient {
   }
 
   async getRelationships(ids: string[]): Promise<Relationship[]> {
+    // Mastodon API expects multiple id[] parameters
     return this.request<Relationship[]>('GET', '/api/v1/accounts/relationships', {
-      params: { id: ids }
+      params: { 'id[]': ids }
     });
   }
 
   // Search
   async search(params: SearchParams): Promise<SearchResults> {
-    const data = await this.request<unknown>('GET', '/api/v2/search', { params: { ...params } as Record<string, unknown> });
-    return validateResponse(SearchResultsSchema, data, 'search');
+    // Skip validation for search to handle different Mastodon instance formats
+    const data = await this.request<SearchResults>('GET', '/api/v2/search', { params: { ...params } as Record<string, unknown> });
+    return data;
   }
 
   // Notifications

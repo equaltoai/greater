@@ -331,6 +331,25 @@ class AuthStore {
       // Failed to restore session - user needs to re-authenticate
     }
   }
+  
+  updateAccount(updatedAccount: MastodonAccount): void {
+    // Update the current user
+    this.currentUser = updatedAccount;
+    
+    // Update the account in the accounts list
+    this.accounts = this.accounts.map(account => {
+      if (account.user.id === updatedAccount.id && account.instance === this.currentInstance) {
+        return {
+          ...account,
+          user: updatedAccount
+        };
+      }
+      return account;
+    });
+    
+    // Persist the changes
+    this.persist();
+  }
 }
 
 // API helper to verify credentials

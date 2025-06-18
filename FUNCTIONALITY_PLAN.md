@@ -41,9 +41,11 @@ This document outlines the current state of the Greater Mastodon client and prov
 - **Draft saving**: `src/lib/stores/compose.ts:20-79`
 
 ### User Features
-- **User profiles**: `src/pages/@[handle].astro`, `src/components/islands/svelte/UserProfile.svelte`
-- **Follow/unfollow**: `src/lib/api/client.ts:560-577`
-- **Account relationships**: `src/lib/api/client.ts:541-558`
+- **User profiles**: ✅ `src/pages/@[handle].astro`, `src/components/islands/svelte/UserProfile.svelte` - WORKING
+- **Profile editing**: ✅ `src/pages/settings/profile.astro`, `src/components/islands/svelte/ProfileSettings.svelte` - WORKING
+- **Follow/unfollow**: ✅ `src/lib/api/client.ts:560-577` - WORKING in UserProfile and UserCard components
+- **Account relationships**: ✅ `src/lib/api/client.ts:541-558` - WORKING (shows followed_by, blocking, muting status)
+- **Followers/Following pages**: ✅ `/@[handle]/followers`, `/@[handle]/following` - WORKING (with federation limitations for remote users)
 
 ### Search Functionality
 - **Full-text search**: `src/pages/search.astro`, `src/components/islands/svelte/SearchResults.svelte`
@@ -77,23 +79,15 @@ This document outlines the current state of the Greater Mastodon client and prov
 
 ### 1. Profile & Account Management
 
-#### Edit Profile
-**Implementation needed in:** `src/components/islands/svelte/UserProfile.svelte`
-```typescript
-// Add to UserProfile.svelte around line 180
-async function updateProfile(updates: {
-  display_name?: string;
-  note?: string;
-  avatar?: File;
-  header?: File;
-  fields_attributes?: Array<{name: string; value: string}>;
-}) {
-  // Use existing API client method
-  await client.updateCredentials(updates); // src/lib/api/client.ts:521-539
-}
-```
+#### Edit Profile ✅ COMPLETED
+**Implemented in:** `src/components/islands/svelte/ProfileSettings.svelte`
+- Full profile editing with display name, bio, avatar, header, metadata fields
+- Privacy settings (locked, bot, discoverable)
+- Successfully saves and updates UI in real-time
+- Fixed FormData handling in API client for proper file uploads
+- Profile metadata verification display with green checkmarks
 
-**API already exists:** `src/lib/api/client.ts:521-539` (`updateCredentials`)
+**API:** `src/lib/api/client.ts:343-368` (`updateCredentials`) - WORKING
 
 #### Account Preferences
 **Implementation needed in:** New page `src/pages/settings/account.astro`
