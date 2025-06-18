@@ -6,7 +6,7 @@
 import { atom, map, computed } from 'nanostores';
 import type { Notification, NotificationType } from '@/types/mastodon';
 import { getClient } from '@/lib/api/client';
-import { authStore } from './auth';
+import { authStore } from './auth.svelte';
 
 // Notification state
 export const notifications$ = map<Record<string, Notification>>({});
@@ -141,14 +141,13 @@ export async function dismissNotification(notificationId: string) {
 // Real-time streaming
 let eventSource: EventSource | null = null;
 
-export function startNotificationStream() {
+export async function startNotificationStream() {
   if (eventSource) return;
   
-  const { currentUser } = authStore.getState();
-  if (!currentUser) return;
+  if (!authStore.currentUser) return;
   
   const client = getClient();
-  eventSource = client.streamNotifications();
+  eventSource = await client.streamUser();
   
   eventSource.addEventListener('notification', (event) => {
     try {
@@ -249,12 +248,10 @@ export async function requestNotificationPermission() {
   return false;
 }
 
-// Clean up on logout
-authStore.subscribe((state) => {
-  if (!state.currentUser) {
-    stopNotificationStream();
-    notifications$.set({});
-    lastNotificationId$.set(null);
-    hasMoreNotifications$.set(true);
-  }
-});
+// Export a cleanup function that can be called when logging out
+export function cleanupNotifications() {
+  stopNotificationStream();
+  notifications$.set({});
+  lastNotificationId$.set(null);
+  hasMoreNotifications$.set(true);
+}

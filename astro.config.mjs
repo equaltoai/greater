@@ -8,12 +8,13 @@ import sentry from '@sentry/astro';
 
 // https://astro.build/config
 export default defineConfig({
+  site: 'https://localhost:4321', // Update this to your production URL
   output: 'server',
   adapter: cloudflare({
     mode: 'directory',
     functionPerRoute: true,
   }),
-  integrations: [svelte(), sentry()],
+  integrations: [svelte()], // sentry() temporarily disabled
   vite: {
     plugins: [tailwindcss()],
     resolve: {

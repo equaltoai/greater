@@ -5,6 +5,7 @@
 
 import type { Status, TimelineParams } from '@/types/mastodon';
 import { getClient } from '@/lib/api/client';
+import { authStore } from './auth.svelte';
 
 interface TimelineData {
   statuses: Status[];
@@ -43,23 +44,39 @@ class TimelineStore {
   isLoading = $state(false);
   error = $state<string | null>(null);
 
+  private _initialized = false;
+  private _previousInstance: string | null = null;
+  
   constructor() {
-    // Subscribe to auth changes to clear timelines
-    if (typeof window !== 'undefined') {
-      let previousInstance: string | null = null;
-      $effect(() => {
-        if (authStore.currentInstance !== previousInstance) {
-          // Clear all timelines when switching instances
-          if (previousInstance !== null) {
-            Object.keys(this.timelines).forEach(type => {
-              this.disconnectStream(type);
-              this.clearTimeline(type);
-            });
-          }
-          previousInstance = authStore.currentInstance;
+    // Constructor is empty to avoid SSR issues
+  }
+  
+  /**
+   * Initialize the timeline store - must be called from client-side code
+   */
+  initialize() {
+    if (typeof window === 'undefined' || this._initialized) return;
+    this._initialized = true;
+    
+    // Initialize auth store if needed
+    authStore.initialize();
+    
+    // Set initial instance value
+    this._previousInstance = authStore.currentInstance;
+    
+    // Set up a timer to check for instance changes
+    setInterval(() => {
+      if (authStore.currentInstance !== this._previousInstance) {
+        // Clear all timelines when switching instances
+        if (this._previousInstance !== null) {
+          Object.keys(this.timelines).forEach(type => {
+            this.disconnectStream(type);
+            this.clearTimeline(type);
+          });
         }
-      });
-    }
+        this._previousInstance = authStore.currentInstance;
+      }
+    }, 1000); // Check every second
   }
 
   async loadTimeline(type: string, params?: TimelineParams): Promise<void> {
@@ -472,6 +489,3 @@ class TimelineStore {
 
 // Create singleton instance
 export const timelineStore = new TimelineStore();
-
-// Import auth store
-import { authStore } from './auth';

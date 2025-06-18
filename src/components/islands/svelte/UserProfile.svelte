@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { getClient } from '../../../lib/api/client';
-  import { authStore } from '../../../lib/stores/auth';
+  import { authStore } from '../../../lib/stores/auth.svelte';
   import type { Account, Relationship } from '../../../types/mastodon';
   import Button from './Button.svelte';
   

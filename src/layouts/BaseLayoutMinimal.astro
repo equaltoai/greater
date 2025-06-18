@@ -5,18 +5,9 @@ import { ViewTransitions } from 'astro:transitions';
 export interface Props {
   title: string;
   description?: string;
-  image?: string;
-  noIndex?: boolean;
 }
 
-const { 
-  title, 
-  description = 'A modern, fast, and beautiful Mastodon client', 
-  image = '/og-image.png',
-  noIndex = false 
-} = Astro.props;
-
-const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin);
+const { title, description = 'A modern Mastodon client' } = Astro.props;
 ---
 
 <!DOCTYPE html>
@@ -26,25 +17,6 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin)
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title} - Greater</title>
   <meta name="description" content={description}>
-  <link rel="canonical" href={canonicalURL}>
-  
-  <!-- Favicon -->
-  <link rel="icon" type="image/svg+xml" href="/favicon.svg">
-  <link rel="icon" type="image/png" href="/favicon.png">
-  
-  <!-- Open Graph -->
-  <meta property="og:title" content={title}>
-  <meta property="og:description" content={description}>
-  <meta property="og:image" content={new URL(image, Astro.url)}>
-  <meta property="og:type" content="website">
-  <meta property="og:url" content={canonicalURL}>
-  
-  <!-- Twitter -->
-  <meta name="twitter:card" content="summary_large_image">
-  <meta name="twitter:title" content={title}>
-  <meta name="twitter:description" content={description}>
-  <meta name="twitter:image" content={new URL(image, Astro.url)}>
-  
   <ViewTransitions />
   
   <!-- Theme initialization -->

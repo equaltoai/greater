@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { searchStore } from '@/lib/stores/search';
+  import { searchStore } from '@/lib/stores/search.svelte';
   import { getClient } from '@/lib/api/client';
   import StatusCard from './StatusCard.svelte';
   import UserCard from './UserCard.svelte';

@@ -1,16 +1,25 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { authStore } from '@/lib/stores/auth.svelte';
   
   let instance = $state('');
   let isValidating = $state(false);
   let isValid = $state(false);
   let error = $state('');
   let validationTimeout: number;
+  let authStoreInstance: any = null;
   
-  // Check if already authenticated and redirect
-  onMount(() => {
-    if (authStore.isAuthenticated) {
+  // Load auth store only on mount
+  onMount(async () => {
+    const { authStore } = await import('@/lib/stores/auth.svelte');
+    authStoreInstance = authStore;
+    
+    // Initialize the store
+    if (authStoreInstance.initialize) {
+      authStoreInstance.initialize();
+    }
+    
+    // Check if already authenticated and redirect
+    if (authStoreInstance.isAuthenticated) {
       window.location.href = '/home';
     }
   });
@@ -21,7 +30,7 @@
     error = '';
     isValid = false;
     
-    if (!instance) return;
+    if (!instance || !authStoreInstance) return;
     
     isValidating = true;
     validationTimeout = setTimeout(async () => {
@@ -36,7 +45,7 @@
           return;
         }
         
-        const valid = await authStore.validateInstanceUrl(normalized);
+        const valid = await authStoreInstance.validateInstanceUrl(normalized);
         isValid = valid;
         if (!valid) {
           error = 'Could not connect to this instance';
@@ -54,11 +63,11 @@
   async function handleSubmit(e: Event) {
     e.preventDefault();
     
-    if (!isValid || isValidating) return;
+    if (!isValid || isValidating || !authStoreInstance) return;
     
     try {
       error = '';
-      const { url } = await authStore.startLogin(instance);
+      const { url } = await authStoreInstance.startLogin(instance);
       
       // Redirect to Mastodon for authorization
       window.location.href = url;
@@ -145,11 +154,7 @@
     disabled={!isValid || isValidating || !!error}
     class="w-full py-3 px-4 bg-primary text-white font-medium rounded-md hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
   >
-    {#if authStore.isLoading}
-      Connecting...
-    {:else}
-      Continue with {instance || 'Mastodon'}
-    {/if}
+    Continue with {instance || 'Mastodon'}
   </button>
   
   <div class="relative">

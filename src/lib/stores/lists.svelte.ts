@@ -13,32 +13,37 @@ class ListsStore {
   error = $state<string | null>(null);
   
   constructor() {
+    // Constructor is empty to avoid SSR issues
+  }
+  
+  initialize() {
+    if (typeof window === 'undefined') return;
+    
     // Load persisted state from localStorage
-    if (typeof window !== 'undefined') {
-      const savedState = localStorage.getItem('lists-storage');
-      if (savedState) {
-        try {
-          const parsed = JSON.parse(savedState);
-          if (parsed.state) {
-            this.lists = parsed.state.lists || [];
-            this.listMembers = parsed.state.listMembers || {};
-          }
-        } catch (e) {
-          console.error('Failed to load lists state:', e);
+    const savedState = localStorage.getItem('lists-storage');
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.state) {
+          this.lists = parsed.state.lists || [];
+          this.listMembers = parsed.state.listMembers || {};
         }
+      } catch (e) {
+        console.error('Failed to load lists state:', e);
       }
-      
-      // Persist state changes to localStorage
-      $effect(() => {
-        const toPersist = {
-          state: {
-            lists: this.lists,
-            listMembers: this.listMembers
-          }
-        };
-        localStorage.setItem('lists-storage', JSON.stringify(toPersist));
-      });
     }
+  }
+  
+  private persist() {
+    if (typeof window === 'undefined') return;
+    
+    const toPersist = {
+      state: {
+        lists: this.lists,
+        listMembers: this.listMembers
+      }
+    };
+    localStorage.setItem('lists-storage', JSON.stringify(toPersist));
   }
 
   async fetchLists(): Promise<void> {

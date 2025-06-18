@@ -4,7 +4,7 @@
  */
 
 // Re-export auth types that are shared
-export type { MastodonAccount as Account, CustomEmoji, AccountField } from './auth';
+export type { MastodonAccount as Account, CustomEmoji, AccountField } from './auth.svelte';
 
 // Status (Toot)
 export interface Status {

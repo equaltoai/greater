@@ -2,7 +2,7 @@
  * Instance-related types for Mastodon servers
  */
 
-import type { MastodonAccount, CustomEmoji } from './auth';
+import type { MastodonAccount, CustomEmoji } from './auth.svelte';
 
 /**
  * Instance information

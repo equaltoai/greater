@@ -27,43 +27,54 @@ class AuthStore {
   isLoading = $state(false);
   error = $state<string | null>(null);
   
+  private _initialized = false;
+  
   constructor() {
-    // Load persisted state from localStorage
-    if (typeof window !== 'undefined') {
-      const savedState = localStorage.getItem('auth-storage');
-      if (savedState) {
-        try {
-          const parsed = JSON.parse(savedState);
-          if (parsed.state) {
-            this.currentUser = parsed.state.currentUser;
-            this.currentInstance = parsed.state.currentInstance;
-            this.accounts = parsed.state.accounts || [];
-            this.isAuthenticated = parsed.state.isAuthenticated || false;
-          }
-        } catch (e) {
-          console.error('Failed to load auth state:', e);
-        }
+    // Constructor is empty to avoid SSR issues
+  }
+  
+  private persist() {
+    if (typeof window === 'undefined') return;
+    
+    const toPersist = {
+      state: {
+        accounts: this.accounts.map(a => ({
+          id: a.id,
+          instance: a.instance,
+          user: a.user,
+          lastUsed: a.lastUsed,
+          token: {} as OAuthToken,
+          app: {} as OAuthApp
+        })),
+        currentUser: this.currentUser,
+        currentInstance: this.currentInstance,
+        isAuthenticated: this.isAuthenticated
       }
-      
-      // Persist state changes to localStorage
-      $effect(() => {
-        const toPersist = {
-          state: {
-            accounts: this.accounts.map(a => ({
-              id: a.id,
-              instance: a.instance,
-              user: a.user,
-              lastUsed: a.lastUsed,
-              token: {} as OAuthToken,
-              app: {} as OAuthApp
-            })),
-            currentUser: this.currentUser,
-            currentInstance: this.currentInstance,
-            isAuthenticated: this.isAuthenticated
-          }
-        };
-        localStorage.setItem('auth-storage', JSON.stringify(toPersist));
-      });
+    };
+    localStorage.setItem('auth-storage', JSON.stringify(toPersist));
+  }
+  
+  /**
+   * Initialize the auth store - must be called from client-side code
+   */
+  initialize() {
+    if (typeof window === 'undefined' || this._initialized) return;
+    this._initialized = true;
+    
+    // Load persisted state from localStorage
+    const savedState = localStorage.getItem('auth-storage');
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.state) {
+          this.currentUser = parsed.state.currentUser;
+          this.currentInstance = parsed.state.currentInstance;
+          this.accounts = parsed.state.accounts || [];
+          this.isAuthenticated = parsed.state.isAuthenticated || false;
+        }
+      } catch (e) {
+        console.error('Failed to load auth state:', e);
+      }
     }
   }
 
@@ -167,6 +178,10 @@ class AuthStore {
     }
     
     this.isLoading = true;
+    
+    // Clean up notifications
+    const { cleanupNotifications } = await import('./notifications');
+    cleanupNotifications();
         
     try {
       // Find current account
@@ -193,6 +208,7 @@ class AuthStore {
         this.accounts = remainingAccounts;
         this.isAuthenticated = !!nextAccount;
         this.isLoading = false;
+        this.persist();
           }
     } catch (error) {
       // Logout error - continue with local cleanup
@@ -202,6 +218,7 @@ class AuthStore {
       this.accounts = [];
       this.isAuthenticated = false;
       this.isLoading = false;
+      this.persist();
     }
   }
       

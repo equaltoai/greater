@@ -67,53 +67,58 @@ class OfflineStore {
   private offlineDB = new OfflineDB();
   
   constructor() {
+    // Constructor is empty to avoid SSR issues
+  }
+  
+  initialize() {
+    if (typeof window === 'undefined') return;
+    
     // Load persisted state from localStorage
-    if (typeof window !== 'undefined') {
-      const savedState = localStorage.getItem('offline-queue');
-      if (savedState) {
-        try {
-          const parsed = JSON.parse(savedState);
-          if (parsed.state) {
-            this.posts = parsed.state.posts || [];
-          }
-        } catch (e) {
-          console.error('Failed to load offline state:', e);
+    const savedState = localStorage.getItem('offline-queue');
+    if (savedState) {
+      try {
+        const parsed = JSON.parse(savedState);
+        if (parsed.state) {
+          this.posts = parsed.state.posts || [];
         }
+      } catch (e) {
+        console.error('Failed to load offline state:', e);
       }
-      
-      // Persist state changes to localStorage
-      $effect(() => {
-        const toPersist = {
-          state: {
-            posts: this.posts
-          }
-        };
-        localStorage.setItem('offline-queue', JSON.stringify(toPersist));
-      });
-      
-      // Set up online/offline listeners
-      window.addEventListener('online', () => {
-        this.setOnlineStatus(true);
-      });
-
-      window.addEventListener('offline', () => {
-        this.setOnlineStatus(false);
-      });
-
-      // Listen for sync complete messages from service worker
-      if ('serviceWorker' in navigator) {
-        navigator.serviceWorker.addEventListener('message', (event) => {
-          if (event.data.type === 'sync-complete') {
-            this.removePost(event.data.postId);
-          }
-        });
-      }
-      
-      // Load posts from IndexedDB on startup
-      this.offlineDB.getAllPosts().then(posts => {
-        this.posts = posts;
-      }).catch(console.error);
     }
+    
+    // Set up online/offline listeners
+    window.addEventListener('online', () => {
+      this.setOnlineStatus(true);
+    });
+
+    window.addEventListener('offline', () => {
+      this.setOnlineStatus(false);
+    });
+
+    // Listen for sync complete messages from service worker
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data.type === 'sync-complete') {
+          this.removePost(event.data.postId);
+        }
+      });
+    }
+    
+    // Load posts from IndexedDB on startup
+    this.offlineDB.getAllPosts().then(posts => {
+      this.posts = posts;
+    }).catch(console.error);
+  }
+  
+  private persist() {
+    if (typeof window === 'undefined') return;
+    
+    const toPersist = {
+      state: {
+        posts: this.posts
+      }
+    };
+    localStorage.setItem('offline-queue', JSON.stringify(toPersist));
   }
 
   addPost(data: CreateStatusParams): string {

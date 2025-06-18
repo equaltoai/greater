@@ -39,7 +39,7 @@
   }
   
   $effect(() => {
-    if (showDropdown) {
+    if (typeof window !== 'undefined' && showDropdown) {
       document.addEventListener('click', handleClickOutside);
       return () => document.removeEventListener('click', handleClickOutside);
     }

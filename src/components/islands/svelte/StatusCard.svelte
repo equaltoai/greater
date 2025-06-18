@@ -2,8 +2,8 @@
 	import { onMount } from 'svelte';
 	import type { Status, Relationship } from '@/types/mastodon';
 	import { sanitizeMastodonHtml } from '@/lib/utils/sanitize';
-	import { timelineStore } from '@/lib/stores/timeline';
-	import { authStore } from '@/lib/stores/auth';
+	import { timelineStore } from '@/lib/stores/timeline.svelte';
+	import { authStore } from '@/lib/stores/auth.svelte';
 	import { getClient } from '@/lib/api/client';
 	import Button from './Button.svelte';
 	import MediaGallery from './MediaGallery.svelte';

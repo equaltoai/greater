@@ -19,22 +19,26 @@ class SearchStore {
   activeTab = $state<'all' | 'accounts' | 'statuses' | 'hashtags'>('all');
   
   constructor() {
+    // Constructor is empty to avoid SSR issues
+  }
+  
+  initialize() {
+    if (typeof window === 'undefined') return;
+    
     // Load search history from localStorage
-    if (typeof window !== 'undefined') {
-      const savedHistory = localStorage.getItem('searchHistory');
-      if (savedHistory) {
-        try {
-          this.searchHistory = JSON.parse(savedHistory);
-        } catch (e) {
-          console.error('Failed to load search history:', e);
-        }
+    const savedHistory = localStorage.getItem('searchHistory');
+    if (savedHistory) {
+      try {
+        this.searchHistory = JSON.parse(savedHistory);
+      } catch (e) {
+        console.error('Failed to load search history:', e);
       }
-      
-      // Persist search history changes to localStorage
-      $effect(() => {
-        localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory));
-      });
     }
+  }
+  
+  private persist() {
+    if (typeof window === 'undefined') return;
+    localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory));
   }
 
   setQuery(query: string): void {

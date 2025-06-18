@@ -235,6 +235,8 @@ export function applyTheme(colors: ThemeColors) {
 }
 
 // Auto-apply theme on changes
-currentTheme.subscribe(colors => {
-  applyTheme(colors);
-});
+if (typeof window !== 'undefined') {
+  currentTheme.subscribe(colors => {
+    applyTheme(colors);
+  });
+}

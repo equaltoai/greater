@@ -26,7 +26,7 @@ import type {
   Filter,
   MediaAttachment
 } from '@/types/mastodon';
-import { getAccessToken } from '@/lib/stores/auth';
+import { getAccessToken } from '@/lib/stores/auth.svelte';
 import { secureAuthClient } from '@/lib/auth/secure-client';
 import { globalRateLimiter } from './rate-limiter';
 import {

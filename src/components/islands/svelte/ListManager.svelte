@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { listsStore } from '@/lib/stores/lists';
+  import { listsStore } from '@/lib/stores/lists.svelte';
   import ListCard from './ListCard.svelte';
   import ListEditor from './ListEditor.svelte';
   import Button from './Button.svelte';

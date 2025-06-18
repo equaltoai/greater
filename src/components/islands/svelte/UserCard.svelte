@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { Account } from '@/types/mastodon';
   import { getClient } from '@/lib/api/client';
-  import { authStore } from '@/lib/stores/auth';
+  import { authStore } from '@/lib/stores/auth.svelte';
   
   interface Props {
     account: Account;

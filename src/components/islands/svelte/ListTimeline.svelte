@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { timelineStore } from '@/lib/stores/timeline';
-  import { listsStore } from '@/lib/stores/lists';
+  import { timelineStore } from '@/lib/stores/timeline.svelte';
+  import { listsStore } from '@/lib/stores/lists.svelte';
   import VirtualizedTimeline from './VirtualizedTimeline.svelte';
   import EmptyState from './EmptyState.svelte';
   import ErrorState from './ErrorState.svelte';

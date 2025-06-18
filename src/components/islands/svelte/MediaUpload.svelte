@@ -124,8 +124,10 @@
   
   // Add paste listener
   $effect(() => {
-    document.addEventListener('paste', handlePaste);
-    return () => document.removeEventListener('paste', handlePaste);
+    if (typeof window !== 'undefined') {
+      document.addEventListener('paste', handlePaste);
+      return () => document.removeEventListener('paste', handlePaste);
+    }
   });
 </script>
 

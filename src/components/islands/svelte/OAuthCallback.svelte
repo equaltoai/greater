@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { authStore } from '@/lib/stores/auth';
+  import { authStore } from '@/lib/stores/auth.svelte';
   
   let error = $state('');
   let status = $state('Processing login...');

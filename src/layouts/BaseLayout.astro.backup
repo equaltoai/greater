@@ -20,7 +20,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin)
 ---
 
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" data-theme="auto">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -45,7 +45,9 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin)
   <meta name="twitter:description" content={description}>
   <meta name="twitter:image" content={new URL(image, Astro.url)}>
   
-  <ViewTransitions />
+  <!-- PWA -->
+  <link rel="manifest" href="/manifest.json">
+  <meta name="theme-color" content="#6366f1">
   
   <!-- Theme initialization -->
   <script>
@@ -61,14 +63,63 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin)
           
           // Apply theme mode
           document.documentElement.setAttribute('data-theme', isDark ? 'dark' : 'light');
+          
+          // Apply custom theme if active
+          if (state.preset === 'custom' && state.activeCustomThemeId && state.customThemes) {
+            const theme = state.customThemes.find(t => t.id === state.activeCustomThemeId);
+            if (theme && theme.colors) {
+              Object.entries(theme.colors).forEach(([key, value]) => {
+                if (value) {
+                  document.documentElement.style.setProperty(`--color-${key}`, value);
+                }
+              });
+            }
+          }
         } catch (e) {
           console.error('Failed to load theme:', e);
         }
       }
     })();
   </script>
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="default">
+  
+  <!-- Resource hints for performance -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  
+  <!-- Prefetch critical routes -->
+  <link rel="prefetch" href="/home">
+  <link rel="prefetch" href="/local">
+  <link rel="prefetch" href="/federated">
+  
+  <!-- DNS prefetch for potential API calls -->
+  <link rel="dns-prefetch" href="https://mastodon.social">
+  
+  <!-- Fonts with font-display swap for better performance -->
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  
+  {noIndex && <meta name="robots" content="noindex, nofollow" />}
+  
+  <ViewTransitions />
+  
+  <script is:inline>
+    // Theme detection and application
+    const theme = localStorage.getItem('theme') || 'auto';
+    if (theme === 'auto') {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      document.documentElement.dataset.theme = prefersDark ? 'dark' : 'light';
+    } else {
+      document.documentElement.dataset.theme = theme;
+    }
+  </script>
 </head>
 <body>
   <slot />
+  
+  <!-- Performance monitoring temporarily disabled -->
+  
+  
+  <!-- Service Worker Registration temporarily disabled -->
 </body>
 </html>

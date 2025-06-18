@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { timelineStore } from '@/lib/stores/timeline';
-  import type { TimelineType } from '@/lib/stores/timeline';
+  import { timelineStore } from '@/lib/stores/timeline.svelte';
+  import type { TimelineType } from '@/lib/stores/timeline.svelte';
   import StatusCard from './StatusCard.svelte';
   
   let { type = 'home' }: { type?: TimelineType } = $props();

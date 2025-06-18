@@ -20,14 +20,15 @@ class PerformanceMonitor {
 
   private async initializeMonitoring() {
     try {
-      const { onCLS, onFID, onFCP, onLCP, onTTFB, onINP } = await import('web-vitals')
-
-      onCLS(this.handleMetric.bind(this))
-      onFID(this.handleMetric.bind(this))
-      onFCP(this.handleMetric.bind(this))
-      onLCP(this.handleMetric.bind(this))
-      onTTFB(this.handleMetric.bind(this))
-      onINP(this.handleMetric.bind(this))
+      const webVitals = await import('web-vitals')
+      
+      // Only call functions that exist
+      if (webVitals.onCLS) webVitals.onCLS(this.handleMetric.bind(this))
+      if (webVitals.onFID) webVitals.onFID(this.handleMetric.bind(this))
+      if (webVitals.onFCP) webVitals.onFCP(this.handleMetric.bind(this))
+      if (webVitals.onLCP) webVitals.onLCP(this.handleMetric.bind(this))
+      if (webVitals.onTTFB) webVitals.onTTFB(this.handleMetric.bind(this))
+      if (webVitals.onINP) webVitals.onINP(this.handleMetric.bind(this))
     } catch (error) {
       console.error('Failed to initialize performance monitoring:', error)
     }

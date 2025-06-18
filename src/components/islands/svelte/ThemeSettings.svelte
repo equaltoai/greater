@@ -71,7 +71,7 @@
   let colorWheelCanvas: HTMLCanvasElement;
   
   $effect(() => {
-    if (!colorWheelCanvas || !showCustomizer) return;
+    if (typeof window === 'undefined' || !colorWheelCanvas || !showCustomizer) return;
     
     const ctx = colorWheelCanvas.getContext('2d');
     if (!ctx) return;

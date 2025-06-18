@@ -3,7 +3,7 @@
  * Updates UI immediately while API calls happen in background
  */
 
-import { timelineStore } from './timeline';
+import { timelineStore } from './timeline.svelte';
 import { getClient } from '@/lib/api/client';
 import type { Status } from '@/types/mastodon';
 

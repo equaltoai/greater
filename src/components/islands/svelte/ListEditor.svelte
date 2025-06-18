@@ -1,7 +1,7 @@
 <script lang="ts">
   import type { List } from '@/types/mastodon';
   import { createEventDispatcher } from 'svelte';
-  import { listsStore } from '@/lib/stores/lists';
+  import { listsStore } from '@/lib/stores/lists.svelte';
   import Button from './Button.svelte';
 
   export let list: List | null = null;
