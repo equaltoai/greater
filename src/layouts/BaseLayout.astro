@@ -26,7 +26,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin)
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{title} - Greater</title>
   <meta name="description" content={description}>
-  <link rel="canonical" href={canonicalURL}>
+  <link rel="canonical" href={canonicalURL.href}>
   
   <!-- Favicon -->
   <link rel="icon" type="image/svg+xml" href="/favicon.svg">
@@ -35,15 +35,15 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin)
   <!-- Open Graph -->
   <meta property="og:title" content={title}>
   <meta property="og:description" content={description}>
-  <meta property="og:image" content={new URL(image, Astro.url)}>
+  <meta property="og:image" content={image.startsWith('http') ? image : new URL(image, Astro.url).href}>
   <meta property="og:type" content="website">
-  <meta property="og:url" content={canonicalURL}>
+  <meta property="og:url" content={canonicalURL.href}>
   
   <!-- Twitter -->
   <meta name="twitter:card" content="summary_large_image">
   <meta name="twitter:title" content={title}>
   <meta name="twitter:description" content={description}>
-  <meta name="twitter:image" content={new URL(image, Astro.url)}>
+  <meta name="twitter:image" content={image.startsWith('http') ? image : new URL(image, Astro.url).href}>
   
   <ViewTransitions />
   
