@@ -93,17 +93,25 @@ export const a11yPrefs$ = persistentAtom<{
 // Computed values
 export const effectiveTheme$ = computed([theme$], (theme) => {
   if (theme === 'auto') {
-    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    if (typeof window !== 'undefined') {
+      return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+    }
+    return 'light'; // Default to light theme on server
   }
   return theme;
 });
 
 export const shouldReduceMotion$ = computed([a11yPrefs$], (prefs) => {
-  return prefs.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  if (typeof window !== 'undefined') {
+    return prefs.reduceMotion || window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  }
+  return prefs.reduceMotion;
 });
 
 // Helper functions
 export function applyTheme(theme: Theme): void {
+  if (typeof document === 'undefined') return;
+  
   const root = document.documentElement;
   
   if (theme === 'auto') {
@@ -115,10 +123,13 @@ export function applyTheme(theme: Theme): void {
 }
 
 export function applyLayout(layout: Layout): void {
+  if (typeof document === 'undefined') return;
   document.documentElement.dataset.layout = layout;
 }
 
 export function applyFontSize(size: 'small' | 'medium' | 'large'): void {
+  if (typeof document === 'undefined') return;
+  
   const root = document.documentElement;
   switch (size) {
     case 'small':
@@ -133,17 +144,18 @@ export function applyFontSize(size: 'small' | 'medium' | 'large'): void {
   }
 }
 
-// Subscribe to changes and apply them
-theme$.subscribe(applyTheme);
-layout$.subscribe(applyLayout);
-timelinePrefs$.subscribe((prefs) => {
-  if (prefs.fontSize) {
-    applyFontSize(prefs.fontSize);
-  }
-});
-
-// Listen for system theme changes
+// Only subscribe and apply on client side
 if (typeof window !== 'undefined') {
+  // Subscribe to changes and apply them
+  theme$.subscribe(applyTheme);
+  layout$.subscribe(applyLayout);
+  timelinePrefs$.subscribe((prefs) => {
+    if (prefs.fontSize) {
+      applyFontSize(prefs.fontSize);
+    }
+  });
+
+  // Listen for system theme changes
   window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => {
     if (theme$.get() === 'auto') {
       applyTheme('auto');

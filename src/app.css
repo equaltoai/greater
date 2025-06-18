@@ -7,25 +7,27 @@
   --spacing-88: 22rem;
   --spacing-120: 30rem;
   
-  /* Custom colors */
-  --color-primary: #6366f1;
-  --color-primary-hover: #4f46e5;
-  --color-primary-dark: #4338ca;
-  --color-secondary: #8b5cf6;
-  --color-secondary-hover: #7c3aed;
-  --color-accent: #ec4899;
-  --color-accent-hover: #db2777;
-  --color-background: #ffffff;
-  --color-surface: #f9fafb;
-  --color-surface-hover: #f3f4f6;
-  --color-border: #e5e7eb;
-  --color-text: #111827;
-  --color-text-muted: #6b7280;
-  --color-text-inverse: #ffffff;
-  --color-success: #10b981;
-  --color-warning: #f59e0b;
-  --color-error: #ef4444;
-  --color-info: #3b82f6;
+  /* Dynamic theme colors that reference CSS variables */
+  --color-primary: var(--color-primary);
+  --color-primary-light: var(--color-primaryLight);
+  --color-primary-dark: var(--color-primaryDark);
+  --color-accent-1: var(--color-accent1);
+  --color-accent-2: var(--color-accent2);
+  --color-background: var(--color-background);
+  --color-background-alt: var(--color-backgroundAlt);
+  --color-surface: var(--color-surface);
+  --color-surface-hover: var(--color-surfaceHover);
+  --color-border: var(--color-border);
+  --color-border-hover: var(--color-borderHover);
+  --color-text: var(--color-text);
+  --color-text-muted: var(--color-textMuted);
+  --color-text-inverse: var(--color-textInverse);
+  --color-success: var(--color-success);
+  --color-warning: var(--color-warning);
+  --color-error: var(--color-error);
+  --color-info: var(--color-info);
+  --color-boost: var(--color-boost);
+  --color-favorite: var(--color-favorite);
 }
 
 @import "./styles/global.css";

@@ -1,5 +1,5 @@
 ---
-import MainLayout from '@/layouts/MainLayout.astro';
+import ProfileLayout from '@/layouts/ProfileLayout.astro';
 import UserProfile from '@/components/islands/svelte/UserProfile.svelte';
 import UserTimeline from '@/components/islands/svelte/UserTimeline.svelte';
 
@@ -17,7 +17,9 @@ if (handle.includes('@')) {
 }
 ---
 
-<MainLayout title={`@${handle}`} description={`Profile of @${handle}`}>
-  <UserProfile username={username} domain={domain} client:load />
-  <UserTimeline username={username} domain={domain} client:idle />
-</MainLayout>
+<ProfileLayout title={`@${handle}`} description={`Profile of @${handle}`}>
+  <div class="space-y-6">
+    <UserProfile username={username} domain={domain} client:load />
+    <UserTimeline username={username} domain={domain} client:idle />
+  </div>
+</ProfileLayout>

@@ -1,6 +1,7 @@
 ---
 import '@/app.css';
 import { ViewTransitions } from 'astro:transitions';
+import ThemeInitializer from '@/components/islands/svelte/ThemeInitializer.svelte';
 
 export interface Props {
   title: string;
@@ -69,6 +70,7 @@ const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin)
   </script>
 </head>
 <body>
+  <ThemeInitializer client:only="svelte" />
   <slot />
 </body>
 </html>

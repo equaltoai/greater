@@ -2,7 +2,7 @@
   import { authStore } from '@/lib/stores/auth.svelte';
   
   // Get auth state
-  const { currentUser, logout } = authStore;
+  const { currentUser } = authStore;
   
   let isOpen = $state(false);
   let menuButton: HTMLButtonElement;
@@ -23,12 +23,13 @@
   async function handleLogout() {
     isOpen = false;
     try {
-      await logout();
+      await authStore.logout();
       // Redirect to login page
       window.location.href = '/auth/login';
     } catch (error) {
       // Logout failed - redirect anyway to clear UI state
       // Error has already been handled in the auth store
+      window.location.href = '/auth/login';
     }
   }
   

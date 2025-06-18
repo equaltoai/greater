@@ -1,18 +1,17 @@
 ---
-import MainLayout from '../../layouts/MainLayout.astro';
+import SettingsLayout from '../../layouts/SettingsLayout.astro';
 import SettingsNav from '../../components/islands/svelte/SettingsNav.svelte';
 import ThemeSettings from '../../components/islands/svelte/ThemeSettings.svelte';
 
-const isAuthenticated = Astro.cookies.get('auth-storage')?.value;
+const isAuthenticated = Astro.cookies.get('auth_session')?.value;
 
 if (!isAuthenticated) {
   return Astro.redirect('/auth/login');
 }
 ---
 
-<MainLayout title="Appearance Settings">
-  <div class="max-w-4xl mx-auto">
-    <div class="bg-white dark:bg-gray-800 rounded-lg">
+<SettingsLayout title="Appearance Settings">
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
       <div class="border-b border-gray-200 dark:border-gray-700">
         <SettingsNav client:load current="appearance" />
       </div>
@@ -34,11 +33,11 @@ if (!isAuthenticated) {
                 <div class="flex-1">
                   <div class="flex items-center space-x-2">
                     <span class="font-semibold text-text">Sample User</span>
-                    <span class="text-textMuted">@sample</span>
+                    <span class="text-text-muted">@sample</span>
                   </div>
                   <p class="mt-2 text-text">This is a sample post to preview your theme colors. The theme system supports beautiful color harmonics!</p>
                   <div class="mt-3 flex items-center space-x-4">
-                    <button class="text-textMuted hover:text-text">Reply</button>
+                    <button class="text-text-muted hover:text-text">Reply</button>
                     <button class="text-boost hover:text-text">Boost</button>
                     <button class="text-favorite hover:text-text">Favorite</button>
                   </div>
@@ -48,47 +47,21 @@ if (!isAuthenticated) {
             
             <!-- Sample Buttons -->
             <div class="flex gap-3">
-              <button class="px-4 py-2 bg-primary text-textInverse rounded-lg">Primary Button</button>
-              <button class="px-4 py-2 bg-accent1 text-textInverse rounded-lg">Accent Button</button>
-              <button class="px-4 py-2 border border-border text-text rounded-lg hover:bg-surfaceHover">Outline Button</button>
+              <button class="px-4 py-2 bg-primary text-text-inverse rounded-lg hover:bg-primary-dark">Primary Button</button>
+              <button class="px-4 py-2 bg-accent-1 text-text-inverse rounded-lg hover:opacity-90">Accent Button</button>
+              <button class="px-4 py-2 border border-border text-text rounded-lg hover:bg-surface-hover">Outline Button</button>
             </div>
             
             <!-- Sample Alerts -->
             <div class="space-y-2">
-              <div class="p-3 bg-success bg-opacity-20 text-success rounded-lg">Success message</div>
-              <div class="p-3 bg-warning bg-opacity-20 text-warning rounded-lg">Warning message</div>
-              <div class="p-3 bg-error bg-opacity-20 text-error rounded-lg">Error message</div>
-              <div class="p-3 bg-info bg-opacity-20 text-info rounded-lg">Info message</div>
+              <div class="p-3 bg-success/20 text-success rounded-lg">Success message</div>
+              <div class="p-3 bg-warning/20 text-warning rounded-lg">Warning message</div>
+              <div class="p-3 bg-error/20 text-error rounded-lg">Error message</div>
+              <div class="p-3 bg-info/20 text-info rounded-lg">Info message</div>
             </div>
           </div>
         </div>
       </div>
     </div>
   </div>
-</MainLayout>
-
-<style>
-  /* Use CSS variables from theme */
-  .bg-surface { background-color: var(--color-surface); }
-  .bg-primary { background-color: var(--color-primary); }
-  .bg-accent1 { background-color: var(--color-accent1); }
-  .bg-success { background-color: var(--color-success); }
-  .bg-warning { background-color: var(--color-warning); }
-  .bg-error { background-color: var(--color-error); }
-  .bg-info { background-color: var(--color-info); }
-  
-  .text-text { color: var(--color-text); }
-  .text-textMuted { color: var(--color-textMuted); }
-  .text-textInverse { color: var(--color-textInverse); }
-  .text-boost { color: var(--color-boost); }
-  .text-favorite { color: var(--color-favorite); }
-  .text-success { color: var(--color-success); }
-  .text-warning { color: var(--color-warning); }
-  .text-error { color: var(--color-error); }
-  .text-info { color: var(--color-info); }
-  
-  .border-border { border-color: var(--color-border); }
-  
-  .hover\:bg-surfaceHover:hover { background-color: var(--color-surfaceHover); }
-  .hover\:text-text:hover { color: var(--color-text); }
-</style>
+</SettingsLayout>

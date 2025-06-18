@@ -156,8 +156,8 @@
     </div>
   {:else if account}
     <!-- Header image -->
-    <div class="relative h-32 bg-gradient-to-br from-purple-600 to-pink-600">
-      {#if account.header && account.header !== account.header_static}
+    <div class="relative h-48 bg-gradient-to-br from-purple-600 to-pink-600">
+      {#if account.header}
         <img 
           src={account.header} 
           alt="Header" 

@@ -2,6 +2,7 @@
   const navItems = [
     { href: '/settings', label: 'General' },
     { href: '/settings/profile', label: 'Profile' },
+    { href: '/settings/preferences', label: 'Preferences' },
     { href: '/settings/appearance', label: 'Appearance' },
     { href: '/settings/notifications', label: 'Notifications' },
     { href: '/settings/privacy', label: 'Privacy & Safety' },
@@ -21,13 +22,13 @@
 </script>
 
 <nav class="w-full">
-  <div class="bg-white dark:bg-gray-800 rounded-lg p-2">
-    <ul class="flex flex-col space-y-1">
+  <div class="p-2 sm:p-4">
+    <ul class="flex flex-wrap gap-1 sm:gap-2">
       {#each navItems as item}
         <li>
           <a 
             href={item.href} 
-            class="block px-4 py-2 rounded-md transition-colors {currentPath === item.href ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
+            class="block px-3 sm:px-4 py-1.5 sm:py-2 rounded-md text-sm sm:text-base transition-colors whitespace-nowrap {currentPath === item.href ? 'bg-blue-600 text-white' : 'text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700'}"
           >
             {item.label}
           </a>

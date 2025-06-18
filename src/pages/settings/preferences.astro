@@ -1,0 +1,25 @@
+---
+import SettingsLayout from '../../layouts/SettingsLayout.astro';
+import SettingsNav from '../../components/islands/svelte/SettingsNav.svelte';
+import PreferencesSettings from '../../components/islands/svelte/PreferencesSettings.svelte';
+
+const isAuthenticated = Astro.cookies.get('auth_session')?.value;
+
+if (!isAuthenticated) {
+  return Astro.redirect('/auth/login');
+}
+---
+
+<SettingsLayout title="Preferences">
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+    <div class="border-b border-gray-200 dark:border-gray-700">
+      <SettingsNav client:load current="preferences" />
+    </div>
+    
+    <div class="p-6 sm:p-8">
+      <h2 class="text-2xl font-bold mb-6">Preferences</h2>
+      
+      <PreferencesSettings client:load />
+    </div>
+  </div>
+</SettingsLayout>

@@ -659,7 +659,10 @@ export function getClient(instance?: string): MastodonClient {
   // Fallback to a default if still no instance
   currentInstance = currentInstance || 'mastodon.social';
   
+  console.log('[API Client] Using instance:', currentInstance);
+  
   if (!globalClient || globalClient['instance'] !== currentInstance) {
+    console.log('[API Client] Creating new client for instance:', currentInstance);
     globalClient = new MastodonClient(currentInstance);
   }
   return globalClient;

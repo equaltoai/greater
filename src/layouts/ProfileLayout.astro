@@ -1,0 +1,26 @@
+---
+import BaseLayout from './BaseLayout.astro';
+import Header from '@/components/core/Header.astro';
+import AuthGuard from '@/components/islands/svelte/AuthGuard.svelte';
+import OfflineIndicator from '@/components/islands/svelte/OfflineIndicator.svelte';
+
+export interface Props {
+  title: string;
+  description?: string;
+}
+
+const { title, description } = Astro.props;
+---
+
+<BaseLayout title={title} description={description}>
+  <OfflineIndicator client:idle />
+  <AuthGuard client:load>
+    <div class="min-h-screen bg-gray-50 dark:bg-gray-900">
+      <Header />
+      
+      <main class="mx-auto max-w-5xl px-4 sm:px-6 lg:px-8 pt-20 pb-20">
+        <slot />
+      </main>
+    </div>
+  </AuthGuard>
+</BaseLayout>

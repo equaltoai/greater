@@ -222,10 +222,12 @@ export function applyTheme(colors: ThemeColors) {
   
   const root = document.documentElement;
   
-  // Set CSS variables
+  // Set CSS variables on the root element
   Object.entries(colors).forEach(([key, value]) => {
     if (value) {
-      root.style.setProperty(`--color-${key}`, value);
+      // Convert kebab-case for compound keys
+      const cssKey = key.replace(/([A-Z])/g, '-$1').toLowerCase();
+      root.style.setProperty(`--color-${cssKey}`, value);
     }
   });
   

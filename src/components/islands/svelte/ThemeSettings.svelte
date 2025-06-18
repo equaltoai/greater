@@ -1,14 +1,30 @@
 <script lang="ts">
+  import { onMount } from 'svelte';
   import { themeState, setThemeMode, setThemePreset, createCustomTheme, deleteCustomTheme, setActiveCustomTheme, currentTheme } from '@/lib/stores/theme';
   import { ColorHarmonics } from '@/lib/theme/color-harmonics';
   import type { HarmonyType, ThemeMode, ThemePreset } from '@/lib/stores/theme';
   import Button from './Button.svelte';
   
-  // Subscribe to stores
-  let themeStateValue = $state(themeState.get());
-  let currentThemeValue = $state(currentTheme.get());
+  // Initialize with default values for SSR
+  let themeStateValue = $state({
+    mode: 'system' as ThemeMode,
+    preset: 'default' as ThemePreset,
+    customThemes: [],
+    activeCustomThemeId: undefined
+  });
+  let currentThemeValue = $state({});
+  let mounted = $state(false);
+  
+  onMount(() => {
+    mounted = true;
+    // Initialize with actual store values on client
+    themeStateValue = themeState.get();
+    currentThemeValue = currentTheme.get();
+  });
   
   $effect(() => {
+    if (!mounted) return;
+    
     const unsubTheme = themeState.subscribe(value => {
       themeStateValue = value;
     });
@@ -29,7 +45,7 @@
   // Preview colors
   const previewColors = $derived.by(() => {
     const isDark = themeStateValue.mode === 'dark' || 
-      (themeStateValue.mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      (themeStateValue.mode === 'system' && typeof window !== 'undefined' && window.matchMedia('(prefers-color-scheme: dark)').matches);
     return ColorHarmonics.generateTheme(seedColor, harmonyType, isDark);
   });
   
@@ -150,8 +166,19 @@
 </script>
 
 <div class="space-y-6">
-  <!-- Theme Mode -->
-  <div>
+  {#if !mounted}
+    <!-- Loading state for SSR -->
+    <div class="animate-pulse">
+      <div class="h-8 bg-gray-200 dark:bg-gray-700 rounded w-32 mb-3"></div>
+      <div class="flex gap-2">
+        <div class="h-10 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+        <div class="h-10 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+        <div class="h-10 bg-gray-200 dark:bg-gray-700 rounded w-20"></div>
+      </div>
+    </div>
+  {:else}
+    <!-- Theme Mode -->
+    <div>
     <h3 class="text-lg font-semibold mb-3">Theme Mode</h3>
     <div class="flex gap-2">
       {#each ['light', 'dark', 'system'] as mode}
@@ -344,4 +371,5 @@
       </div>
     {/if}
   </div>
+  {/if}
 </div>

@@ -1,0 +1,154 @@
+VirtualizedTimelineInner.svelte:35 [VirtualizedTimeline] Effect running for type: home
+VirtualizedTimelineInner.svelte:36 [svelte] console_log_stateYour `console.log` contained `$state` proxies. Consider using `$inspect(...)` or `$state.snapshot(...)` insteadhttps://svelte.dev/e/console_log_state
+console_log_state @ chunk-UKRL22FA.js?v=c0a9d5c7:27
+(anonymous) @ chunk-GWYZDVDA.js?v=c0a9d5c7:4003
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+log_if_contains_state @ chunk-GWYZDVDA.js?v=c0a9d5c7:3990
+$effect @ VirtualizedTimelineInner.svelte:36
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+VirtualizedTimelineInner.svelte:36 [snapshot] [VirtualizedTimeline] timelineStore.timelines: {}
+VirtualizedTimelineInner.svelte:36 [VirtualizedTimeline] timelineStore.timelines: Proxy(Object) {}
+VirtualizedTimelineInner.svelte:49 [VirtualizedTimeline] Timeline state: {type: 'home', statusCount: 0, isLoading: false, error: null, firstStatus: undefined}
+VirtualizedTimelineInner.svelte:76 [VirtualizedTimeline] Render check: {statusCount: 0, isLoading: false, hasError: false}
+VirtualizedTimelineInner.svelte:87 [VirtualizedTimeline] Creating virtualizer: {scrollElement: false, statusCount: 0}
+timeline.svelte.ts:102 [Timeline Store] Loading timeline: {type: 'home', currentInstance: 'https://mas.to', isAuthenticated: true, currentUser: 'aron23'}
+client.ts:662 [API Client] Using instance: https://mas.to
+client.ts:665 [API Client] Creating new client for instance: https://mas.to
+client.ts:662 [API Client] Using instance: https://mas.to
+VirtualizedTimelineInner.svelte:35 [VirtualizedTimeline] Effect running for type: home
+VirtualizedTimelineInner.svelte:36 [svelte] console_log_stateYour `console.log` contained `$state` proxies. Consider using `$inspect(...)` or `$state.snapshot(...)` insteadhttps://svelte.dev/e/console_log_state
+console_log_state @ chunk-UKRL22FA.js?v=c0a9d5c7:27
+(anonymous) @ chunk-GWYZDVDA.js?v=c0a9d5c7:4003
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+log_if_contains_state @ chunk-GWYZDVDA.js?v=c0a9d5c7:3990
+$effect @ VirtualizedTimelineInner.svelte:36
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+VirtualizedTimelineInner.svelte:36 [snapshot] [VirtualizedTimeline] timelineStore.timelines: {home: {…}}
+VirtualizedTimelineInner.svelte:36 [VirtualizedTimeline] timelineStore.timelines: Proxy(Object) {}
+VirtualizedTimelineInner.svelte:49 [VirtualizedTimeline] Timeline state: {type: 'home', statusCount: 0, isLoading: true, error: null, firstStatus: undefined}
+VirtualizedTimelineInner.svelte:76 [VirtualizedTimeline] Render check: {statusCount: 0, isLoading: true, hasError: false}
+VirtualizedTimelineInner.svelte:87 [VirtualizedTimeline] Creating virtualizer: {scrollElement: false, statusCount: 0}
+VirtualizedTimelineInner.svelte:35 [VirtualizedTimeline] Effect running for type: home
+VirtualizedTimelineInner.svelte:36 [svelte] console_log_stateYour `console.log` contained `$state` proxies. Consider using `$inspect(...)` or `$state.snapshot(...)` insteadhttps://svelte.dev/e/console_log_state
+console_log_state @ chunk-UKRL22FA.js?v=c0a9d5c7:27
+(anonymous) @ chunk-GWYZDVDA.js?v=c0a9d5c7:4003
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+log_if_contains_state @ chunk-GWYZDVDA.js?v=c0a9d5c7:3990
+$effect @ VirtualizedTimelineInner.svelte:36
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+VirtualizedTimelineInner.svelte:36 [snapshot] [VirtualizedTimeline] timelineStore.timelines: {home: {…}}
+VirtualizedTimelineInner.svelte:36 [VirtualizedTimeline] timelineStore.timelines: Proxy(Object) {}
+VirtualizedTimelineInner.svelte:49 [VirtualizedTimeline] Timeline state: {type: 'home', statusCount: 0, isLoading: true, error: null, firstStatus: undefined}
+VirtualizedTimelineInner.svelte:35 [VirtualizedTimeline] Effect running for type: home
+VirtualizedTimelineInner.svelte:36 [svelte] console_log_stateYour `console.log` contained `$state` proxies. Consider using `$inspect(...)` or `$state.snapshot(...)` insteadhttps://svelte.dev/e/console_log_state
+console_log_state @ chunk-UKRL22FA.js?v=c0a9d5c7:27
+(anonymous) @ chunk-GWYZDVDA.js?v=c0a9d5c7:4003
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+log_if_contains_state @ chunk-GWYZDVDA.js?v=c0a9d5c7:3990
+$effect @ VirtualizedTimelineInner.svelte:36
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+VirtualizedTimelineInner.svelte:36 [snapshot] [VirtualizedTimeline] timelineStore.timelines: {home: {…}}
+VirtualizedTimelineInner.svelte:36 [VirtualizedTimeline] timelineStore.timelines: Proxy(Object) {}
+VirtualizedTimelineInner.svelte:49 [VirtualizedTimeline] Timeline state: {type: 'home', statusCount: 0, isLoading: true, error: null, firstStatus: undefined}
+VirtualizedTimelineInner.svelte:76 [VirtualizedTimeline] Render check: {statusCount: 0, isLoading: true, hasError: false}
+VirtualizedTimelineInner.svelte:87 [VirtualizedTimeline] Creating virtualizer: {scrollElement: false, statusCount: 0}
+VirtualizedTimelineInner.svelte:35 [VirtualizedTimeline] Effect running for type: home
+VirtualizedTimelineInner.svelte:36 [svelte] console_log_stateYour `console.log` contained `$state` proxies. Consider using `$inspect(...)` or `$state.snapshot(...)` insteadhttps://svelte.dev/e/console_log_state
+console_log_state @ chunk-UKRL22FA.js?v=c0a9d5c7:27
+(anonymous) @ chunk-GWYZDVDA.js?v=c0a9d5c7:4003
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+log_if_contains_state @ chunk-GWYZDVDA.js?v=c0a9d5c7:3990
+$effect @ VirtualizedTimelineInner.svelte:36
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+VirtualizedTimelineInner.svelte:36 [snapshot] [VirtualizedTimeline] timelineStore.timelines: {home: {…}}
+VirtualizedTimelineInner.svelte:36 [VirtualizedTimeline] timelineStore.timelines: Proxy(Object) {}
+VirtualizedTimelineInner.svelte:49 [VirtualizedTimeline] Timeline state: {type: 'home', statusCount: 0, isLoading: true, error: null, firstStatus: undefined}
+schemas.ts:273 [Schema Validation] Failed for getHomeTimeline: [{…}]
+validateResponse @ schemas.ts:273
+getHomeTimeline @ client.ts:277
+await in getHomeTimeline
+loadTimeline @ timeline.svelte.ts:118
+(anonymous) @ VirtualizedTimelineInner.svelte:127
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+$effect @ chunk-GWYZDVDA.js?v=c0a9d5c7:4047
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+schemas.ts:274 [Schema Validation] Returning unvalidated data for getHomeTimeline
+validateResponse @ schemas.ts:274
+getHomeTimeline @ client.ts:277
+await in getHomeTimeline
+loadTimeline @ timeline.svelte.ts:118
+(anonymous) @ VirtualizedTimelineInner.svelte:127
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+$effect @ chunk-GWYZDVDA.js?v=c0a9d5c7:4047
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+timeline.svelte.ts:131 [Timeline Store] Loaded statuses: 20
+timeline.svelte.ts:132 [Timeline Store] First status: {id: '114706110293693846', created_at: '2025-06-18T19:52:07.000Z', in_reply_to_id: null, in_reply_to_account_id: null, sensitive: false, …}
+timeline.svelte.ts:145 [Timeline Store] Setting timeline state: {type: 'home', statusCount: 20, isLoading: false, error: null}
+timeline.svelte.ts:155 [svelte] console_log_stateYour `console.log` contained `$state` proxies. Consider using `$inspect(...)` or `$state.snapshot(...)` insteadhttps://svelte.dev/e/console_log_state
+console_log_state @ chunk-UKRL22FA.js?v=c0a9d5c7:27
+(anonymous) @ chunk-GWYZDVDA.js?v=c0a9d5c7:4003
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+log_if_contains_state @ chunk-GWYZDVDA.js?v=c0a9d5c7:3990
+loadTimeline @ timeline.svelte.ts:155
+await in loadTimeline
+(anonymous) @ VirtualizedTimelineInner.svelte:127
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+$effect @ chunk-GWYZDVDA.js?v=c0a9d5c7:4047
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+timeline.svelte.ts:155 [snapshot] [Timeline Store] Timeline state after update: {statuses: Array(20), hasMore: true, isLoading: false, isLoadingMore: false, error: null, …}
+timeline.svelte.ts:155 [Timeline Store] Timeline state after update: Proxy(Object) {statuses: Array(20), hasMore: true, isLoading: false, isLoadingMore: false, error: null, …}
+VirtualizedTimelineInner.svelte:35 [VirtualizedTimeline] Effect running for type: home
+VirtualizedTimelineInner.svelte:36 [svelte] console_log_stateYour `console.log` contained `$state` proxies. Consider using `$inspect(...)` or `$state.snapshot(...)` insteadhttps://svelte.dev/e/console_log_state
+console_log_state @ chunk-UKRL22FA.js?v=c0a9d5c7:27
+(anonymous) @ chunk-GWYZDVDA.js?v=c0a9d5c7:4003
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+log_if_contains_state @ chunk-GWYZDVDA.js?v=c0a9d5c7:3990
+$effect @ VirtualizedTimelineInner.svelte:36
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+VirtualizedTimelineInner.svelte:36 [snapshot] [VirtualizedTimeline] timelineStore.timelines: {home: {…}}
+VirtualizedTimelineInner.svelte:36 [VirtualizedTimeline] timelineStore.timelines: Proxy(Object) {}
+VirtualizedTimelineInner.svelte:49 [VirtualizedTimeline] Timeline state: {type: 'home', statusCount: 20, isLoading: false, error: null, firstStatus: Proxy(Object)}
+VirtualizedTimelineInner.svelte:76 [VirtualizedTimeline] Render check: {statusCount: 20, isLoading: false, hasError: false}
+VirtualizedTimelineInner.svelte:87 [VirtualizedTimeline] Creating virtualizer: {scrollElement: false, statusCount: 20}
+VirtualizedTimelineInner.svelte:210 [VirtualizedTimeline] initVirtualizer action called
+VirtualizedTimelineInner.svelte:35 [VirtualizedTimeline] Effect running for type: home
+VirtualizedTimelineInner.svelte:36 [svelte] console_log_stateYour `console.log` contained `$state` proxies. Consider using `$inspect(...)` or `$state.snapshot(...)` insteadhttps://svelte.dev/e/console_log_state
+console_log_state @ chunk-UKRL22FA.js?v=c0a9d5c7:27
+(anonymous) @ chunk-GWYZDVDA.js?v=c0a9d5c7:4003
+untrack @ chunk-MNJRP35T.js?v=c0a9d5c7:2091
+log_if_contains_state @ chunk-GWYZDVDA.js?v=c0a9d5c7:3990
+$effect @ VirtualizedTimelineInner.svelte:36
+update_reaction @ chunk-MNJRP35T.js?v=c0a9d5c7:1687
+update_effect @ chunk-MNJRP35T.js?v=c0a9d5c7:1807
+flush_queued_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1898
+flush_queued_root_effects @ chunk-MNJRP35T.js?v=c0a9d5c7:1878
+VirtualizedTimelineInner.svelte:36 [snapshot] [VirtualizedTimeline] timelineStore.timelines: {home: {…}}
+VirtualizedTimelineInner.svelte:36 [VirtualizedTimeline] timelineStore.timelines: Proxy(Object) {}
+VirtualizedTimelineInner.svelte:49 [VirtualizedTimeline] Timeline state: {type: 'home', statusCount: 20, isLoading: false, error: null, firstStatus: Proxy(Object)}

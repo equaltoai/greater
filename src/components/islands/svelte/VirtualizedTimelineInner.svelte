@@ -19,7 +19,7 @@
 	// Support alternative prop name for backwards compatibility
 	const actualType = timelineType || type;
 	
-	let timeline = $state({
+	let timeline = $state(timelineStore.timelines[type] || {
 		statuses: [],
 		hasMore: true,
 		isLoading: false,
@@ -32,6 +32,9 @@
 	
 	// Subscribe to timeline changes
 	$effect(() => {
+		console.log('[VirtualizedTimeline] Effect running for type:', type);
+		console.log('[VirtualizedTimeline] timelineStore.timelines:', timelineStore.timelines);
+		
 		timeline = timelineStore.timelines[type] || {
 			statuses: [],
 			hasMore: true,
@@ -42,21 +45,56 @@
 			stream: null,
 			gaps: []
 		};
+		
+		console.log('[VirtualizedTimeline] Timeline state:', {
+			type,
+			statusCount: timeline.statuses.length,
+			isLoading: timeline.isLoading,
+			error: timeline.error,
+			firstStatus: timeline.statuses[0]
+		});
 	});
 	
 	let scrollElement: HTMLDivElement;
 	let observerElement: HTMLDivElement;
 	let pullToRefreshElement: HTMLDivElement;
 	
+	// Force virtualizer update when scroll element is ready
+	$effect(() => {
+		if (scrollElement && timeline.statuses.length > 0) {
+			console.log('[VirtualizedTimeline] Scroll element ready, triggering virtualizer update');
+			// The derived will automatically re-run when dependencies change
+		}
+	});
+	
 	let isPulling = $state(false);
 	let pullDistance = $state(0);
 	let isRefreshing = $state(false);
 	
+	// Add debugging
+	$effect(() => {
+		console.log('[VirtualizedTimeline] Render check:', {
+			statusCount: timeline.statuses.length,
+			isLoading: timeline.isLoading,
+			hasError: !!timeline.error
+		});
+	});
+	
 	// Virtual scrolling setup
-	const virtualizer = $derived.by(() => {
-		if (!scrollElement) return null;
+	let virtualizer = $state(null);
+	
+	$effect(() => {
+		console.log('[VirtualizedTimeline] Creating virtualizer:', {
+			scrollElement: !!scrollElement,
+			statusCount: timeline.statuses.length
+		});
 		
-		return createVirtualizer({
+		if (!scrollElement || timeline.statuses.length === 0) {
+			virtualizer = null;
+			return;
+		}
+		
+		virtualizer = createVirtualizer({
 			count: timeline.statuses.length,
 			getScrollElement: () => scrollElement,
 			estimateSize: () => 200, // Estimated height of each status
@@ -65,8 +103,18 @@
 		});
 	});
 	
-	const virtualItems = $derived(virtualizer?.getVirtualItems() || []);
-	const totalSize = $derived(virtualizer?.getTotalSize() || 0);
+	const virtualItems = $derived.by(() => {
+		if (!virtualizer) return [];
+		const items = virtualizer.getVirtualItems() || [];
+		console.log('[VirtualizedTimeline] Virtual items:', items.length, items);
+		return items;
+	});
+	const totalSize = $derived.by(() => {
+		if (!virtualizer) return 0;
+		const size = virtualizer.getTotalSize() || 0;
+		console.log('[VirtualizedTimeline] Total size:', size);
+		return size;
+	});
 	
 	// Intersection observer for infinite scroll
 	let intersectionObserver: IntersectionObserver;
@@ -157,6 +205,14 @@
 			timelineStore.refreshTimeline(type);
 		}
 	}
+	
+	function initVirtualizer(node: HTMLDivElement) {
+		console.log('[VirtualizedTimeline] initVirtualizer action called');
+		// This ensures the element is in the DOM
+		return {
+			destroy() {}
+		};
+	}
 </script>
 
 <div class="relative h-full flex flex-col">
@@ -184,6 +240,7 @@
 		<div
 			bind:this={scrollElement}
 			class="flex-1 overflow-y-auto overflow-x-hidden scrollbar-thin"
+			use:initVirtualizer
 		>
 			<!-- Pull to refresh indicator -->
 			<div
@@ -250,4 +307,3 @@
 		</div>
 	{/if}
 </div>
-

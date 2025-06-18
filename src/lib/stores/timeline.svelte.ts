@@ -99,6 +99,13 @@ class TimelineStore {
     this.timelines[type] = { ...this.timelines[type], isLoading: true, error: null };
     
     try {
+      console.log('[Timeline Store] Loading timeline:', {
+        type,
+        currentInstance: authStore.currentInstance,
+        isAuthenticated: authStore.isAuthenticated,
+        currentUser: authStore.currentUser?.username
+      });
+      
       const client = getClient(authStore.currentInstance || undefined);
       let statuses: Status[];
       
@@ -121,7 +128,10 @@ class TimelineStore {
         }
       }
       
-      this.timelines[type] = {
+      console.log('[Timeline Store] Loaded statuses:', statuses.length);
+      console.log('[Timeline Store] First status:', statuses[0]);
+      
+      const updatedTimeline = {
         ...this.timelines[type],
         statuses: params?.since_id 
           ? [...statuses, ...this.timelines[type].statuses]
@@ -131,7 +141,18 @@ class TimelineStore {
         lastFetch: now,
         error: null
       };
+      
+      console.log('[Timeline Store] Setting timeline state:', {
+        type,
+        statusCount: updatedTimeline.statuses.length,
+        isLoading: updatedTimeline.isLoading,
+        error: updatedTimeline.error
+      });
+      
+      this.timelines[type] = updatedTimeline;
       this.isLoading = false;
+      
+      console.log('[Timeline Store] Timeline state after update:', this.timelines[type]);
     } catch (error) {
       this.timelines[type] = {
         ...this.timelines[type],

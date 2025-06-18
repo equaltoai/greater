@@ -1,28 +1,19 @@
 ---
-import MainLayout from '../../layouts/MainLayout.astro';
+import SettingsLayout from '../../layouts/SettingsLayout.astro';
 import SettingsNav from '../../components/islands/svelte/SettingsNav.svelte';
 import ProfileSettings from '../../components/islands/svelte/ProfileSettings.svelte';
-import AuthGuard from '../../components/islands/svelte/AuthGuard.svelte';
 ---
 
-<MainLayout title="Profile Settings">
-  <AuthGuard client:load>
-    <div class="max-w-6xl mx-auto p-4">
-      <div class="lg:flex lg:gap-6">
-        <!-- Settings Navigation -->
-        <div class="lg:w-64 mb-6 lg:mb-0">
-          <SettingsNav client:load current="profile" />
-        </div>
-        
-        <!-- Main Content -->
-        <div class="flex-1">
-          <div class="bg-white dark:bg-gray-800 rounded-lg p-6">
-            <h2 class="text-2xl font-bold mb-6">Edit Profile</h2>
+<SettingsLayout title="Profile Settings">
+  <div class="bg-white dark:bg-gray-800 rounded-lg shadow-sm">
+    <div class="border-b border-gray-200 dark:border-gray-700">
+      <SettingsNav client:load current="profile" />
+    </div>
+    
+    <div class="p-6 sm:p-8">
+      <h2 class="text-2xl font-bold mb-6">Edit Profile</h2>
             
             <ProfileSettings client:load />
-          </div>
-        </div>
-      </div>
     </div>
-  </AuthGuard>
-</MainLayout>
+  </div>
+</SettingsLayout>

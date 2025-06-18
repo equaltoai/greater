@@ -2,6 +2,14 @@
 
 This document outlines the current state of the Greater Mastodon client and provides a roadmap for missing functionality with references to existing code.
 
+## 🚀 Recent Progress (June 18, 2025)
+- ✅ **Preferences System**: Fully implemented with comprehensive UI for timeline, posting, notification, and accessibility settings
+- ✅ **Appearance Settings**: Complete theme customization with color wheel, harmony algorithms, and Tailwind v4 integration
+- ✅ **Profile Headers**: Fixed display issue for custom profile headers
+- ✅ **Layout Improvements**: Created dedicated layouts for settings and profile pages with proper desktop width
+- ✅ **Modern Tailwind v4**: Integrated dynamic CSS variables with Tailwind's `@theme` directive
+- ✅ **Notification Settings**: Dedicated notifications page with browser/push notification management and type filtering
+
 ## 📋 Table of Contents
 1. [Currently Implemented Features](#currently-implemented-features)
 2. [Priority 1: Core Missing Features](#priority-1-core-missing-features)
@@ -40,33 +48,65 @@ This document outlines the current state of the Greater Mastodon client and prov
 - **Status threads**: `src/pages/status/[id].astro`, `src/components/islands/svelte/StatusThread.svelte`
 - **Draft saving**: `src/lib/stores/compose.ts:20-79`
 
-### User Features
+### User Features ✅ ENHANCED
 - **User profiles**: ✅ `src/pages/@[handle].astro`, `src/components/islands/svelte/UserProfile.svelte` - WORKING
+  - Fixed header image display (removed problematic condition check)
+  - Increased header height for better visual impact
+  - Full profile display with metadata, fields, and verification badges
 - **Profile editing**: ✅ `src/pages/settings/profile.astro`, `src/components/islands/svelte/ProfileSettings.svelte` - WORKING
 - **Follow/unfollow**: ✅ `src/lib/api/client.ts:560-577` - WORKING in UserProfile and UserCard components
 - **Account relationships**: ✅ `src/lib/api/client.ts:541-558` - WORKING (shows followed_by, blocking, muting status)
-- **Followers/Following pages**: ✅ `/@[handle]/followers`, `/@[handle]/following` - WORKING (with federation limitations for remote users)
+- **Followers/Following pages**: ✅ `/@[handle]/followers`, `/@[handle]/following` - WORKING
+  - Updated to use ProfileLayout for consistent width
+  - Proper responsive design for desktop viewing
 
 ### Search Functionality
 - **Full-text search**: `src/pages/search.astro`, `src/components/islands/svelte/SearchResults.svelte`
 - **Search history**: `src/lib/stores/search.svelte.ts:12-44`
 - **Search API**: `src/lib/api/client.ts:785-806`
 
-### Notifications
+### Notifications ✅ ENHANCED
 - **Notification list**: `src/pages/notifications.astro`, `src/components/islands/svelte/NotificationList.svelte`
 - **Real-time updates**: `src/lib/stores/notifications.ts:45-75`
 - **Browser notifications**: `src/lib/stores/notifications.ts:175-207`
 - **Notification API**: `src/lib/api/client.ts:675-731`
+- **Notification Settings**: ✅ `src/pages/settings/notifications.astro`, `src/components/islands/svelte/NotificationSettings.svelte` - WORKING
+  - Push notification support with service worker integration
+  - Desktop notification toggle with permission management
+  - Notification sounds toggle
+  - Type filtering (follows, boosts, favorites, mentions, polls)
+  - Test notification functionality
+  - No email support (considered legacy technology)
 
 ### Lists Management
 - **CRUD operations**: `src/lib/stores/lists.svelte.ts`
 - **List editor**: `src/components/islands/svelte/ListEditor.svelte`
 - **Lists API**: `src/lib/api/client.ts:1119-1272`
 
-### Theme & UI
-- **Theme system**: `src/lib/stores/theme.svelte.ts`
+### Theme & UI ✅ FULLY IMPLEMENTED
+- **Theme system**: `src/lib/stores/theme.ts` - Complete theme management with custom theme support
 - **Theme components**: `src/components/islands/svelte/ThemeToggle.svelte`, `src/components/islands/svelte/ThemeSettings.svelte`
-- **Color harmonics**: `src/lib/utils/theme.ts`
+- **Color harmonics**: `src/lib/theme/color-harmonics.ts` - Advanced color harmony algorithms
+- **Appearance Settings**: `src/pages/settings/appearance.astro` - Full theme customization UI with:
+  - Light/Dark/System mode selection
+  - High contrast mode
+  - Custom theme creator with interactive color wheel
+  - Color harmony selection (dyad, triad, tetrad)
+  - Theme saving, exporting, and management
+  - Live preview of theme changes
+- **Modern Tailwind v4 Integration**: 
+  - Dynamic CSS variables in `src/styles/global.css`
+  - Custom color classes defined in `src/app.css` using `@theme` directive
+  - Full integration between theme store and Tailwind classes
+- **Layouts**: 
+  - `src/layouts/SettingsLayout.astro` - Dedicated layout for settings pages
+  - `src/layouts/ProfileLayout.astro` - Dedicated layout for profile pages
+
+### Preferences & Settings ✅ COMPLETED
+- **Preferences Store**: `src/lib/stores/preferences.ts` - Complete implementation with all preference categories
+- **Preferences UI**: `src/pages/settings/preferences.astro`, `src/components/islands/svelte/PreferencesSettings.svelte`
+- **Settings Navigation**: `src/components/islands/svelte/SettingsNav.svelte` - Horizontal tab navigation for settings
+- **Settings Overview**: `src/pages/settings/index.astro` - Main settings page with card-based navigation
 
 ### Performance & Offline
 - **Service worker**: `public/sw.js`
@@ -89,13 +129,20 @@ This document outlines the current state of the Greater Mastodon client and prov
 
 **API:** `src/lib/api/client.ts:343-368` (`updateCredentials`) - WORKING
 
-#### Account Preferences
-**Implementation needed in:** New page `src/pages/settings/account.astro`
-```typescript
-// Use existing preferences API
-await client.getPreferences(); // src/lib/api/client.ts:1290-1300
-await client.updatePreferences(prefs); // Not yet implemented in client
-```
+#### Account Preferences ✅ COMPLETED
+**Implemented in:** `src/pages/settings/preferences.astro`, `src/components/islands/svelte/PreferencesSettings.svelte`
+- Full preferences management UI with all settings categories
+- Timeline preferences: auto-refresh, show replies/boosts, media preview, font size
+- Posting preferences: default visibility, sensitive media, draft saving, preview
+- Notification preferences: desktop notifications, sounds, filters for different types
+- Accessibility preferences: reduce motion, high contrast, large text, captions, keyboard shortcuts
+- Settings persist to localStorage using existing preferences store
+- Graceful fallback when server preferences API is not available
+- Custom toggle switch components with proper styling
+- Created dedicated SettingsLayout for full-width settings pages
+
+**Store:** `src/lib/stores/preferences.ts` - Fully functional nanostores implementation
+**API:** `src/lib/api/client.ts:getPreferences()` - Attempts to load server preferences but gracefully handles failures
 
 #### Import/Export
 **Implementation needed in:** New page `src/pages/settings/import-export.astro`

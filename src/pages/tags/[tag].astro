@@ -2,7 +2,7 @@
 import MainLayout from '../../layouts/MainLayout.astro';
 import HashtagTimeline from '../../components/islands/svelte/HashtagTimeline.svelte';
 
-const isAuthenticated = Astro.cookies.get('auth-storage')?.value;
+const isAuthenticated = Astro.cookies.get('auth_session')?.value;
 
 if (!isAuthenticated) {
   return Astro.redirect('/auth/login');
