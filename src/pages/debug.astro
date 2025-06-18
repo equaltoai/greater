@@ -1,0 +1,186 @@
+---
+import BaseLayout from '@/layouts/BaseLayout.astro';
+
+// Get runtime information
+const runtime = Astro.locals.runtime;
+const env = import.meta.env;
+const headers = Object.fromEntries(Astro.request.headers.entries());
+const url = Astro.url;
+
+// Check KV namespaces
+let kvStatus = {
+  SESSIONS: false,
+  CACHE: false,
+  PREFERENCES: false,
+  OFFLINE: false
+};
+
+if (runtime?.env) {
+  for (const [key, value] of Object.entries(kvStatus)) {
+    if (runtime.env[key]) {
+      kvStatus[key as keyof typeof kvStatus] = true;
+    }
+  }
+}
+
+// Environment info
+const debugInfo = {
+  environment: env.MODE,
+  isProd: env.PROD,
+  isDev: env.DEV,
+  siteUrl: env.SITE,
+  publicAppUrl: env.PUBLIC_APP_URL,
+  astroVersion: Astro.version || 'unknown',
+  nodeVersion: process.version || 'unknown',
+  platform: process.platform || 'unknown',
+  url: {
+    href: url.href,
+    pathname: url.pathname,
+    hostname: url.hostname,
+    protocol: url.protocol,
+    origin: url.origin
+  },
+  headers: {
+    'user-agent': headers['user-agent'] || 'none',
+    'cf-ray': headers['cf-ray'] || 'none',
+    'cf-connecting-ip': headers['cf-connecting-ip'] || 'none',
+    'x-forwarded-for': headers['x-forwarded-for'] || 'none',
+    host: headers['host'] || 'none'
+  },
+  cloudflare: {
+    hasRuntime: !!runtime,
+    hasEnv: !!runtime?.env,
+    kvNamespaces: kvStatus,
+    colo: headers['cf-ray']?.split('-')[1] || 'unknown'
+  }
+};
+---
+
+<BaseLayout title="Debug Information" description="Debug information for Greater">
+  <div class="min-h-screen bg-background p-8">
+    <div class="max-w-4xl mx-auto">
+      <h1 class="text-3xl font-bold text-text mb-8">Debug Information</h1>
+      
+      <div class="bg-surface rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold text-text mb-4">Environment</h2>
+        <dl class="grid grid-cols-1 gap-2">
+          <div class="flex justify-between">
+            <dt class="text-text-muted">Mode:</dt>
+            <dd class="font-mono text-text">{debugInfo.environment}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-text-muted">Production:</dt>
+            <dd class="font-mono text-text">{String(debugInfo.isProd)}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-text-muted">Astro Version:</dt>
+            <dd class="font-mono text-text">{debugInfo.astroVersion}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-text-muted">Node Version:</dt>
+            <dd class="font-mono text-text">{debugInfo.nodeVersion}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-text-muted">Platform:</dt>
+            <dd class="font-mono text-text">{debugInfo.platform}</dd>
+          </div>
+        </dl>
+      </div>
+
+      <div class="bg-surface rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold text-text mb-4">URL Information</h2>
+        <dl class="grid grid-cols-1 gap-2">
+          {Object.entries(debugInfo.url).map(([key, value]) => (
+            <div class="flex justify-between">
+              <dt class="text-text-muted">{key}:</dt>
+              <dd class="font-mono text-text text-sm break-all">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div class="bg-surface rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold text-text mb-4">Cloudflare Information</h2>
+        <dl class="grid grid-cols-1 gap-2">
+          <div class="flex justify-between">
+            <dt class="text-text-muted">Has Runtime:</dt>
+            <dd class="font-mono text-text">{String(debugInfo.cloudflare.hasRuntime)}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-text-muted">Has Env:</dt>
+            <dd class="font-mono text-text">{String(debugInfo.cloudflare.hasEnv)}</dd>
+          </div>
+          <div class="flex justify-between">
+            <dt class="text-text-muted">Colo:</dt>
+            <dd class="font-mono text-text">{debugInfo.cloudflare.colo}</dd>
+          </div>
+        </dl>
+        
+        <h3 class="text-lg font-semibold text-text mt-4 mb-2">KV Namespaces</h3>
+        <dl class="grid grid-cols-1 gap-2">
+          {Object.entries(debugInfo.cloudflare.kvNamespaces).map(([key, value]) => (
+            <div class="flex justify-between">
+              <dt class="text-text-muted">{key}:</dt>
+              <dd class="font-mono text-text">
+                {value ? (
+                  <span class="text-success">✓ Available</span>
+                ) : (
+                  <span class="text-error">✗ Not Available</span>
+                )}
+              </dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div class="bg-surface rounded-lg shadow-lg p-6 mb-6">
+        <h2 class="text-xl font-semibold text-text mb-4">Request Headers</h2>
+        <dl class="grid grid-cols-1 gap-2">
+          {Object.entries(debugInfo.headers).map(([key, value]) => (
+            <div class="flex justify-between">
+              <dt class="text-text-muted">{key}:</dt>
+              <dd class="font-mono text-text text-sm break-all">{value}</dd>
+            </div>
+          ))}
+        </dl>
+      </div>
+
+      <div class="bg-surface rounded-lg shadow-lg p-6">
+        <h2 class="text-xl font-semibold text-text mb-4">API Endpoint Test</h2>
+        <button
+          id="test-api"
+          class="px-4 py-2 bg-primary text-white rounded hover:bg-primary-hover transition-colors"
+        >
+          Test Auth API
+        </button>
+        <div id="api-result" class="mt-4 font-mono text-sm"></div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('test-api')?.addEventListener('click', async () => {
+      const resultDiv = document.getElementById('api-result');
+      if (!resultDiv) return;
+      
+      resultDiv.textContent = 'Testing...';
+      
+      try {
+        const response = await fetch('/auth/check-session', {
+          method: 'GET',
+          credentials: 'include'
+        });
+        
+        const data = await response.json();
+        resultDiv.innerHTML = `
+          <div class="text-success">Status: ${response.status}</div>
+          <div class="mt-2">Response: ${JSON.stringify(data, null, 2)}</div>
+        `;
+      } catch (error) {
+        resultDiv.innerHTML = `
+          <div class="text-error">Error: ${error instanceof Error ? error.message : 'Unknown error'}</div>
+        `;
+      }
+    });
+  </script>
+</BaseLayout>

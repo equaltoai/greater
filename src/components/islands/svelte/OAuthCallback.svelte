@@ -6,55 +6,87 @@
   let status = $state('Processing login...');
   
   onMount(async () => {
-    // Get URL parameters
-    const params = new URLSearchParams(window.location.search);
-    const code = params.get('code');
-    const state = params.get('state');
-    const errorParam = params.get('error');
-    const errorDescription = params.get('error_description');
-    
-    // Check for OAuth errors
-    if (errorParam) {
-      error = errorDescription || errorParam;
-      status = 'Login failed';
-      
-      // Redirect back to login after delay
-      setTimeout(() => {
-        window.location.href = '/auth/login';
-      }, 3000);
-      return;
-    }
-    
-    // Validate required parameters
-    if (!code || !state) {
-      error = 'Missing authorization code or state';
-      status = 'Invalid request';
-      
-      setTimeout(() => {
-        window.location.href = '/auth/login';
-      }, 3000);
-      return;
-    }
-    
     try {
-      // Complete the login process
-      status = 'Verifying credentials...';
-      await authStore.completeLogin(code, state);
+      console.log('[OAuthCallback] Starting OAuth callback processing');
       
-      status = 'Login successful!';
+      // Get URL parameters
+      const params = new URLSearchParams(window.location.search);
+      const code = params.get('code');
+      const state = params.get('state');
+      const errorParam = params.get('error');
+      const errorDescription = params.get('error_description');
       
-      // Redirect to home page
-      setTimeout(() => {
-        window.location.href = '/home';
-      }, 1000);
-    } catch (e) {
-      error = e instanceof Error ? e.message : 'Failed to complete login';
-      status = 'Login failed';
+      console.log('[OAuthCallback] Parameters:', { 
+        hasCode: !!code, 
+        hasState: !!state, 
+        error: errorParam 
+      });
       
-      // Redirect back to login after delay
-      setTimeout(() => {
-        window.location.href = '/auth/login';
-      }, 3000);
+      // Check for OAuth errors
+      if (errorParam) {
+        error = errorDescription || errorParam;
+        status = 'Login failed';
+        console.error('[OAuthCallback] OAuth error:', { errorParam, errorDescription });
+        
+        // Redirect back to login after delay
+        setTimeout(() => {
+          window.location.href = '/auth/login';
+        }, 3000);
+        return;
+      }
+      
+      // Validate required parameters
+      if (!code || !state) {
+        error = 'Missing authorization code or state';
+        status = 'Invalid request';
+        console.error('[OAuthCallback] Missing parameters:', { code, state });
+        
+        setTimeout(() => {
+          window.location.href = '/auth/login';
+        }, 3000);
+        return;
+      }
+      
+      try {
+        // Initialize auth store first
+        console.log('[OAuthCallback] Initializing auth store');
+        authStore.initialize();
+        
+        // Complete the login process
+        status = 'Verifying credentials...';
+        console.log('[OAuthCallback] Completing login with code and state');
+        await authStore.completeLogin(code, state);
+        
+        status = 'Login successful!';
+        console.log('[OAuthCallback] Login completed successfully');
+        
+        // Redirect to home page
+        setTimeout(() => {
+          window.location.href = '/home';
+        }, 1000);
+      } catch (e) {
+        console.error('[OAuthCallback] Login error:', e);
+        error = e instanceof Error ? e.message : 'Failed to complete login';
+        status = 'Login failed';
+        
+        // Log additional details for debugging
+        if (e instanceof Error) {
+          console.error('[OAuthCallback] Error details:', {
+            message: e.message,
+            stack: e.stack,
+            name: e.name
+          });
+        }
+        
+        // Redirect back to login after delay
+        setTimeout(() => {
+          window.location.href = '/auth/login';
+        }, 3000);
+      }
+    } catch (unexpectedError) {
+      console.error('[OAuthCallback] Unexpected error in onMount:', unexpectedError);
+      error = 'An unexpected error occurred';
+      status = 'Error';
     }
   });
 </script>

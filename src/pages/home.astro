@@ -1,21 +1,340 @@
 ---
-import MainLayout from '@/layouts/MainLayout.astro';
-import VirtualizedTimeline from '@/components/islands/svelte/VirtualizedTimeline.svelte';
-import TrendingSidebar from '@/components/islands/svelte/TrendingSidebar.svelte';
-
-// This will be the home timeline page
+// Minimal home page with proper styling
 ---
 
-<MainLayout title="Home" description="Your home timeline on Greater">
-  <div class="sticky top-[4rem] z-40 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3">
-    <h1 class="text-xl font-bold text-text">Home</h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Home - Greater</title>
+  <style>
+    /* CSS Variables for theming */
+    :root {
+      --color-primary: #2563eb;
+      --color-primaryLight: #3b82f6;
+      --color-primaryDark: #1d4ed8;
+      --color-background: #0a0a0a;
+      --color-surface: #1a1a1a;
+      --color-surfaceHover: #2a2a2a;
+      --color-border: #2a2a2a;
+      --color-borderHover: #3a3a3a;
+      --color-text: #e0e0e0;
+      --color-textMuted: #6b7280;
+      --color-textInverse: #ffffff;
+      --color-success: #10b981;
+      --color-error: #ef4444;
+      --color-boost: #8b5cf6;
+      --color-favorite: #ec4899;
+    }
+    
+    /* Base styles */
+    * {
+      box-sizing: border-box;
+    }
+    
+    body {
+      margin: 0;
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--color-background);
+      color: var(--color-text);
+      line-height: 1.5;
+    }
+    
+    /* Utility classes */
+    .max-w-2xl { max-width: 42rem; }
+    .mx-auto { margin-left: auto; margin-right: auto; }
+    .px-4 { padding-left: 1rem; padding-right: 1rem; }
+    .py-8 { padding-top: 2rem; padding-bottom: 2rem; }
+    .mb-2 { margin-bottom: 0.5rem; }
+    .mb-4 { margin-bottom: 1rem; }
+    .gap-2 { gap: 0.5rem; }
+    .text-2xl { font-size: 1.5rem; }
+    .text-sm { font-size: 0.875rem; }
+    .font-bold { font-weight: 700; }
+    .font-semibold { font-weight: 600; }
+    .text-center { text-align: center; }
+    .flex { display: flex; }
+    .items-center { align-items: center; }
+    .justify-between { justify-content: space-between; }
+    .rounded-lg { border-radius: 0.5rem; }
+    .p-4 { padding: 1rem; }
+    .p-8 { padding: 2rem; }
+    .border { border-width: 1px; }
+    .border-border { border-color: var(--color-border); }
+    .border-error { border-color: var(--color-error); }
+    .bg-surface { background-color: var(--color-surface); }
+    .bg-background { background-color: var(--color-background); }
+    .text-text { color: var(--color-text); }
+    .text-text-muted { color: var(--color-textMuted); }
+    .text-success { color: var(--color-success); }
+    .text-error { color: var(--color-error); }
+    .text-boost { color: var(--color-boost); }
+    .text-favorite { color: var(--color-favorite); }
+    
+    /* Button styles */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0.5rem 1rem;
+      border-radius: 0.25rem;
+      font-weight: 500;
+      transition: all 0.2s;
+      border: none;
+      cursor: pointer;
+      text-decoration: none;
+      font-size: 0.875rem;
+    }
+    .btn-primary {
+      background-color: var(--color-primary);
+      color: var(--color-textInverse);
+    }
+    .btn-primary:hover {
+      background-color: var(--color-primaryDark);
+    }
+    .btn-secondary {
+      background-color: var(--color-surface);
+      color: var(--color-text);
+      border: 1px solid var(--color-border);
+    }
+    .btn-secondary:hover {
+      background-color: var(--color-surfaceHover);
+    }
+    
+    /* Error styling */
+    .error {
+      background-color: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--color-error);
+      color: var(--color-error);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+    }
+    
+    /* Additional styles for status cards */
+    .post-card {
+      background: var(--color-surface);
+      border: 1px solid var(--color-border);
+      border-radius: 0.5rem;
+      padding: 1rem;
+      margin-bottom: 1rem;
+      transition: all 0.2s;
+    }
+    .post-card:hover {
+      border-color: var(--color-borderHover);
+      box-shadow: var(--shadow-sm);
+    }
+    .post-header {
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+      margin-bottom: 0.5rem;
+    }
+    .post-avatar {
+      width: 48px;
+      height: 48px;
+      border-radius: 50%;
+      object-fit: cover;
+    }
+    .post-meta {
+      flex: 1;
+    }
+    .post-author {
+      font-weight: 600;
+      color: var(--color-text);
+    }
+    .post-username {
+      color: var(--color-textMuted);
+      font-size: 0.875rem;
+    }
+    .post-content {
+      color: var(--color-text);
+      line-height: 1.5;
+      margin-bottom: 0.75rem;
+    }
+    .post-actions {
+      display: flex;
+      gap: 1.5rem;
+      font-size: 0.875rem;
+      color: var(--color-textMuted);
+    }
+    .post-action {
+      display: flex;
+      align-items: center;
+      gap: 0.25rem;
+      cursor: pointer;
+      transition: color 0.2s;
+    }
+    .post-action:hover {
+      color: var(--color-primary);
+    }
+    .loading-spinner {
+      display: inline-block;
+      width: 20px;
+      height: 20px;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="bg-background text-text">
+  <div class="max-w-2xl mx-auto px-4 py-8">
+    <h1 class="text-2xl font-bold mb-4">Home Timeline</h1>
+    
+    <div id="auth-status" class="bg-surface rounded-lg p-4 mb-4 border border-border">
+      <div class="flex items-center gap-2">
+        <span class="loading-spinner"></span>
+        <span>Checking authentication...</span>
+      </div>
+    </div>
+    
+    <div id="content"></div>
   </div>
-  
-  <div class="flex-1 h-full">
-    <VirtualizedTimeline type="home" client:load />
-  </div>
-  
-  <div slot="aside">
-    <TrendingSidebar client:idle />
-  </div>
-</MainLayout>
+
+  <script>
+    // @ts-nocheck
+    
+    // Check auth status
+    const authStatus = document.getElementById('auth-status');
+    const content = document.getElementById('content');
+    
+    // Define logout function
+    function logout() {
+      localStorage.removeItem('auth-storage');
+      window.location.href = '/';
+    }
+    
+    // Define logout in global scope for onclick
+    window.logout = logout;
+    
+    // Define loadHomeTimeline function
+    async function loadHomeTimeline(instance) {
+      if (!content) return;
+      
+      content.innerHTML = `
+        <div class="flex items-center gap-2 text-text-muted mb-4">
+          <span class="loading-spinner"></span>
+          <span>Loading your timeline...</span>
+        </div>
+      `;
+      
+      try {
+        // Get the access token from the secure API endpoint
+        const tokenResponse = await fetch('/auth/get-token', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ instance })
+        });
+        
+        if (!tokenResponse.ok) {
+          const error = await tokenResponse.json();
+          throw new Error(error.error || `Failed to get token: ${tokenResponse.status}`);
+        }
+        
+        const { token } = await tokenResponse.json();
+        
+        // Now fetch the home timeline with the token
+        const timelineResponse = await fetch(`https://${instance}/api/v1/timelines/home?limit=20`, {
+          headers: {
+            'Authorization': `Bearer ${token.access_token}`,
+            'Accept': 'application/json'
+          }
+        });
+        
+        if (!timelineResponse.ok) {
+          throw new Error(`Failed to load timeline: ${timelineResponse.status}`);
+        }
+        
+        const posts = await timelineResponse.json();
+        
+        content.innerHTML = posts.length === 0 ? `
+          <div class="bg-surface rounded-lg p-8 text-center text-text-muted">
+            <p class="mb-4">Your timeline is empty!</p>
+            <p>Follow some people to see their posts here.</p>
+          </div>
+        ` : posts.map((post) => `
+          <div class="post-card">
+            <div class="post-header">
+              <img src="${post.account.avatar}" alt="@${post.account.username}" class="post-avatar">
+              <div class="post-meta">
+                <div class="post-author">${post.account.display_name || post.account.username}</div>
+                <div class="post-username">@${post.account.username}</div>
+              </div>
+              <time class="text-text-muted text-sm">${new Date(post.created_at).toLocaleString()}</time>
+            </div>
+            <div class="post-content">${post.content.replace(/<[^>]*>/g, '').substring(0, 280)}${post.content.length > 280 ? '...' : ''}</div>
+            <div class="post-actions">
+              <span class="post-action">
+                💬 ${post.replies_count}
+              </span>
+              <span class="post-action ${post.reblogged ? 'text-boost' : ''}">
+                🔁 ${post.reblogs_count}
+              </span>
+              <span class="post-action ${post.favourited ? 'text-favorite' : ''}">
+                ⭐ ${post.favourites_count}
+              </span>
+            </div>
+          </div>
+        `).join('');
+      } catch (error) {
+        content.innerHTML = `
+          <div class="error">
+            <p class="font-semibold mb-1">Error loading timeline</p>
+            <p class="text-sm">${error instanceof Error ? error.message : 'Unknown error'}</p>
+          </div>
+        `;
+      }
+    }
+    
+    // Initialize auth check
+    if (authStatus) {
+      try {
+        const authStorage = localStorage.getItem('auth-storage');
+        if (authStorage) {
+          const parsed = JSON.parse(authStorage);
+          if (parsed.state?.isAuthenticated) {
+            authStatus.innerHTML = `
+              <div class="flex justify-between items-center">
+                <div>
+                  <p class="font-semibold text-success">✓ Authenticated</p>
+                  <p class="text-sm text-text-muted">@${parsed.state.currentUser?.username || 'Unknown'} on ${parsed.state.currentInstance || 'Unknown'}</p>
+                </div>
+                <button onclick="logout()" class="btn btn-secondary">Logout</button>
+              </div>
+            `;
+            
+            // Auto-load home timeline
+            if (parsed.state.currentInstance) {
+              loadHomeTimeline(parsed.state.currentInstance.replace(/^https?:\/\//, ''));
+            }
+          } else {
+            authStatus.innerHTML = `
+              <div class="text-center">
+                <p class="mb-2">Not authenticated</p>
+                <a href="/" class="btn btn-primary">Login to Greater</a>
+              </div>
+            `;
+          }
+        } else {
+          authStatus.innerHTML = `
+            <div class="text-center">
+              <p class="mb-2">Welcome to Greater</p>
+              <a href="/" class="btn btn-primary">Login to get started</a>
+            </div>
+          `;
+        }
+      } catch (error) {
+        authStatus.innerHTML = `<div class="error">Error checking auth: ${error instanceof Error ? error.message : 'Unknown error'}</div>`;
+      }
+    }
+  </script>
+</body>
+</html>

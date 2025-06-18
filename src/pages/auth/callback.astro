@@ -1,13 +1,10 @@
 ---
 import BaseLayout from '@/layouts/BaseLayout.astro';
 import OAuthCallback from '@/components/islands/svelte/OAuthCallback.svelte';
-
-// This page handles the OAuth callback from Mastodon
-// The actual logic is in the OAuthCallback component
 ---
 
-<BaseLayout title="Completing login..." description="Completing your login to Greater">
-  <div class="min-h-screen flex items-center justify-center bg-background">
+<BaseLayout title="Authenticating - Greater" description="OAuth callback">
+  <div class="min-h-screen flex items-center justify-center p-4">
     <OAuthCallback client:only="svelte" />
   </div>
 </BaseLayout>

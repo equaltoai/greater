@@ -17,7 +17,6 @@
     { href: '/notifications', label: 'Notifications', icon: '🔔' },
     { href: '/bookmarks', label: 'Bookmarks', icon: '🔖' },
     { href: '/lists', label: 'Lists', icon: '📋' },
-    { href: `/@${authStore.currentUser?.username || ''}`, label: 'Profile', icon: '👤' },
     { href: '/settings', label: 'Settings', icon: '⚙️' },
   ];
   
@@ -115,11 +114,11 @@
   <a href="/compose" class="flex items-center justify-center text-white bg-primary rounded-full w-14 h-14 -mt-4">
     <span>✏️</span>
   </a>
-  <a href={`/@${authStore.currentUser?.username || ''}`} class="flex items-center justify-center w-full h-full text-2xl hover:text-text transition-colors relative {isActive(`/@${authStore.currentUser?.username || ''}`) ? 'text-primary' : 'text-text-muted'}">
-    {#if isActive(`/@${authStore.currentUser?.username || ''}`)}
+  <a href="/settings" class="flex items-center justify-center w-full h-full text-2xl hover:text-text transition-colors relative {isActive('/settings') ? 'text-primary' : 'text-text-muted'}">
+    {#if isActive('/settings')}
       <span class="absolute top-0 left-1/2 -translate-x-1/2 w-12 h-1 bg-primary rounded-b"></span>
     {/if}
-    <span>👤</span>
+    <span>⚙️</span>
   </a>
 </nav>
 

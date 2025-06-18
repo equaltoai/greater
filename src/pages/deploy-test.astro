@@ -1,0 +1,43 @@
+---
+// Deploy test page with timestamp
+const deployTime = new Date().toISOString();
+const buildTime = import.meta.env.DEV ? 'DEV MODE' : new Date().toISOString();
+---
+
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width" />
+    <title>Deploy Test</title>
+</head>
+<body>
+    <h1>Deployment Test Page</h1>
+    <p>Build Time: {buildTime}</p>
+    <p>Current Time: {deployTime}</p>
+    <p>Environment: {import.meta.env.MODE}</p>
+    <p>Public Base: {import.meta.env.BASE_URL}</p>
+    
+    <h2>Functions Test</h2>
+    <button id="test-auth">Test Auth Function</button>
+    <pre id="auth-result"></pre>
+    
+    <script>
+        document.getElementById('test-auth').addEventListener('click', async () => {
+            const result = document.getElementById('auth-result');
+            result.textContent = 'Testing...';
+            
+            try {
+                const response = await fetch('/auth/check-session');
+                const data = await response.json();
+                result.textContent = JSON.stringify({
+                    status: response.status,
+                    data: data,
+                    timestamp: new Date().toISOString()
+                }, null, 2);
+            } catch (error) {
+                result.textContent = 'Error: ' + error.message;
+            }
+        });
+    </script>
+</body>
+</html>

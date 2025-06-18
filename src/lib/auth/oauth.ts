@@ -7,9 +7,19 @@ import type { OAuthApp, OAuthToken, AuthorizeParams, TokenExchangeParams } from 
 import { secureAuthClient } from './secure-client';
 
 const OAUTH_SCOPES = 'read write follow push';
-const REDIRECT_URI = import.meta.env.PUBLIC_APP_URL 
-  ? `${import.meta.env.PUBLIC_APP_URL}/auth/callback`
-  : 'http://localhost:4321/auth/callback';
+
+// Function to get the redirect URI based on the current environment
+function getRedirectUri(): string {
+  // In browser context, use the current origin
+  if (typeof window !== 'undefined') {
+    return `${window.location.origin}/auth/callback`;
+  }
+  
+  // In server context, use the environment variable or default
+  return import.meta.env.PUBLIC_APP_URL 
+    ? `${import.meta.env.PUBLIC_APP_URL}/auth/callback`
+    : 'http://localhost:4321/auth/callback';
+}
 
 /**
  * Generate a cryptographically secure random string
@@ -48,7 +58,7 @@ export async function registerApp(instance: string): Promise<OAuthApp> {
   
   const params = new URLSearchParams({
     client_name: 'Greater',
-    redirect_uris: REDIRECT_URI,
+    redirect_uris: getRedirectUri(),
     scopes: OAUTH_SCOPES,
     website: 'https://greater.website'
   });
@@ -79,19 +89,38 @@ export async function registerApp(instance: string): Promise<OAuthApp> {
  */
 export async function getOrCreateApp(instance: string): Promise<OAuthApp> {
   const instanceUrl = normalizeInstanceUrl(instance);
+  const currentRedirectUri = getRedirectUri();
   
-  // For OAuth flow, we still need to use sessionStorage temporarily
-  // The app data will be moved to secure storage after successful auth
-  const stored = sessionStorage.getItem(`app_${instanceUrl}`);
+  // Check if we have a stored app
+  const storedKey = `app_${instanceUrl}_${currentRedirectUri}`;
+  const stored = sessionStorage.getItem(storedKey);
+  
   if (stored) {
-    return JSON.parse(stored) as OAuthApp;
+    try {
+      const app = JSON.parse(stored) as OAuthApp;
+      console.log('[OAuth] Using stored app for', instanceUrl);
+      return app;
+    } catch (e) {
+      console.error('[OAuth] Failed to parse stored app:', e);
+      sessionStorage.removeItem(storedKey);
+    }
   }
   
+  // Clear any old app registrations with different redirect URIs
+  const keys = Object.keys(sessionStorage);
+  keys.forEach(key => {
+    if (key.startsWith(`app_${instanceUrl}_`) && key !== storedKey) {
+      console.log('[OAuth] Removing old app registration:', key);
+      sessionStorage.removeItem(key);
+    }
+  });
+  
   // Register new app
+  console.log('[OAuth] Registering new app for', instanceUrl, 'with redirect URI:', currentRedirectUri);
   const app = await registerApp(instance);
   
-  // Store temporarily in sessionStorage for OAuth flow
-  sessionStorage.setItem(`app_${instanceUrl}`, JSON.stringify(app));
+  // Store with redirect URI in key to differentiate
+  sessionStorage.setItem(storedKey, JSON.stringify(app));
   
   return app;
 }
@@ -118,13 +147,15 @@ export async function buildAuthorizationUrl(params: AuthorizeParams): Promise<{
   sessionStorage.setItem(`oauth_state_${state}`, JSON.stringify({
     instance: instanceUrl,
     codeVerifier,
-    timestamp: Date.now()
+    timestamp: Date.now(),
+    appId: app.client_id,
+    appName: app.name
   }));
   
   const authParams = new URLSearchParams({
     client_id: app.client_id,
     response_type: 'code',
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     scope: params.scopes?.join(' ') || OAUTH_SCOPES,
     code_challenge: codeChallenge,
     code_challenge_method: 'S256',
@@ -152,7 +183,7 @@ export async function exchangeCodeForToken(params: TokenExchangeParams): Promise
   const tokenParams = new URLSearchParams({
     client_id: app.client_id,
     client_secret: app.client_secret,
-    redirect_uri: REDIRECT_URI,
+    redirect_uri: getRedirectUri(),
     grant_type: 'authorization_code',
     code: params.code,
     code_verifier: params.codeVerifier
@@ -220,6 +251,8 @@ export async function revokeToken(instance: string, token: string): Promise<void
 export function verifyOAuthState(state: string): {
   instance: string;
   codeVerifier: string;
+  appId?: string;
+  appName?: string;
 } | null {
   const stored = sessionStorage.getItem(`oauth_state_${state}`);
   if (!stored) {
@@ -230,6 +263,8 @@ export function verifyOAuthState(state: string): {
     instance: string;
     codeVerifier: string;
     timestamp: number;
+    appId?: string;
+    appName?: string;
   };
   
   // Check if state is expired (5 minutes)
@@ -243,7 +278,9 @@ export function verifyOAuthState(state: string): {
   
   return {
     instance: data.instance,
-    codeVerifier: data.codeVerifier
+    codeVerifier: data.codeVerifier,
+    appId: data.appId,
+    appName: data.appName
   };
 }
 
@@ -284,22 +321,33 @@ export function cleanupExpiredStates(): void {
   const keys = Object.keys(sessionStorage);
   
   keys.forEach(key => {
-    if (key.startsWith('oauth_state_') || key.startsWith('app_')) {
+    if (key.startsWith('oauth_state_')) {
       const stored = sessionStorage.getItem(key);
       if (stored) {
         try {
           const data = JSON.parse(stored) as { timestamp?: number };
           // Clean up OAuth states after 5 minutes
-          if (key.startsWith('oauth_state_') && data.timestamp && now - data.timestamp > 5 * 60 * 1000) {
-            sessionStorage.removeItem(key);
-          }
-          // Clean up app data after 10 minutes (give more time for OAuth flow)
-          if (key.startsWith('app_') && !data.timestamp) {
+          if (data.timestamp && now - data.timestamp > 5 * 60 * 1000) {
             sessionStorage.removeItem(key);
           }
         } catch {
           sessionStorage.removeItem(key);
         }
+      }
+    }
+  });
+}
+
+/**
+ * Clear all OAuth app registrations for a specific instance
+ */
+export function clearAppRegistrations(instance?: string): void {
+  const keys = Object.keys(sessionStorage);
+  keys.forEach(key => {
+    if (key.startsWith('app_')) {
+      if (!instance || key.includes(normalizeInstanceUrl(instance))) {
+        console.log('[OAuth] Clearing app registration:', key);
+        sessionStorage.removeItem(key);
       }
     }
   });

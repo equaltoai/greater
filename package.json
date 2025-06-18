@@ -28,8 +28,9 @@
     "perf": "npm run build && npm run preview & sleep 5 && npm run lighthouse",
     "ci": "npm run format:check && npm run lint && npm run typecheck && npm run test:unit",
     "prepare": "husky install",
-    "deploy:dev": "npm run build && wrangler pages deploy dist --project-name=greater --branch=dev",
-    "deploy:prod": "npm run build && wrangler pages deploy dist --project-name=greater --branch=main",
+    "deploy": "tsx deploy.ts production",
+    "deploy:dev": "tsx deploy.ts dev",
+    "deploy:preview": "tsx deploy.ts preview",
     "setup:cloudflare": "./scripts/setup-cloudflare.sh",
     "pulumi": "cd infrastructure && pulumi"
   },

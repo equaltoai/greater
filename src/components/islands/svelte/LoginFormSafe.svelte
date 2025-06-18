@@ -19,7 +19,14 @@
     }
     
     // Check if already authenticated and redirect
+    console.log('[LoginForm] Auth state:', {
+      isAuthenticated: authStoreInstance.isAuthenticated,
+      currentUser: authStoreInstance.currentUser,
+      currentInstance: authStoreInstance.currentInstance
+    });
+    
     if (authStoreInstance.isAuthenticated) {
+      console.log('[LoginForm] Already authenticated, redirecting to home');
       window.location.href = '/home';
     }
   });
@@ -183,6 +190,27 @@
         Your login goes directly to your Mastodon instance. We only receive a token 
         to access your account on your behalf.
       </p>
+    </details>
+    
+    <details class="cursor-pointer">
+      <summary class="hover:text-text">Having trouble logging in?</summary>
+      <div class="mt-2 pl-4 space-y-2">
+        <p>If you're seeing "redirect uri not valid" errors, try clearing stored app data:</p>
+        <button
+          type="button"
+          onclick={async () => {
+            if (typeof window !== 'undefined') {
+              const { clearAppRegistrations } = await import('@/lib/auth/oauth');
+              clearAppRegistrations();
+              error = '';
+              alert('App registrations cleared. Please try logging in again.');
+            }
+          }}
+          class="px-3 py-1 text-xs bg-surface hover:bg-surface-hover border border-border rounded transition-colors"
+        >
+          Clear stored app data
+        </button>
+      </div>
     </details>
   </div>
 </form>

@@ -131,21 +131,43 @@ class AuthStore {
           // Get user info
           const user = await verifyCredentials(instance, token.access_token);
           
-          // Get app info from sessionStorage (temporary during OAuth flow)
-          const appData = sessionStorage.getItem(`app_${instance}`);
-          if (!appData) {
-            throw new AuthError('App data not found', 'APP_NOT_FOUND');
+          // Try to find app info from sessionStorage
+          // Look for any app data for this instance (with any redirect URI)
+          let appData = null;
+          let appKey = null;
+          const keys = Object.keys(sessionStorage);
+          for (const key of keys) {
+            if (key.startsWith(`app_${instance}_`)) {
+              appData = sessionStorage.getItem(key);
+              appKey = key;
+              break;
+            }
           }
-          const app = JSON.parse(appData) as OAuthApp;
+          
+          if (!appData) {
+            console.error('[Auth] No app data found for instance:', instance);
+            console.error('[Auth] Available keys:', keys.filter(k => k.startsWith('app_')));
+            // Don't throw error - app registration is optional for token storage
+            // The app will be re-registered on next login attempt
+          }
+          
+          let app = null;
+          if (appData) {
+            try {
+              app = JSON.parse(appData) as OAuthApp;
+              // Store app credentials securely (if not already stored)
+              await secureAuthClient.storeApp(instance, app);
+              // Clear app data from sessionStorage
+              if (appKey) {
+                sessionStorage.removeItem(appKey);
+              }
+            } catch (e) {
+              console.error('[Auth] Failed to parse app data:', e);
+            }
+          }
           
           // Store token securely in Cloudflare Worker
           await secureAuthClient.storeToken(instance, token);
-          
-          // Store app credentials securely (if not already stored)
-          await secureAuthClient.storeApp(instance, app);
-          
-          // Clear app data from sessionStorage
-          sessionStorage.removeItem(`app_${instance}`);
           
           // Create authenticated account (without token)
           const account: AuthenticatedAccount = {
@@ -164,6 +186,9 @@ class AuthStore {
       this.isAuthenticated = true;
       this.isLoading = false;
       this.error = null;
+      
+      // Persist the auth state
+      this.persist();
     } catch (error) {
       const message = error instanceof Error ? error.message : 'Login failed';
       this.isLoading = false;

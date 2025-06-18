@@ -1,238 +1,226 @@
-# Greater Client Deployment Guide
+# Greater Deployment Guide
 
-This guide covers deploying the Greater Client to Cloudflare using Pulumi for infrastructure as code.
+This guide covers the deployment process for Greater, a modern Mastodon client built with Astro and deployed on Cloudflare Workers.
 
 ## Prerequisites
 
-1. **Cloudflare Account** with:
-   - API Token with appropriate permissions
-   - Account ID
-   - Zone ID for your domain
+- Node.js 18+ installed
+- npm or yarn package manager
+- Cloudflare account with API access
+- Pulumi account (free tier is fine)
 
-2. **Pulumi Account** (free tier is sufficient)
+## Environment Setup
 
-3. **Domain** configured in Cloudflare (greater.website)
+1. **Copy the environment file:**
+   ```bash
+   cp .env.example .env.local
+   ```
 
-## Setup Instructions
+2. **Fill in required values in `.env.local`:**
+   ```env
+   # Required for deployment
+   CLOUDFLARE_ACCOUNT_ID=your-account-id
+   CLOUDFLARE_API_TOKEN=your-api-token
+   
+   # Required for infrastructure management
+   PULUMI_ACCESS_TOKEN=your-pulumi-access-token
+   
+   # Optional: Custom domain
+   CLOUDFLARE_ZONE_ID=your-zone-id
+   DOMAIN=your-domain.com
+   ```
 
-### 1. Environment Configuration
+3. **Get your Cloudflare credentials:**
+   - Account ID: Found in Cloudflare dashboard → Right sidebar
+   - API Token: Create at https://dash.cloudflare.com/profile/api-tokens
+     - Use "Edit Cloudflare Workers" template
+     - Add permissions: Account:Cloudflare Pages:Edit, Zone:Page Rules:Edit
 
-Copy the example environment file and fill in your credentials:
+4. **Get your Pulumi token:**
+   - Sign up at https://app.pulumi.com (free)
+   - Create access token: Settings → Access Tokens → Create Token
 
-```bash
-cp env.example .env
-```
+## Deployment Commands
 
-Edit `.env` with your values:
-```env
-CLOUDFLARE_API_TOKEN=your_cloudflare_api_token
-CLOUDFLARE_ACCOUNT_ID=your_cloudflare_account_id
-CLOUDFLARE_ZONE_ID=your_cloudflare_zone_id
-PULUMI_ACCESS_TOKEN=your_pulumi_access_token
-```
+### Full Deployment (Recommended for first time)
 
-### 2. Install Dependencies
-
-```bash
-npm install
-```
-
-### 3. Initialize Pulumi
-
-Run the setup script to configure Pulumi:
-
-```bash
-npm run setup:pulumi
-```
-
-This will:
-- Login to Pulumi
-- Create development and production stacks
-- Configure Cloudflare credentials
-- Set up environment-specific configurations
-
-### 4. Deploy to Development
-
+Deploy to development:
 ```bash
 npm run deploy:dev
 ```
 
-This deploys to `dev.greater.website` with development settings.
-
-### 5. Deploy to Production
-
+Deploy to production:
 ```bash
-npm run deploy:prod
+npm run deploy
 ```
 
-This deploys to `greater.website` with production optimizations.
+### Advanced Deployment Options
 
-## Infrastructure Components
+The deployment script supports various flags:
 
-### Cloudflare Workers
-- Main application worker with Node.js compatibility
-- Automatic scaling and global distribution
-
-### KV Namespaces
-- **SESSION**: User session storage
-- **CACHE**: API response caching
-- **OFFLINE**: Offline queue storage
-
-### R2 Buckets
-- **MEDIA**: User-uploaded media files
-- **STATIC**: Static assets and builds
-
-### Additional Services
-- **D1 Database**: Analytics data
-- **Durable Objects**: Real-time coordination
-- **Page Rules**: Caching optimization
-- **Rate Limiting**: API protection
-
-## GitHub Actions CI/CD
-
-The repository includes automated deployment workflows:
-
-### Pull Requests
-- Runs tests and linting
-- Deploys preview to dev.greater.website
-- Comments on PR with preview URL
-
-### Main Branch
-- Runs full test suite
-- Deploys to production
-- Purges Cloudflare cache
-- Creates GitHub release
-
-### Required GitHub Secrets
-Set these in your repository settings:
-- `PULUMI_ACCESS_TOKEN`
-- `CLOUDFLARE_API_TOKEN`
-- `CLOUDFLARE_ACCOUNT_ID`
-- `CLOUDFLARE_ZONE_ID`
-
-## Manual Deployment Commands
-
-### View Current Infrastructure
 ```bash
-cd infrastructure
-pulumi stack select dev  # or prod
-pulumi preview
+# Skip infrastructure creation (use existing resources)
+npm run deploy:dev -- --skip-infrastructure
+
+# Skip build step (use existing dist folder)
+npm run deploy:dev -- --skip-build
+
+# Show help
+npm run deploy -- --help
 ```
 
-### Update Specific Resources
-```bash
-cd infrastructure
-pulumi up --yes
-```
+## Deployment Process
 
-### Destroy Infrastructure
-```bash
-cd infrastructure
-pulumi destroy --yes
-```
+The deployment script performs these steps:
 
-## Monitoring and Debugging
+1. **Environment Validation**
+   - Checks Node.js version (18+ required)
+   - Installs dependencies if needed
+   - Validates required environment variables
 
-### Cloudflare Dashboard
-- Workers analytics
-- Error logs
-- Performance metrics
-- Cache hit rates
+2. **Infrastructure Creation/Update (Pulumi)**
+   - Creates/updates KV namespaces:
+     - SESSIONS - User session storage
+     - CACHE - API response caching
+     - PREFERENCES - User preferences
+     - OFFLINE - Offline queue storage
+     - OAUTH_APPS - OAuth app registrations
+   - Creates/updates R2 buckets:
+     - MEDIA - User uploaded media
+     - STATIC - Static assets
+   - Creates/updates D1 database:
+     - ANALYTICS - Usage analytics
 
-### Pulumi Console
-- Infrastructure state
-- Deployment history
-- Resource dependencies
+3. **Configuration Generation**
+   - Generates `wrangler.toml` with resource bindings
+   - Configures environment variables
 
-### Application Logs
-- Real-time logs in Cloudflare Workers dashboard
-- Sentry integration for error tracking (optional)
+4. **Project Build**
+   - Cleans previous build
+   - Runs Astro build process
+   - Generates static files and worker
 
-## Performance Optimization
+5. **Cloudflare Workers Deployment**
+   - Deploys using wrangler deploy
+   - Configures resource bindings
+   - Updates worker with latest code
 
-### Caching Strategy
-- Static assets cached for 1 day at edge
-- API responses cached in KV with TTL
-- Browser cache headers optimized
+## Environments
 
-### Bundle Optimization
-- Code splitting by route
-- Lazy loading for heavy components
-- Compression enabled
+Greater supports multiple environments:
 
-### Global Distribution
-- Workers deployed to 200+ locations
-- Automatic routing to nearest edge
-- Sub-50ms response times globally
+- **dev** - Development environment (default)
+- **staging** - Staging environment for testing
+- **production** - Production environment
 
-## Security Considerations
+Each environment has isolated resources (KV, R2, D1).
 
-### API Token Permissions
-Ensure your Cloudflare API token has only necessary permissions:
-- Zone:Read
-- Zone:Cache Purge
-- Workers Scripts:Edit
-- Workers KV Storage:Edit
-- Workers R2 Storage:Edit
+## Custom Domain Setup
 
-### Environment Variables
-- Never commit `.env` files
-- Use GitHub Secrets for CI/CD
-- Rotate tokens regularly
+1. Add domain configuration to `.env.local`:
+   ```env
+   CLOUDFLARE_ZONE_ID=your-zone-id
+   DOMAIN=greater.yourdomain.com
+   ```
 
-### Rate Limiting
-- API endpoints protected
-- 100 requests/minute default
-- Cloudflare challenge for exceeded limits
+2. After deployment, add CNAME record:
+   - Type: CNAME
+   - Name: greater (or your subdomain)
+   - Target: greater-dev.[your-account-id].workers.dev
+
+## CI/CD Deployment
+
+For GitHub Actions deployment:
+
+1. Add secrets to your repository:
+   - `CLOUDFLARE_ACCOUNT_ID`
+   - `CLOUDFLARE_API_TOKEN`
+   - `PULUMI_ACCESS_TOKEN`
+
+2. Use the provided workflow:
+   ```yaml
+   - name: Deploy
+     run: npm run deploy:${{ github.event.inputs.environment || 'dev' }}
+   ```
 
 ## Troubleshooting
 
-### Deployment Fails
-1. Check Pulumi logs: `pulumi logs -f`
-2. Verify Cloudflare credentials
-3. Ensure domain is properly configured
+### Common Issues
 
-### Worker Errors
-1. Check Workers dashboard logs
-2. Verify KV namespace bindings
-3. Check environment variables
+1. **"No stack named" error**
+   - The Pulumi stack doesn't exist yet
+   - The script will automatically create it
 
-### Cache Issues
-1. Purge cache manually if needed
-2. Check Page Rules configuration
-3. Verify cache headers
+2. **"wrangler.toml not found" error**
+   - Run without `--skip-infrastructure` flag first
+   - This generates the required configuration
 
-## Cost Estimation
+3. **Build failures**
+   - Check Node.js version: `node --version` (should be 18+)
+   - Clear cache: `rm -rf node_modules dist && npm install`
 
-### Cloudflare Workers (Free Tier)
-- 100,000 requests/day
-- 10ms CPU time per request
-- Sufficient for moderate traffic
+4. **Deployment failures**
+   - Verify Cloudflare API token has correct permissions
+   - Check account ID is correct
+   - Ensure project name is unique in your account
 
-### Cloudflare KV (Free Tier)
-- 100,000 reads/day
-- 1,000 writes/day
-- 1GB storage
+### Debug Mode
 
-### Cloudflare R2 (Pricing)
-- $0.015/GB stored per month
-- $0.01/GB bandwidth
-- No egress fees
+For verbose output during deployment:
+```bash
+DEBUG=* npm run deploy:dev
+```
 
-### Pulumi (Free Tier)
-- Unlimited resources
-- 1 concurrent deployment
-- Community support
+## Resource Management
 
-## Next Steps
+### Viewing Resources
 
-1. Set up monitoring dashboards
-2. Configure custom domains
-3. Enable Web Analytics
-4. Set up backup strategies
-5. Configure A/B testing with Workers
+Check Cloudflare dashboard:
+- Workers: Workers & Pages → Workers
+- KV: Workers & Pages → KV
+- R2: R2 Object Storage
+- D1: Workers & Pages → D1
 
-For questions or issues, please refer to:
-- [Cloudflare Workers Documentation](https://developers.cloudflare.com/workers/)
-- [Pulumi Cloudflare Provider](https://www.pulumi.com/registry/packages/cloudflare/)
-- [Greater Client Issues](https://github.com/greater/client/issues)
+Check Pulumi dashboard:
+- https://app.pulumi.com
+- View stack resources and history
+
+### Cleanup
+
+To remove all resources for an environment:
+
+1. Remove Cloudflare resources:
+   ```bash
+   cd infrastructure
+   pulumi destroy --stack dev
+   ```
+
+2. Remove Worker manually in Cloudflare dashboard
+
+## Performance Optimization
+
+The deployment includes:
+- Static asset optimization
+- Bundle splitting
+- Image optimization
+- Edge caching via Cloudflare
+
+## Security Notes
+
+- Never commit `.env.local` or `wrangler.toml`
+- Use encrypted secrets in CI/CD
+- Rotate API tokens regularly
+- Use least-privilege API tokens
+
+## Support
+
+For issues:
+1. Check deployment logs
+2. Verify environment variables
+3. Check Cloudflare dashboard for errors
+4. Review Pulumi stack history
+
+Need help? Open an issue on GitHub with:
+- Deployment command used
+- Error messages
+- Environment (dev/staging/production)

@@ -1,10 +1,29 @@
 ---
-// Redirect to home if authenticated, otherwise to login
-const isAuthenticated = Astro.cookies.get('auth-storage')?.value;
-
-if (isAuthenticated) {
-  return Astro.redirect('/home');
-} else {
-  return Astro.redirect('/auth/login');
-}
+import BaseLayout from '@/layouts/BaseLayout.astro';
 ---
+
+<BaseLayout title="Greater" description="A modern Mastodon client">
+  <script>
+    // Client-side redirect based on auth state
+    const authStorage = localStorage.getItem('auth-storage');
+    
+    if (authStorage) {
+      try {
+        const parsed = JSON.parse(authStorage);
+        if (parsed.state?.isAuthenticated) {
+          window.location.href = '/home';
+        } else {
+          window.location.href = '/auth/login';
+        }
+      } catch {
+        window.location.href = '/auth/login';
+      }
+    } else {
+      window.location.href = '/auth/login';
+    }
+  </script>
+  
+  <div class="min-h-screen flex items-center justify-center">
+    <div class="animate-spin h-8 w-8 border-2 border-primary border-t-transparent rounded-full"></div>
+  </div>
+</BaseLayout>

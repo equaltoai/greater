@@ -8,11 +8,12 @@ import sentry from '@sentry/astro';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://localhost:4321', // Update this to your production URL
+  site: import.meta.env.PUBLIC_APP_URL || 'https://localhost:4321',
   output: 'server',
   adapter: cloudflare({
     mode: 'directory',
-    functionPerRoute: true,
+    functionPerRoute: false,
+    imageService: 'passthrough',
   }),
   integrations: [svelte()], // sentry() temporarily disabled
   vite: {

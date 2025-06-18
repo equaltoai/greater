@@ -99,7 +99,7 @@ class TimelineStore {
     this.timelines[type] = { ...this.timelines[type], isLoading: true, error: null };
     
     try {
-      const client = getClient();
+      const client = getClient(authStore.currentInstance || undefined);
       let statuses: Status[];
       
       if (type.startsWith('list:')) {
@@ -155,7 +155,7 @@ class TimelineStore {
     this.timelines[type] = { ...this.timelines[type], isLoadingMore: true };
     
     try {
-      const client = getClient();
+      const client = getClient(authStore.currentInstance || undefined);
       let statuses: Status[];
       
       const params: TimelineParams = {

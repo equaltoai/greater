@@ -614,7 +614,24 @@ export class MastodonClient {
 let globalClient: MastodonClient | null = null;
 
 export function getClient(instance?: string): MastodonClient {
-  const currentInstance = instance || localStorage.getItem('currentInstance') || 'mastodon.social';
+  // Only access localStorage on client side
+  let currentInstance = instance;
+  
+  if (!currentInstance && typeof window !== 'undefined') {
+    // Try to get instance from auth store in localStorage
+    const authStorage = localStorage.getItem('auth-storage');
+    if (authStorage) {
+      try {
+        const parsed = JSON.parse(authStorage);
+        currentInstance = parsed.state?.currentInstance;
+      } catch (e) {
+        console.error('[API Client] Failed to parse auth storage:', e);
+      }
+    }
+  }
+  
+  // Fallback to a default if still no instance
+  currentInstance = currentInstance || 'mastodon.social';
   
   if (!globalClient || globalClient['instance'] !== currentInstance) {
     globalClient = new MastodonClient(currentInstance);

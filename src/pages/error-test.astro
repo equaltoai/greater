@@ -1,0 +1,113 @@
+---
+// Simple error test page - no auth required, minimal dependencies
+const runtime = Astro.locals.runtime;
+const hasRuntime = !!runtime;
+const hasEnv = !!runtime?.env;
+const bindings = {
+  SESSIONS: !!runtime?.env?.SESSIONS,
+  CACHE: !!runtime?.env?.CACHE,
+  PREFERENCES: !!runtime?.env?.PREFERENCES,
+  OFFLINE: !!runtime?.env?.OFFLINE,
+};
+
+// Test if we can access basic Astro properties
+let astroInfo = {
+  url: Astro.url.toString(),
+  pathname: Astro.url.pathname,
+  host: Astro.request.headers.get('host'),
+  userAgent: Astro.request.headers.get('user-agent'),
+};
+
+// Test environment variables
+const envInfo = {
+  MODE: import.meta.env.MODE,
+  PROD: import.meta.env.PROD,
+  DEV: import.meta.env.DEV,
+  PUBLIC_APP_URL: import.meta.env.PUBLIC_APP_URL,
+};
+---
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Error Test Page</title>
+  <style>
+    body {
+      font-family: monospace;
+      background: #1a1a1a;
+      color: #e0e0e0;
+      padding: 2rem;
+      line-height: 1.6;
+    }
+    .section {
+      background: #2a2a2a;
+      padding: 1rem;
+      margin: 1rem 0;
+      border-radius: 4px;
+    }
+    .success { color: #4ade80; }
+    .error { color: #f87171; }
+    .warning { color: #fbbf24; }
+    h2 { color: #60a5fa; margin-top: 0; }
+    pre {
+      background: #0a0a0a;
+      padding: 0.5rem;
+      border-radius: 4px;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <h1>Greater Error Test Page</h1>
+  <p>This page tests basic functionality without auth requirements.</p>
+  
+  <div class="section">
+    <h2>Runtime Status</h2>
+    <p>Has Runtime: <span class={hasRuntime ? 'success' : 'error'}>{String(hasRuntime)}</span></p>
+    <p>Has Env: <span class={hasEnv ? 'success' : 'error'}>{String(hasEnv)}</span></p>
+  </div>
+  
+  <div class="section">
+    <h2>KV Bindings</h2>
+    {Object.entries(bindings).map(([key, value]) => (
+      <p>{key}: <span class={value ? 'success' : 'error'}>{String(value)}</span></p>
+    ))}
+  </div>
+  
+  <div class="section">
+    <h2>Astro Info</h2>
+    <pre>{JSON.stringify(astroInfo, null, 2)}</pre>
+  </div>
+  
+  <div class="section">
+    <h2>Environment</h2>
+    <pre>{JSON.stringify(envInfo, null, 2)}</pre>
+  </div>
+  
+  <div class="section">
+    <h2>Client-Side Test</h2>
+    <button onclick="testAPI()">Test Auth API</button>
+    <pre id="api-result">Click button to test API...</pre>
+  </div>
+  
+  <script>
+    async function testAPI() {
+      const resultEl = document.getElementById('api-result');
+      try {
+        resultEl.textContent = 'Testing /auth/check-session...';
+        const response = await fetch('/auth/check-session');
+        const data = await response.json();
+        resultEl.textContent = JSON.stringify({
+          status: response.status,
+          ok: response.ok,
+          data: data
+        }, null, 2);
+      } catch (error) {
+        resultEl.textContent = 'Error: ' + error.message;
+      }
+    }
+  </script>
+</body>
+</html>

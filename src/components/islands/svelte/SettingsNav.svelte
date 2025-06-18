@@ -1,14 +1,23 @@
 <script lang="ts">
   const navItems = [
     { href: '/settings', label: 'General' },
+    { href: '/settings/profile', label: 'Profile' },
     { href: '/settings/appearance', label: 'Appearance' },
     { href: '/settings/notifications', label: 'Notifications' },
     { href: '/settings/privacy', label: 'Privacy & Safety' },
     { href: '/settings/account', label: 'Account' },
   ];
   
-  // In Astro, we'll need to pass the current path as a prop
-  let { currentPath = '/settings' }: { currentPath?: string } = $props();
+  interface Props {
+    current?: string;
+  }
+  
+  let { current = 'general' }: Props = $props();
+  
+  // Map current page to href
+  const currentPath = navItems.find(item => 
+    item.label.toLowerCase().replace(/\s+&\s+/g, '-').replace(/\s+/g, '-') === current
+  )?.href || '/settings';
 </script>
 
 <nav class="w-full lg:w-64 mb-6 lg:mb-0">
