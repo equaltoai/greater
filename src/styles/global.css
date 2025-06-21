@@ -200,7 +200,7 @@
   
   /* Links */
   .link {
-    @apply text-primary hover:text-primary-hover underline;
+    @apply text-primary hover:text-primary-dark underline;
   }
 }
 

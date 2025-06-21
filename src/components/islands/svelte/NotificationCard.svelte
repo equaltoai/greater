@@ -2,6 +2,7 @@
   import type { Notification } from '@/types/mastodon';
   import { dismissNotification } from '@/lib/stores/notifications';
   import { formatDistanceToNow } from '@/lib/utils/date';
+  import { sanitizeMastodonHtml } from '@/lib/utils/sanitize';
   import Button from './Button.svelte';
   
   export let notification: Notification;
@@ -136,7 +137,7 @@
           on:click|stopPropagation
         >
           <div class="text-sm text-gray-700 dark:text-gray-300 line-clamp-3">
-            {@html notification.status.content}
+            {@html sanitizeMastodonHtml(notification.status.content)}
           </div>
         </a>
       {/if}

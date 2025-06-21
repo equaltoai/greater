@@ -2,6 +2,7 @@
   import type { Account, Relationship } from '@/types/mastodon';
   import { getClient } from '@/lib/api/client';
   import { authStore } from '@/lib/stores/auth.svelte';
+  import { stripHtmlSafe } from '@/lib/utils/sanitize';
   
   interface Props {
     user: Account;
@@ -60,13 +61,6 @@
     }
     return num.toString();
   }
-  
-  // Parse note to extract text content
-  function parseNote(html: string): string {
-    const div = document.createElement('div');
-    div.innerHTML = html;
-    return div.textContent || '';
-  }
 </script>
 
 <div class="flex items-start space-x-3">
@@ -114,7 +108,7 @@
     <!-- Bio -->
     {#if user.note}
       <p class="mt-2 text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-        {parseNote(user.note)}
+        {stripHtmlSafe(user.note)}
       </p>
     {/if}
     

@@ -2,8 +2,10 @@
   import { onMount } from 'svelte';
   import { getClient } from '../../../lib/api/client';
   import { authStore } from '../../../lib/stores/auth.svelte';
+  import { sanitizeUserContent } from '../../../lib/utils/sanitize';
   import type { Account, Relationship } from '../../../types/mastodon';
   import Button from './Button.svelte';
+  import { getAccountService } from '../../../lib/api/account-service';
   
   interface Props {
     username: string;
@@ -43,53 +45,18 @@
     
     try {
       const client = getClient();
+      const accountService = getAccountService();
       
-      // Check if this is the current user first
-      
-      if (!domain && authStore.currentUser && authStore.currentUser.username === username) {
-        account = authStore.currentUser;
+      // Build the identifier based on what we have
+      let identifier: string;
+      if (domain) {
+        identifier = `${username}@${domain}`;
       } else {
-        // For local users on the same instance, we need to search with @username format
-        // For remote users, use the full @username@domain format
-        let searchAcct = username;
-        
-        if (!domain && authStore.currentInstance) {
-          // Local user on the current instance - search with @ prefix
-          searchAcct = `@${username}`;
-        } else if (domain) {
-          // Remote user - use full format
-          searchAcct = `@${username}@${domain}`;
-        }
-        
-        const searchResults = await client.search({ 
-          q: searchAcct, 
-          type: 'accounts', 
-          limit: 5, 
-          resolve: true 
-        });
-        
-        // Try to find exact match
-        let foundAccount = searchResults.accounts.find(acc => {
-          if (domain) {
-            // For remote users, match the full acct
-            return acc.acct === `${username}@${domain}` || acc.username === username;
-          } else {
-            // For local users, match just the username (acct won't have domain)
-            return acc.username === username && !acc.acct.includes('@');
-          }
-        });
-        
-        if (!foundAccount && searchResults.accounts.length > 0) {
-          // If no exact match, take the first result
-          foundAccount = searchResults.accounts[0];
-        }
-        
-        if (!foundAccount) {
-          throw new Error('User not found');
-        }
-        
-        account = foundAccount;
+        identifier = username;
       }
+      
+      // Resolve the account
+      account = await accountService.resolveAccount(identifier);
       
       // Get relationship if logged in and not own profile
       if (authStore.currentUser && account.id !== authStore.currentUser.id) {
@@ -218,7 +185,7 @@
       
       {#if account.note}
         <div class="mb-4 prose prose-sm dark:prose-invert max-w-none">
-          {@html account.note}
+          {@html sanitizeUserContent(account.note)}
         </div>
       {/if}
       
@@ -231,7 +198,7 @@
                 {field.name}
               </dt>
               <dd class="flex-1 flex items-center gap-1">
-                {@html field.value}
+                {@html sanitizeUserContent(field.value)}
                 {#if field.verified_at}
                   <span class="text-green-600 dark:text-green-400" title="Verified on {new Date(field.verified_at).toLocaleDateString()}">
                     <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20">

@@ -125,6 +125,8 @@
 	}
 	
 	function handleReply() {
+		if (typeof window === 'undefined') return;
+		
 		// Set reply context in compose store
 		import('../../../lib/stores/compose').then(({ composeReplyTo$, composeText$ }) => {
 			composeReplyTo$.set(displayStatus.id);
@@ -137,13 +139,15 @@
 	}
 	
 	function handleShare() {
+		if (typeof window === 'undefined') return;
+		
 		if (navigator.share) {
 			navigator.share({
 				title: `Post by ${displayStatus.account.display_name || displayStatus.account.username}`,
 				text: displayStatus.content.replace(/<[^>]*>/g, ''),
 				url: displayStatus.url || displayStatus.uri
 			});
-		} else {
+		} else if (navigator.clipboard) {
 			navigator.clipboard.writeText(displayStatus.url || displayStatus.uri);
 		}
 	}
@@ -155,7 +159,7 @@
 		try {
 			await timelineStore.deleteStatus(displayStatus.id);
 			// If we're on the status page, navigate back
-			if (window.location.pathname.startsWith('/status/')) {
+			if (typeof window !== 'undefined' && window.location.pathname.startsWith('/status/')) {
 				window.history.back();
 			}
 		} catch (error) {
@@ -189,6 +193,8 @@
 <article 
 	class="card p-4 space-y-3 cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/50 transition-colors"
 	onclick={(e) => {
+		if (typeof window === 'undefined') return;
+		
 		// Don't navigate if clicking on interactive elements
 		const target = e.target as HTMLElement;
 		if (target.closest('button') || target.closest('a') || target.closest('video') || target.closest('audio')) {
@@ -200,6 +206,8 @@
 	aria-label="Post by {displayStatus.account.display_name || displayStatus.account.username}"
 	tabindex="0"
 	onkeydown={(e) => {
+		if (typeof window === 'undefined') return;
+		
 		if (e.key === 'Enter' && !e.target.closest('button') && !e.target.closest('a')) {
 			window.location.href = `/status/${displayStatus.id}`;
 		}

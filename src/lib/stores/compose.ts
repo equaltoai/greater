@@ -5,7 +5,7 @@
 
 import { atom, map, computed } from 'nanostores';
 import { persistentAtom, persistentMap } from '@nanostores/persistent';
-import type { CreateStatusParams, MediaAttachment, CreatePollParams } from '@/types/mastodon';
+import type { CreateStatusParams, MediaAttachment, CreatePollParams, Status } from '@/types/mastodon';
 import { getClient } from '@/lib/api/client';
 
 // Current compose state
@@ -166,8 +166,8 @@ export const removeMedia = (attachmentId: string) => {
 };
 
 // Post creation
-export const createPost = async (): Promise<boolean> => {
-  if (!canPost$.get()) return false;
+export const createPost = async (): Promise<Status | null> => {
+  if (!canPost$.get()) return null;
   
   isComposing$.set(true);
   composeError$.set(null);
@@ -203,10 +203,10 @@ export const createPost = async (): Promise<boolean> => {
         deleteDraft(draftId);
       }
       
-      return true;
+      return null; // Return null for offline posts
     }
     
-    await client.createStatus(params);
+    const status = await client.createStatus(params);
     
     // Clear compose on success
     clearCompose();
@@ -217,7 +217,7 @@ export const createPost = async (): Promise<boolean> => {
       deleteDraft(draftId);
     }
     
-    return true;
+    return status;
   } catch (error) {
     // If network error, add to offline queue
     if (error instanceof Error && 
@@ -231,11 +231,11 @@ export const createPost = async (): Promise<boolean> => {
       // Clear compose after queueing
       clearCompose();
       
-      return true;
+      return null;
     }
     
     composeError$.set(error instanceof Error ? error.message : 'Failed to post');
-    return false;
+    return null;
   } finally {
     isComposing$.set(false);
   }

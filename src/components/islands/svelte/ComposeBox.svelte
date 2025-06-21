@@ -23,6 +23,7 @@
   import type { CreatePollParams, MediaAttachment, Status } from '../../../types/mastodon';
   import { Globe, Lock, Mail, Users, X } from 'lucide-svelte';
   import { getClient } from '../../../lib/api/client';
+  import { timelineStore } from '../../../lib/stores/timeline.svelte';
 
   // Local state
   let text = '';
@@ -167,10 +168,11 @@
     // Update poll data before posting
     updatePoll();
 
-    const success = await createPost();
-    if (success) {
-      // Navigate to home timeline
-      window.location.href = '/home';
+    const status = await createPost();
+    if (status) {
+      // Add the new status to the home timeline
+      timelineStore.prependStatus('home', status);
+      // The compose form will be cleared by createPost()
     }
   }
 

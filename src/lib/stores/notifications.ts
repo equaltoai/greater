@@ -139,56 +139,58 @@ export async function dismissNotification(notificationId: string) {
 }
 
 // Real-time streaming
-let eventSource: EventSource | null = null;
+let streamConnection: { close: () => void } | null = null;
 
 export async function startNotificationStream() {
-  if (eventSource) return;
+  if (streamConnection) return;
   
   if (!authStore.currentUser) return;
   
   const client = getClient();
-  eventSource = await client.streamUser();
-  
-  eventSource.addEventListener('notification', (event) => {
-    try {
-      const notification: Notification = JSON.parse(event.data);
-      
-      // Add to store
-      notifications$.set({
-        ...notifications$.get(),
-        [notification.id]: notification
-      });
-      
-      // Trigger browser notification if enabled
-      if ('Notification' in window && Notification.permission === 'granted') {
-        showBrowserNotification(notification);
+  streamConnection = await client.createStream('user', {}, {
+    onMessage: (event) => {
+      try {
+        // The event.type property is set by our WebSocket wrapper
+        // For SSE, we need to check the actual event type
+        const eventType = (event as any).type || event.type;
+        
+        if (eventType === 'notification') {
+          const notification: Notification = JSON.parse(event.data);
+          
+          // Add to store
+          notifications$.set({
+            ...notifications$.get(),
+            [notification.id]: notification
+          });
+          
+          // Trigger browser notification if enabled
+          if ('Notification' in window && Notification.permission === 'granted') {
+            showBrowserNotification(notification);
+          }
+        } else if (eventType === 'delete') {
+          const notificationId = JSON.parse(event.data);
+          dismissNotification(notificationId);
+        }
+      } catch (error) {
+        console.error('Failed to parse notification event:', error);
       }
-    } catch (error) {
-      console.error('Failed to parse notification:', error);
+    },
+    onError: (error) => {
+      console.error('Notification stream error:', error);
+      stopNotificationStream();
+      // Retry after 5 seconds
+      setTimeout(() => startNotificationStream(), 5000);
+    },
+    onClose: () => {
+      streamConnection = null;
     }
   });
-  
-  eventSource.addEventListener('delete', (event) => {
-    try {
-      const notificationId = JSON.parse(event.data);
-      dismissNotification(notificationId);
-    } catch (error) {
-      console.error('Failed to parse delete event:', error);
-    }
-  });
-  
-  eventSource.onerror = () => {
-    console.error('Notification stream error');
-    stopNotificationStream();
-    // Retry after 5 seconds
-    setTimeout(() => startNotificationStream(), 5000);
-  };
 }
 
 export function stopNotificationStream() {
-  if (eventSource) {
-    eventSource.close();
-    eventSource = null;
+  if (streamConnection) {
+    streamConnection.close();
+    streamConnection = null;
   }
 }
 

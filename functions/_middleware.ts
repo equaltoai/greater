@@ -11,7 +11,7 @@ const CSP_POLICY = [
   "style-src 'self' 'unsafe-inline' fonts.googleapis.com",
   "font-src 'self' fonts.gstatic.com data:",
   "img-src 'self' data: https: blob:",
-  "connect-src 'self' https://*.mastodon.* https://*.masto.* https://*.social wss://*.mastodon.* wss://*.masto.* wss://*.social",
+  "connect-src 'self' https://*.mastodon.* https://*.masto.* https://*.social https://lesser.host https://ws.lesser.host wss://*.mastodon.* wss://*.masto.* wss://*.social wss://lesser.host wss://ws.lesser.host",
   "media-src 'self' https: blob:",
   "object-src 'none'",
   "frame-ancestors 'none'",

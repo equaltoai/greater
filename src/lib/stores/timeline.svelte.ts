@@ -14,7 +14,7 @@ interface TimelineData {
   isLoadingMore: boolean;
   error: Error | null;
   lastFetch: number;
-  stream: EventSource | null;
+  stream: EventSource | { close: () => void } | null;
   gaps: TimelineGap[];
 }
 
@@ -450,49 +450,60 @@ class TimelineStore {
     }
     
     const client = getClient();
-    let stream: EventSource;
+    let streamType: 'user' | 'public' | 'hashtag' | 'list';
+    let params: Record<string, string> = {};
     
     if (type.startsWith('list:')) {
       const listId = type.replace('list:', '');
-      stream = await client.streamList(listId);
+      streamType = 'list';
+      params.list = listId;
     } else {
       switch (type) {
         case 'home':
-          stream = await client.streamUser();
+          streamType = 'user';
           break;
         case 'local':
-          stream = await client.streamPublic({ local: true });
+          streamType = 'public';
+          params.local = 'true';
           break;
         case 'federated':
-          stream = await client.streamPublic();
+          streamType = 'public';
           break;
         default:
           throw new Error(`Unknown timeline type for streaming: ${type}`);
       }
     }
     
-    stream.addEventListener('update', (event) => {
-      try {
-        const status = JSON.parse(event.data) as Status;
-        this.prependStatus(type, status);
-      } catch (error) {
-        // Failed to parse streaming update - skip this update
+    const stream = await client.createStream(streamType, params, {
+      onMessage: (event) => {
+        try {
+          // The event.type property is set by our WebSocket wrapper
+          // For SSE, we need to check the actual event type
+          const eventType = (event as any).type || event.type;
+          
+          if (eventType === 'update') {
+            const status = JSON.parse(event.data) as Status;
+            this.prependStatus(type, status);
+          } else if (eventType === 'delete') {
+            const statusId = event.data;
+            this.removeStatus(statusId);
+          }
+        } catch (error) {
+          // Failed to parse streaming update - skip this update
+          console.error('[Timeline Stream] Failed to parse event:', error);
+        }
+      },
+      onError: (error) => {
+        console.error('[Timeline Stream] Error:', error);
+        // Reconnect after delay
+        setTimeout(() => {
+          this.connectStream(type);
+        }, 5000);
+      },
+      onClose: () => {
+        console.log('[Timeline Stream] Connection closed');
+        this.timelines[type] = { ...this.timelines[type], stream: null };
       }
-    });
-    
-    stream.addEventListener('delete', (event) => {
-      const statusId = event.data;
-      this.removeStatus(statusId);
-    });
-    
-    stream.addEventListener('error', () => {
-      // Stream error - attempting reconnection
-      stream.close();
-      
-      // Reconnect after delay
-      setTimeout(() => {
-        this.connectStream(type);
-      }, 5000);
     });
     
     this.timelines[type] = { ...this.timelines[type], stream };

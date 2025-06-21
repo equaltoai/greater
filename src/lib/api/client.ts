@@ -43,6 +43,7 @@ import {
   PreferencesSchema,
   MediaAttachmentSchema
 } from './schemas';
+import { WebSocketStream } from './websocket-stream';
 
 export class APIError extends Error {
   constructor(
@@ -78,6 +79,8 @@ export class MastodonClient {
   private instance: string;
   private cache = new Map<string, CacheEntry<unknown>>();
   private defaultCacheTTL = 60000; // 1 minute
+  private instanceInfo: Instance | null = null;
+  private instanceInfoPromise: Promise<Instance> | null = null;
 
   constructor(instance: string) {
     this.instance = instance;
@@ -95,11 +98,27 @@ export class MastodonClient {
     this.instance = instance;
     this.baseURL = instance.startsWith('http') ? instance : `https://${instance}`;
     this.clearCache();
+    // Clear instance info cache
+    this.instanceInfo = null;
+    this.instanceInfoPromise = null;
   }
 
   // Clear cache
   clearCache(): void {
     this.cache.clear();
+  }
+
+  /**
+   * Encode account ID for use in URL paths
+   * Handles both username-only IDs and full URL IDs
+   */
+  private encodeAccountId(id: string): string {
+    // If the ID contains special characters that need encoding (like URLs),
+    // encode it. Otherwise, return as-is (for simple usernames)
+    if (id.includes('/') || id.includes(':') || id.includes('@')) {
+      return encodeURIComponent(id);
+    }
+    return id;
   }
 
   // Generic request method with rate limiting
@@ -257,10 +276,32 @@ export class MastodonClient {
     };
   }
 
-  // Instance information
+  // Instance information with caching
   async getInstance(): Promise<Instance> {
-    const data = await this.request<unknown>('GET', '/api/v1/instance', { skipAuth: true });
-    return validateResponse(InstanceSchema, data, 'getInstance');
+    // Return cached instance if available
+    if (this.instanceInfo) {
+      return this.instanceInfo;
+    }
+    
+    // If already fetching, wait for that request
+    if (this.instanceInfoPromise) {
+      return this.instanceInfoPromise;
+    }
+    
+    // Fetch instance info
+    this.instanceInfoPromise = this.request<unknown>('GET', '/api/v1/instance', { skipAuth: true })
+      .then(data => {
+        const instance = validateResponse(InstanceSchema, data, 'getInstance');
+        this.instanceInfo = instance;
+        this.instanceInfoPromise = null;
+        return instance;
+      })
+      .catch(error => {
+        this.instanceInfoPromise = null;
+        throw error;
+      });
+    
+    return this.instanceInfoPromise;
   }
 
   async getInstanceActivity(): Promise<Array<{ week: string; statuses: string; logins: string; registrations: string }>> {
@@ -390,52 +431,59 @@ export class MastodonClient {
   }
 
   async getAccount(id: string): Promise<Account> {
-    const data = await this.request<unknown>('GET', `/api/v1/accounts/${id}`);
+    const data = await this.request<unknown>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}`);
     return validateResponse(AccountSchema, data, 'getAccount');
   }
 
+  async lookupAccount(acct: string): Promise<Account> {
+    const data = await this.request<unknown>('GET', '/api/v1/accounts/lookup', {
+      params: { acct }
+    });
+    return validateResponse(AccountSchema, data, 'lookupAccount');
+  }
+
   async getAccountStatuses(id: string, params?: AccountStatusesParams): Promise<Status[]> {
-    return this.request<Status[]>('GET', `/api/v1/accounts/${id}/statuses`, { params: params as Record<string, unknown> });
+    return this.request<Status[]>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}/statuses`, { params: params as Record<string, unknown> });
   }
 
   async getAccountFollowers(id: string, params?: PaginationParams): Promise<Account[]> {
-    return this.request<Account[]>('GET', `/api/v1/accounts/${id}/followers`, { params: params as Record<string, unknown> });
+    return this.request<Account[]>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}/followers`, { params: params as Record<string, unknown> });
   }
 
   async getAccountFollowing(id: string, params?: PaginationParams): Promise<Account[]> {
-    return this.request<Account[]>('GET', `/api/v1/accounts/${id}/following`, { params: params as Record<string, unknown> });
+    return this.request<Account[]>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}/following`, { params: params as Record<string, unknown> });
   }
 
   async getAccountFeaturedTags(id: string): Promise<FeaturedTag[]> {
-    return this.request<FeaturedTag[]>('GET', `/api/v1/accounts/${id}/featured_tags`);
+    return this.request<FeaturedTag[]>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}/featured_tags`);
   }
 
   async getAccountLists(id: string): Promise<List[]> {
-    return this.request<List[]>('GET', `/api/v1/accounts/${id}/lists`);
+    return this.request<List[]>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}/lists`);
   }
 
   async followAccount(id: string, params?: { reblogs?: boolean; notify?: boolean }): Promise<Relationship> {
-    return this.request<Relationship>('POST', `/api/v1/accounts/${id}/follow`, { body: params });
+    return this.request<Relationship>('POST', `/api/v1/accounts/${this.encodeAccountId(id)}/follow`, { body: params });
   }
 
   async unfollowAccount(id: string): Promise<Relationship> {
-    return this.request<Relationship>('POST', `/api/v1/accounts/${id}/unfollow`);
+    return this.request<Relationship>('POST', `/api/v1/accounts/${this.encodeAccountId(id)}/unfollow`);
   }
 
   async blockAccount(id: string): Promise<Relationship> {
-    return this.request<Relationship>('POST', `/api/v1/accounts/${id}/block`);
+    return this.request<Relationship>('POST', `/api/v1/accounts/${this.encodeAccountId(id)}/block`);
   }
 
   async unblockAccount(id: string): Promise<Relationship> {
-    return this.request<Relationship>('POST', `/api/v1/accounts/${id}/unblock`);
+    return this.request<Relationship>('POST', `/api/v1/accounts/${this.encodeAccountId(id)}/unblock`);
   }
 
   async muteAccount(id: string, params?: { notifications?: boolean; duration?: number }): Promise<Relationship> {
-    return this.request<Relationship>('POST', `/api/v1/accounts/${id}/mute`, { body: params });
+    return this.request<Relationship>('POST', `/api/v1/accounts/${this.encodeAccountId(id)}/mute`, { body: params });
   }
 
   async unmuteAccount(id: string): Promise<Relationship> {
-    return this.request<Relationship>('POST', `/api/v1/accounts/${id}/unmute`);
+    return this.request<Relationship>('POST', `/api/v1/accounts/${this.encodeAccountId(id)}/unmute`);
   }
 
   async getRelationships(ids: string[]): Promise<Relationship[]> {
@@ -633,6 +681,121 @@ export class MastodonClient {
       url.searchParams.append('access_token', accessToken);
     }
     return new EventSource(url.toString());
+  }
+
+  // Universal streaming method that supports both SSE and WebSocket
+  async createStream(
+    stream: 'user' | 'public' | 'hashtag' | 'list',
+    params?: Record<string, string>,
+    handlers?: {
+      onMessage: (event: MessageEvent) => void;
+      onError?: (error: Event | Error) => void;
+      onClose?: () => void;
+      onOpen?: () => void;
+    }
+  ): Promise<{ close: () => void }> {
+    // First check if instance info has WebSocket URL
+    const instanceInfo = await this.getInstance();
+    const wsUrl = instanceInfo.urls?.streaming_api;
+    
+    if (wsUrl) {
+      // Instance explicitly provides WebSocket URL, use it
+      console.log('[Streaming] Using WebSocket URL from instance:', wsUrl);
+      
+      // Get access token
+      const accessToken = await this.getAccessToken();
+      if (!accessToken) {
+        throw new Error('No access token available for streaming');
+      }
+      
+      // Build WebSocket URL with parameters
+      const url = new URL(wsUrl);
+      url.searchParams.append('stream', stream);
+      url.searchParams.append('access_token', accessToken);
+      if (params) {
+        Object.entries(params).forEach(([key, value]) => {
+          url.searchParams.append(key, value);
+        });
+      }
+      
+      const ws = new WebSocketStream({
+        instance: this.instance,
+        stream,
+        params,
+        onMessage: handlers?.onMessage || (() => {}),
+        onError: handlers?.onError,
+        onClose: handlers?.onClose,
+        onOpen: handlers?.onOpen
+      });
+      
+      await ws.connect(url.toString());
+      
+      return {
+        close: () => ws.disconnect()
+      };
+    } else {
+      // Use SSE streaming
+      let eventSource: EventSource;
+      
+      switch (stream) {
+        case 'user':
+          eventSource = await this.streamUser();
+          break;
+        case 'public':
+          eventSource = await this.streamPublic(params as any);
+          break;
+        case 'hashtag':
+          if (!params?.tag) throw new Error('Hashtag stream requires tag parameter');
+          eventSource = await this.streamHashtag(params.tag, params as any);
+          break;
+        case 'list':
+          if (!params?.list) throw new Error('List stream requires list parameter');
+          eventSource = await this.streamList(params.list);
+          break;
+        default:
+          throw new Error(`Unknown stream type: ${stream}`);
+      }
+      
+      // Add event listeners for SSE
+      eventSource.addEventListener('update', (event) => {
+        // Create a synthetic event with type property for consistency
+        const syntheticEvent = new MessageEvent('message', {
+          data: event.data
+        });
+        (syntheticEvent as any).type = 'update';
+        handlers?.onMessage?.(syntheticEvent);
+      });
+      
+      eventSource.addEventListener('delete', (event) => {
+        const syntheticEvent = new MessageEvent('message', {
+          data: event.data
+        });
+        (syntheticEvent as any).type = 'delete';
+        handlers?.onMessage?.(syntheticEvent);
+      });
+      
+      eventSource.addEventListener('notification', (event) => {
+        const syntheticEvent = new MessageEvent('message', {
+          data: event.data
+        });
+        (syntheticEvent as any).type = 'notification';
+        handlers?.onMessage?.(syntheticEvent);
+      });
+      
+      if (handlers?.onError) {
+        eventSource.onerror = handlers.onError;
+      }
+      if (handlers?.onOpen) {
+        eventSource.onopen = handlers.onOpen;
+      }
+      
+      return {
+        close: () => {
+          eventSource.close();
+          handlers?.onClose?.();
+        }
+      };
+    }
   }
 }
 

@@ -168,10 +168,11 @@ export function createTimelineStore(
 }
 
 // Account store
-export function createAccountStore(id: string) {
+export function createAccountStore(identifier: string) {
   return createAPIStore(async () => {
-    const client = await getClient();
-    return client.getAccount(id);
+    const { getAccountService } = await import('./account-service');
+    const accountService = getAccountService();
+    return accountService.resolveAccount(identifier);
   });
 }
 
