@@ -312,7 +312,11 @@ class TimelineStore {
     
     try {
       const status = await client.favouriteStatus(statusId);
-      this.updateStatus(statusId, status);
+      // Only update the favorite-related fields, not the entire status
+      this.updateStatus(statusId, {
+        favourited: status.favourited,
+        favourites_count: status.favourites_count
+      });
     } catch (error) {
       // Revert on error
       this.updateStatus(statusId, { 
@@ -341,7 +345,11 @@ class TimelineStore {
     
     try {
       const status = await client.unfavouriteStatus(statusId);
-      this.updateStatus(statusId, status);
+      // Only update the favorite-related fields, not the entire status
+      this.updateStatus(statusId, {
+        favourited: status.favourited,
+        favourites_count: status.favourites_count
+      });
     } catch (error) {
       // Revert on error
       this.updateStatus(statusId, { 
@@ -370,7 +378,11 @@ class TimelineStore {
     
     try {
       const status = await client.reblogStatus(statusId);
-      this.updateStatus(statusId, status);
+      // Only update the reblog-related fields, not the entire status
+      this.updateStatus(statusId, {
+        reblogged: status.reblogged,
+        reblogs_count: status.reblogs_count
+      });
     } catch (error) {
       // Revert on error
       this.updateStatus(statusId, { 
@@ -399,7 +411,11 @@ class TimelineStore {
     
     try {
       const status = await client.unreblogStatus(statusId);
-      this.updateStatus(statusId, status);
+      // Only update the reblog-related fields, not the entire status
+      this.updateStatus(statusId, {
+        reblogged: status.reblogged,
+        reblogs_count: status.reblogs_count
+      });
     } catch (error) {
       // Revert on error
       this.updateStatus(statusId, { 
@@ -418,7 +434,10 @@ class TimelineStore {
     
     try {
       const status = await client.bookmarkStatus(statusId);
-      this.updateStatus(statusId, status);
+      // Only update the bookmark field, not the entire status
+      this.updateStatus(statusId, {
+        bookmarked: status.bookmarked
+      });
     } catch (error) {
       // Revert on error
       this.updateStatus(statusId, { bookmarked: false });
@@ -434,7 +453,10 @@ class TimelineStore {
     
     try {
       const status = await client.unbookmarkStatus(statusId);
-      this.updateStatus(statusId, status);
+      // Only update the bookmark field, not the entire status
+      this.updateStatus(statusId, {
+        bookmarked: status.bookmarked
+      });
     } catch (error) {
       // Revert on error
       this.updateStatus(statusId, { bookmarked: true });

@@ -2,11 +2,10 @@
  * Svelte stores for API operations
  */
 
-import { readable, writable, derived } from 'svelte/store';
-import type { Readable, Writable } from 'svelte/store';
-import type { Status, Account, Notification, TimelineParams } from '@/types/mastodon';
+import { writable } from 'svelte/store';
+import type { Readable } from 'svelte/store';
+import type { Status, Notification, TimelineParams } from '@/types/mastodon';
 import { getClient } from './client';
-import { APIError } from './client';
 
 // Generic store for API calls
 interface APIState<T> {

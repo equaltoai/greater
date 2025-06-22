@@ -124,7 +124,7 @@ export class MastodonClient {
   private extractUsername(accountId: string): string {
     // If it's a URL format, extract the username
     if (accountId.startsWith('http')) {
-      const match = accountId.match(/\/users\/([^\/]+)$/);
+      const match = accountId.match(/\/users\/([^/]+)$/);
       if (match) {
         return match[1];
       }
@@ -431,7 +431,7 @@ export class MastodonClient {
   private extractStatusId(statusId: string): string {
     // If it's a URL format, extract the ID
     if (statusId.startsWith('http')) {
-      const match = statusId.match(/\/statuses\/([^\/]+)$/);
+      const match = statusId.match(/\/statuses\/([^/]+)$/);
       if (match) {
         return match[1];
       }
@@ -555,7 +555,10 @@ export class MastodonClient {
   }
 
   async getAccountStatuses(id: string, params?: AccountStatusesParams): Promise<Status[]> {
-    return this.request<Status[]>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}/statuses`, { params: params as Record<string, unknown> });
+    console.log('[API Client] Getting account statuses for:', id);
+    const response = await this.request<Status[]>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}/statuses`, { params: params as Record<string, unknown> });
+    console.log('[API Client] Account statuses response:', response);
+    return response;
   }
 
   async getAccountFollowers(id: string, params?: PaginationParams): Promise<Account[]> {
@@ -935,7 +938,7 @@ export function getClient(instance?: string): MastodonClient {
   }
   
   // Fallback to a default if still no instance
-  currentInstance = currentInstance || 'mastodon.social';
+  currentInstance = currentInstance || 'lesser.host';
   
   console.log('[API Client] Using instance:', currentInstance);
   

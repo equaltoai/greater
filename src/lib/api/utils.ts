@@ -171,12 +171,7 @@ export function getOptimizedImageUrl(
  * Content utilities
  */
 export function stripHtml(html: string): string {
-  // Import dynamically to avoid SSR issues
-  if (typeof window !== 'undefined') {
-    const { stripHtmlSafe } = require('@/lib/utils/sanitize');
-    return stripHtmlSafe(html);
-  }
-  // Fallback for SSR - simple regex-based approach
+  // Simple regex-based approach that works in both SSR and client
   return html.replace(/<[^>]*>/g, '');
 }
 
@@ -293,7 +288,7 @@ export function getPollPercentage(option: import('@/types/mastodon').PollOption,
 /**
  * Instance capability detection
  */
-export async function getInstanceFeatures(instance: string): Promise<{
+export async function getInstanceFeatures(_instance: string): Promise<{
   version: string;
   supportsEditing: boolean;
   supportsReactions: boolean;
@@ -310,7 +305,7 @@ export async function getInstanceFeatures(instance: string): Promise<{
     
     // Version detection for features
     const majorVersion = parseInt(version.split('.')[0]);
-    const minorVersion = parseInt(version.split('.')[1] || '0');
+    // const minorVersion = parseInt(version.split('.')[1] || '0');
     
     return {
       version,
@@ -372,7 +367,7 @@ export function parseSearchQuery(query: string): {
   isLocal = query.includes('is:local') || query.includes('scope:local');
   
   // Clean text
-  let text = query
+  const text = query
     .replace(hashtagRegex, '')
     .replace(mentionRegex, '')
     .replace(/has:(media|image|video)/g, '')

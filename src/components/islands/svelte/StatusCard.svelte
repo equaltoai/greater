@@ -19,11 +19,31 @@
 	// Cast to Lesser Status to access enhanced fields if available
 	const lesserStatus = status as unknown as LesserStatus;
 	
+	// Debug logging for missing content
+	$effect(() => {
+		if (!status.content) {
+			console.warn('[StatusCard] Status missing content:', {
+				id: status.id,
+				created_at: status.created_at,
+				account: status.account?.username,
+				hasContent: !!status.content,
+				contentLength: status.content?.length
+			});
+		}
+	});
+	
 	;
 	;
 	
 	const displayStatus = $derived(status.reblog || status);
 	const isReblog = $derived(!!status.reblog);
+	
+	// Generate avatar placeholder
+	const avatarPlaceholder = $derived.by(() => {
+		const name = displayStatus.account.display_name || displayStatus.account.username;
+		const firstLetter = name.charAt(0).toUpperCase();
+		return firstLetter;
+	});
 	
 	const relativeTime = $derived.by(() => {
 		const date = new Date(displayStatus.created_at);
@@ -273,12 +293,33 @@
 	
 	<div class="flex items-start gap-3">
 		<a href={`/@${displayStatus.account.acct}`} class="flex-shrink-0">
-			<img
-				src={displayStatus.account.avatar}
-				alt={displayStatus.account.display_name || displayStatus.account.username}
-				class="w-12 h-12 rounded-full object-cover"
-				loading="lazy"
-			/>
+			{#if displayStatus.account.avatar}
+				<img
+					src={displayStatus.account.avatar}
+					alt={displayStatus.account.display_name || displayStatus.account.username}
+					class="w-12 h-12 rounded-full object-cover"
+					loading="lazy"
+					onerror={(e) => {
+						e.currentTarget.style.display = 'none';
+						const nextSibling = e.currentTarget.nextElementSibling;
+						if (nextSibling) {
+							nextSibling.style.display = 'flex';
+						}
+					}}
+				/>
+				<div 
+					class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg"
+					style="display: none;"
+				>
+					{avatarPlaceholder}
+				</div>
+			{:else}
+				<div 
+					class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg"
+				>
+					{avatarPlaceholder}
+				</div>
+			{/if}
 		</a>
 		
 		<div class="flex-1 min-w-0">

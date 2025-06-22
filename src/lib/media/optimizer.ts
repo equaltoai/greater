@@ -72,7 +72,7 @@ export class MediaOptimizer {
    */
   static getResponsiveImage(
     url: string,
-    alt: string = '',
+    _alt: string = '',
     options: {
       sizes?: string;
       loading?: 'lazy' | 'eager';
@@ -81,10 +81,7 @@ export class MediaOptimizer {
     } = {}
   ): OptimizedImage {
     const {
-      sizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw',
-      loading = 'lazy',
-      aspectRatio,
-      objectFit = 'cover'
+      sizes = '(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw'
     } = options;
     
     // If URL supports optimization, generate srcset

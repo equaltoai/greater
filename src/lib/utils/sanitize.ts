@@ -115,6 +115,23 @@ function serverSanitizeHtml(html: string): string {
 /**
  * Sanitize HTML content from Mastodon posts
  */
+// Cache for DOMPurify instance
+let dompurifyCache: any = null;
+let dompurifyPromise: Promise<any> | null = null;
+
+// Initialize DOMPurify loading on client side
+if (typeof window !== 'undefined') {
+  // Start loading DOMPurify immediately on client side
+  dompurifyPromise = import('isomorphic-dompurify').then(module => {
+    dompurifyCache = module.default;
+    return dompurifyCache;
+  }).catch((error) => {
+    console.warn('Failed to load DOMPurify:', error);
+    dompurifyCache = false;
+    return false;
+  });
+}
+
 export function sanitizeMastodonHtml(html: string): string {
   if (!html) return '';
   
@@ -123,10 +140,28 @@ export function sanitizeMastodonHtml(html: string): string {
     return serverSanitizeHtml(html);
   }
   
-  // On client side, use DOMPurify if available
+  // If DOMPurify is already loaded, use it
+  if (dompurifyCache) {
+    return sanitizeWithDOMPurify(dompurifyCache, html);
+  }
+  
+  // If we haven't started loading DOMPurify yet, start the process
+  if (!dompurifyPromise) {
+    dompurifyPromise = import('isomorphic-dompurify').then(module => {
+      dompurifyCache = module.default;
+      return dompurifyCache;
+    }).catch(() => {
+      dompurifyCache = false; // Mark as unavailable
+      return false;
+    });
+  }
+  
+  // For the first call, fall back to server sanitizer
+  return serverSanitizeHtml(html);
+}
+
+function sanitizeWithDOMPurify(DOMPurify: any, html: string): string {
   try {
-    const DOMPurify = require('isomorphic-dompurify');
-    
     // Configure DOMPurify
     const clean = DOMPurify.sanitize(html, {
       ...MASTODON_CONFIG,
@@ -158,7 +193,7 @@ export function sanitizeMastodonHtml(html: string): string {
     return div.innerHTML;
   } catch (error) {
     // Fallback to server-side sanitizer if DOMPurify fails
-    console.warn('DOMPurify not available, falling back to server sanitizer');
+    console.warn('DOMPurify error, falling back to server sanitizer:', error);
     return serverSanitizeHtml(html);
   }
 }
@@ -205,18 +240,29 @@ export function sanitizeUserContent(html: string): string {
     return sanitized;
   }
   
-  try {
-    const DOMPurify = require('isomorphic-dompurify');
-    
-    return DOMPurify.sanitize(html, {
+  // If DOMPurify is available, use it
+  if (dompurifyCache) {
+    return dompurifyCache.sanitize(html, {
       ALLOWED_TAGS: ['p', 'br', 'a', 'strong', 'em', 'b', 'i'],
       ALLOWED_ATTR: ['href', 'rel', 'target'],
       ADD_ATTR: ['target', 'rel'],
       ALLOW_DATA_ATTR: false
     });
-  } catch (error) {
-    return escapeHtml(html);
   }
+  
+  // Start loading DOMPurify if not already started
+  if (!dompurifyPromise) {
+    dompurifyPromise = import('isomorphic-dompurify').then(module => {
+      dompurifyCache = module.default;
+      return dompurifyCache;
+    }).catch(() => {
+      dompurifyCache = false;
+      return false;
+    });
+  }
+  
+  // Fallback to simple HTML escaping
+  return escapeHtml(html);
 }
 
 /**
@@ -238,19 +284,28 @@ export function stripHtmlSafe(html: string): string {
     return normalized.replace(/<[^>]*>/g, '');
   }
   
-  try {
-    const DOMPurify = require('isomorphic-dompurify');
-    
-    // Use DOMPurify with no allowed tags to strip all HTML
-    return DOMPurify.sanitize(normalized, { 
+  // If DOMPurify is available, use it
+  if (dompurifyCache) {
+    return dompurifyCache.sanitize(normalized, { 
       ALLOWED_TAGS: [],
       ALLOWED_ATTR: [],
       KEEP_CONTENT: true
     });
-  } catch (error) {
-    // Fallback to regex
-    return normalized.replace(/<[^>]*>/g, '');
   }
+  
+  // Start loading DOMPurify if not already started
+  if (!dompurifyPromise) {
+    dompurifyPromise = import('isomorphic-dompurify').then(module => {
+      dompurifyCache = module.default;
+      return dompurifyCache;
+    }).catch(() => {
+      dompurifyCache = false;
+      return false;
+    });
+  }
+  
+  // Fallback to regex for immediate use
+  return normalized.replace(/<[^>]*>/g, '');
 }
 
 /**

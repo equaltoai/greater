@@ -36,9 +36,23 @@
       
       // Resolve the account
       account = await accountService.resolveAccount(identifier);
+      console.log('[UserTimeline] Resolved account:', account);
       
       // Then load their statuses using the resolved account ID
       const userStatuses = await getAccountStatuses(account.id, { limit: 20 });
+      console.log('[UserTimeline] Loaded statuses:', userStatuses);
+      
+      // Check for malformed data from API
+      const malformedStatuses = userStatuses.filter(status => 
+        !status.id || status.id.trim() === '' || 
+        !status.created_at || status.created_at.trim() === ''
+      );
+      
+      if (malformedStatuses.length > 0) {
+        console.error('[UserTimeline] API returned malformed statuses with empty IDs/dates:', malformedStatuses);
+        throw new Error('The server returned invalid status data. This is a bug in the Lesser API.');
+      }
+      
       statuses = userStatuses;
       hasMore = userStatuses.length === 20;
     } catch (err) {

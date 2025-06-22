@@ -4,6 +4,7 @@
   import StatusCard from './StatusCard.svelte';
   import StatusSkeleton from './StatusSkeleton.svelte';
   import ErrorState from './ErrorState.svelte';
+  import InlineReplyBox from './InlineReplyBox.svelte';
   import type { Status, StatusContext } from '../../../types/mastodon';
 
   export let statusId: string;
@@ -60,67 +61,56 @@
     if (index === 0) return false;
     return s.in_reply_to_id === thread[index - 1].id;
   }
+
+  // Handle successful reply
+  async function handleReplySuccess(newStatus: Status) {
+    // Reload the thread to show the new reply
+    await loadThread();
+  }
 </script>
 
 <div class="min-h-[400px]">
   {#if loading}
-    <StatusSkeleton />
-    <StatusSkeleton />
-    <StatusSkeleton />
+    <div class="px-4 py-4 space-y-4">
+      <StatusSkeleton />
+      <StatusSkeleton />
+      <StatusSkeleton />
+    </div>
   {:else if error}
-    <ErrorState message={error} onRetry={loadThread} />
+    <div class="px-4 py-4">
+      <ErrorState message={error} onRetry={loadThread} />
+    </div>
   {:else if status}
-    <div class="space-y-4">
-      <!-- Main status in consistent card format -->
-      <div class="bg-surface rounded-lg border border-border overflow-hidden">
-        <StatusCard status={status} showThread={false} />
-        
-        <!-- Reply composer -->
-        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-800">
-          <button
-            onclick={() => {
-              // Store reply context in sessionStorage before navigating
-              const replyContext = {
-                replyToId: status.id,
-                mention: `@${status.account.acct} `
-              };
-              sessionStorage.setItem('compose_reply_context', JSON.stringify(replyContext));
-              window.location.href = '/compose';
-            }}
-            class="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
-          >
-            Reply to @{status.account.acct}...
-          </button>
-        </div>
-      </div>
+    <div class="px-4 py-4 space-y-4">
+      <!-- Main status -->
+      <StatusCard status={status} showThread={false} />
+      
+      <!-- Reply composer -->
+      <InlineReplyBox replyTo={status} onSuccess={handleReplySuccess} />
       
       <!-- Replies (descendants) -->
       {#if context && context.descendants.length > 0}
-        <div class="bg-surface rounded-lg border border-border overflow-hidden">
-          <div class="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
-              {context.descendants.length} {context.descendants.length === 1 ? 'Reply' : 'Replies'}
-            </p>
-          </div>
-          
-          {#snippet renderReplies(statuses, parentId)}
-            {#each statuses.filter(s => s.in_reply_to_id === parentId) as reply}
-              {@const childReplies = statuses.filter(s => s.in_reply_to_id === reply.id)}
-              <div class="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
-                <StatusCard status={reply} showThread={false} />
-                
-                <!-- Nested replies -->
-                {#if childReplies.length > 0}
-                  <div class="border-l-2 border-gray-200 dark:border-gray-700 ml-12">
-                    {@render renderReplies(statuses, reply.id)}
-                  </div>
-                {/if}
-              </div>
-            {/each}
-          {/snippet}
-          
-          {@render renderReplies(context.descendants, status.id)}
+        <div class="card px-4 py-2">
+          <p class="text-sm font-medium text-gray-600 dark:text-gray-400 mb-2">
+            {context.descendants.length} {context.descendants.length === 1 ? 'Reply' : 'Replies'}
+          </p>
         </div>
+        
+        {#snippet renderReplies(statuses, parentId, depth = 0)}
+          {#each statuses.filter(s => s.in_reply_to_id === parentId) as reply}
+            {@const childReplies = statuses.filter(s => s.in_reply_to_id === reply.id)}
+            <div class:ml-12={depth > 0}>
+              <StatusCard status={reply} showThread={false} />
+              
+              <!-- Nested replies -->
+              {#if childReplies.length > 0}
+                {@render renderReplies(statuses, reply.id, depth + 1)}
+              {/if}
+            </div>
+          {/each}
+        {/snippet}
+        
+        {@render renderReplies(context.descendants, status.id)}
       {/if}
     </div>
   {:else}

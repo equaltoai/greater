@@ -342,23 +342,19 @@
 </div>
 
 {#snippet renderStatusGroup(group)}
-	<div class="bg-surface rounded-lg border border-border overflow-hidden">
-		<StatusCard status={group.status} />
-		{#if group.replies.length > 0}
-			{@render renderReplies(group.replies)}
-		{/if}
-	</div>
+	<StatusCard status={group.status} />
+	{#if group.replies.length > 0}
+		{@render renderReplies(group.replies, 1)}
+	{/if}
 {/snippet}
 
 {#snippet renderReplies(replies, depth = 1)}
-	{#if replies.length > 0}
-		<div class="border-l-2 border-gray-200 dark:border-gray-700 ml-4">
-			{#each replies as reply (reply.status.id)}
-				<div class="pl-4">
-					<StatusCard status={reply.status} />
-					{@render renderReplies(reply.replies, depth + 1)}
-				</div>
-			{/each}
+	{#each replies as reply (reply.status.id)}
+		<div class="ml-12">
+			<StatusCard status={reply.status} />
+			{#if reply.replies.length > 0}
+				{@render renderReplies(reply.replies, depth + 1)}
+			{/if}
 		</div>
-	{/if}
+	{/each}
 {/snippet}

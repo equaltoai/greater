@@ -70,12 +70,23 @@
           src={currentUser.avatar} 
           alt={currentUser.display_name || currentUser.username}
           class="w-8 h-8 rounded-full object-cover"
+          onerror={(e) => {
+            e.currentTarget.style.display = 'none';
+            const nextSibling = e.currentTarget.nextElementSibling;
+            if (nextSibling) {
+              nextSibling.style.display = 'flex';
+            }
+          }}
         />
+        <div 
+          class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm"
+          style="display: none;"
+        >
+          {(currentUser.display_name || currentUser.username).charAt(0).toUpperCase()}
+        </div>
       {:else}
-        <div class="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
-          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">
-            {(authStore.currentUser.display_name || authStore.currentUser.username).charAt(0).toUpperCase()}
-          </span>
+        <div class="w-8 h-8 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-sm">
+          {(authStore.currentUser.display_name || authStore.currentUser.username).charAt(0).toUpperCase()}
         </div>
       {/if}
       

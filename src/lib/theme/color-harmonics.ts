@@ -175,7 +175,7 @@ export class ColorHarmonics {
         });
         break;
         
-      case 'triad-isosceles':
+      case 'triad-isosceles': {
         // Split complementary - base + two colors 30° from complement
         const complement = (seedColor.h + 180) % 360;
         colors.push({
@@ -189,6 +189,7 @@ export class ColorHarmonics {
           l: seedColor.l
         });
         break;
+      }
         
       case 'tetrad-square':
         // 90° apart

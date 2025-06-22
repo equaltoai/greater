@@ -15,19 +15,17 @@ const description = 'View status thread';
 
 <ProtectedRoute>
   <MainLayout title={title} description={description}>
-    <div class="max-w-2xl mx-auto">
-      <header class="border-b border-gray-200 dark:border-gray-800 px-4 py-4">
-        <div class="flex items-center gap-4">
-          <a href="/home" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
-            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
-            </svg>
-          </a>
-          <h1 class="text-xl font-semibold">Thread</h1>
-        </div>
-      </header>
-      
-      <StatusThread statusId={id} client:load />
-    </div>
+    <header class="border-b border-gray-200 dark:border-gray-800 px-4 py-4">
+      <div class="flex items-center gap-4">
+        <a href="/home" class="p-2 -ml-2 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+          </svg>
+        </a>
+        <h1 class="text-xl font-semibold">Thread</h1>
+      </div>
+    </header>
+    
+    <StatusThread statusId={id} client:load />
   </MainLayout>
 </ProtectedRoute>

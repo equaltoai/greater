@@ -112,6 +112,9 @@
   function stripHtml(html: string): string {
     return html.replace(/<[^>]*>/g, '');
   }
+  
+  // Generate avatar placeholder
+  const avatarPlaceholder = $derived(account ? (account.display_name || account.username).charAt(0).toUpperCase() : '');
 </script>
 
 <div class="user-profile">
@@ -145,11 +148,32 @@
     <div class="px-4 pb-4">
       <!-- Avatar and follow button -->
       <div class="relative -mt-16 mb-4 flex items-end justify-between">
-        <img 
-          src={account.avatar} 
-          alt={account.display_name || account.username}
-          class="w-24 h-24 rounded-full border-4 border-white dark:border-gray-900"
-        />
+        {#if account.avatar}
+          <img 
+            src={account.avatar} 
+            alt={account.display_name || account.username}
+            class="w-24 h-24 rounded-full border-4 border-white dark:border-gray-900 object-cover"
+            onerror={(e) => {
+              e.currentTarget.style.display = 'none';
+              const nextSibling = e.currentTarget.nextElementSibling;
+              if (nextSibling) {
+                nextSibling.style.display = 'flex';
+              }
+            }}
+          />
+          <div 
+            class="w-24 h-24 rounded-full border-4 border-white dark:border-gray-900 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-3xl"
+            style="display: none;"
+          >
+            {avatarPlaceholder}
+          </div>
+        {:else}
+          <div 
+            class="w-24 h-24 rounded-full border-4 border-white dark:border-gray-900 bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-3xl"
+          >
+            {avatarPlaceholder}
+          </div>
+        {/if}
         
         {#if !isOwnProfile && authStore.currentUser}
           <Button

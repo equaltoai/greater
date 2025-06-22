@@ -70,8 +70,8 @@ export class AccountService {
   private async resolveActivityPubUrl(url: string): Promise<Account> {
     // First, try to extract username from URL patterns
     const patterns = [
-      /https?:\/\/[^\/]+\/@([^\/\?#]+)/,        // Mastodon style: https://server/@username
-      /https?:\/\/[^\/]+\/users\/([^\/\?#]+)/,  // ActivityPub style: https://server/users/username
+      /https?:\/\/[^/]+\/@([^/?#]+)/,        // Mastodon style: https://server/@username
+      /https?:\/\/[^/]+\/users\/([^/?#]+)/,  // ActivityPub style: https://server/users/username
     ];
 
     for (const pattern of patterns) {
@@ -83,10 +83,10 @@ export class AccountService {
         // Try local first, then remote
         try {
           return await this.lookupAccount(username);
-        } catch (e) {
+        } catch {
           try {
             return await this.lookupAccount(`${username}@${domain}`);
-          } catch (e2) {
+          } catch {
             // Continue to search fallback
           }
         }

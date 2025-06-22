@@ -13,8 +13,7 @@ export interface Props {
 const { 
   title, 
   description = 'A modern, fast, and beautiful Mastodon client', 
-  image = '/og-image.png',
-  noIndex = false 
+  image = '/og-image.png'
 } = Astro.props;
 
 const canonicalURL = new URL(Astro.url.pathname, Astro.site || Astro.url.origin);
