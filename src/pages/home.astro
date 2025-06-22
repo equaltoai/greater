@@ -1,6 +1,6 @@
 ---
 import TimelineLayout from '@/layouts/TimelineLayout.astro';
-import SimpleTimeline from '@/components/islands/svelte/SimpleTimeline.svelte';
+import Timeline from '@/components/islands/svelte/Timeline.svelte';
 import ComposeBox from '@/components/islands/svelte/ComposeBox.svelte';
 
 // Home timeline - authenticated user's timeline
@@ -17,6 +17,6 @@ import ComposeBox from '@/components/islands/svelte/ComposeBox.svelte';
   </div>
   
   <div class="flex-1 h-full">
-    <SimpleTimeline type="home" client:load />
+    <Timeline type="home" client:load />
   </div>
 </TimelineLayout>

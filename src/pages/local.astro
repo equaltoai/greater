@@ -1,19 +1,19 @@
 ---
 import MainLayout from '@/layouts/MainLayout.astro';
-import VirtualizedTimeline from '@/components/islands/svelte/VirtualizedTimeline.svelte';
+import Timeline from '@/components/islands/svelte/Timeline.svelte';
 import InstanceInfo from '@/components/islands/svelte/InstanceInfo.svelte';
 
 // Local timeline - posts from this instance only
 ---
 
-<MainLayout title="Local Timeline" description="Posts from your local instance">
+<MainLayout title="Local Timeline" description="Posts from your local instance" protected={false}>
   <div class="sticky top-[4rem] z-40 bg-background/80 backdrop-blur-md border-b border-border px-4 py-3">
     <h1 class="text-xl font-bold text-text">Local</h1>
     <p class="text-sm text-text-muted">Posts from this instance</p>
   </div>
   
   <div class="flex-1 h-full">
-    <VirtualizedTimeline type="local" client:load />
+    <Timeline type="local" groupConversations={false} client:load />
   </div>
   
   <div slot="aside">

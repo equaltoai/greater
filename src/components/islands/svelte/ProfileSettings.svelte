@@ -3,6 +3,7 @@
   import { getClient } from '../../../lib/api/client';
   import { authStore } from '../../../lib/stores/auth.svelte';
   import type { Account, UpdateCredentialsParams } from '../../../types/mastodon';
+  import { resizeAvatar, resizeHeader, formatFileSize } from '../../../lib/utils/imageResize';
   import Button from './Button.svelte';
   
   let account = $state<Account | null>(null);
@@ -19,11 +20,11 @@
   let discoverable = $state(true);
   let fields = $state<Array<{name: string; value: string}>>([]);
   
-  // File uploads
-  let avatarFile = $state<File | null>(null);
-  let headerFile = $state<File | null>(null);
+  // File uploads - only store previews, not files
   let avatarPreview = $state('');
   let headerPreview = $state('');
+  let avatarFileInfo = $state('');
+  let headerFileInfo = $state('');
   
   onMount(async () => {
     await loadProfile();
@@ -74,7 +75,11 @@
     const file = target.files?.[0];
     if (!file) return;
     
-    avatarFile = file;
+    // Show file info
+    avatarFileInfo = `${file.name} (${formatFileSize(file.size)})`;
+    
+    // Don't store file in state, just create preview
+    // We'll get the file directly from the input when submitting
     const reader = new FileReader();
     reader.onload = (e) => {
       avatarPreview = e.target?.result as string;
@@ -87,7 +92,11 @@
     const file = target.files?.[0];
     if (!file) return;
     
-    headerFile = file;
+    // Show file info
+    headerFileInfo = `${file.name} (${formatFileSize(file.size)})`;
+    
+    // Don't store file in state, just create preview
+    // We'll get the file directly from the input when submitting
     const reader = new FileReader();
     reader.onload = (e) => {
       headerPreview = e.target?.result as string;
@@ -123,31 +132,92 @@
         fields_attributes: fields.filter(f => f.name || f.value)
       };
       
+      // Get fresh references to the files from the input elements
+      // This ensures we have the actual File objects with their content
+      const avatarInput = document.getElementById('avatar-upload') as HTMLInputElement;
+      const headerInput = document.getElementById('header-upload') as HTMLInputElement;
       
-      if (avatarFile) {
-        params.avatar = avatarFile;
+      if (avatarInput?.files?.[0]) {
+        let file = avatarInput.files[0];
+        // Verify file has content
+        if (file.size > 0) {
+          try {
+            // Resize if needed (always resize to ensure consistent dimensions)
+            console.log('Original avatar size:', formatFileSize(file.size));
+            file = await resizeAvatar(file);
+            console.log('Resized avatar size:', formatFileSize(file.size));
+            params.avatar = file;
+          } catch (err) {
+            console.error('Failed to resize avatar:', err);
+            error = 'Failed to process avatar image';
+            return;
+          }
+        } else {
+          console.warn('Avatar file has no content');
+        }
       }
       
-      if (headerFile) {
-        params.header = headerFile;
+      if (headerInput?.files?.[0]) {
+        let file = headerInput.files[0];
+        // Verify file has content
+        if (file.size > 0) {
+          try {
+            // Resize if needed (always resize to ensure consistent dimensions)
+            console.log('Original header size:', formatFileSize(file.size));
+            file = await resizeHeader(file);
+            console.log('Resized header size:', formatFileSize(file.size));
+            params.header = file;
+          } catch (err) {
+            console.error('Failed to resize header:', err);
+            error = 'Failed to process header image';
+            return;
+          }
+        } else {
+          console.warn('Header file has no content');
+        }
       }
       
       const updatedAccount = await client.updateCredentials(params);
       account = updatedAccount;
       
+      console.log('Profile updated:', {
+        id: updatedAccount.id,
+        avatar: updatedAccount.avatar,
+        header: updatedAccount.header
+      });
+      
       // Update auth store
       if (authStore.currentUser?.id === updatedAccount.id) {
+        console.log('Updating auth store with new account data');
         authStore.updateAccount(updatedAccount);
       }
       
       successMessage = 'Profile updated successfully!';
       
       // Reset file inputs
-      avatarFile = null;
-      headerFile = null;
+      if (avatarInput) avatarInput.value = '';
+      if (headerInput) headerInput.value = '';
+      
+      // Update previews with new account data
+      avatarPreview = updatedAccount.avatar;
+      headerPreview = updatedAccount.header;
+      avatarFileInfo = '';
+      headerFileInfo = '';
     } catch (err) {
-      error = err instanceof Error ? err.message : 'Failed to update profile';
       console.error('Failed to update profile:', err);
+      
+      // Provide more specific error messages
+      if (err instanceof Error) {
+        if (err.message.includes('413') || err.message.includes('Entity Too Large')) {
+          error = 'Images are too large. They will be automatically resized, but if the error persists, try smaller images.';
+        } else if (err.message.includes('400')) {
+          error = 'Invalid request. Please check your input and try again.';
+        } else {
+          error = err.message;
+        }
+      } else {
+        error = 'Failed to update profile';
+      }
     } finally {
       saving = false;
     }
@@ -198,9 +268,13 @@
             accept="image/*"
             class="hidden"
             onchange={handleHeaderChange}
+            multiple={false}
           />
         </div>
       </div>
+      {#if headerFileInfo}
+        <p class="text-sm text-gray-500 mt-1">{headerFileInfo} - Will be resized to 1500x500</p>
+      {/if}
     </div>
     
     <!-- Avatar -->
@@ -225,9 +299,13 @@
             accept="image/*"
             class="hidden"
             onchange={handleAvatarChange}
+            multiple={false}
           />
         </div>
       </div>
+      {#if avatarFileInfo}
+        <p class="text-sm text-gray-500 mt-1">{avatarFileInfo} - Will be resized to 400x400</p>
+      {/if}
     </div>
     
     <!-- Display name -->

@@ -71,6 +71,13 @@ class AuthStore {
           this.currentInstance = parsed.state.currentInstance;
           this.accounts = parsed.state.accounts || [];
           this.isAuthenticated = parsed.state.isAuthenticated || false;
+          
+          // Refresh current user data to get fresh avatar URL
+          if (this.isAuthenticated && this.currentInstance) {
+            this.refreshCurrentUser().catch(err => 
+              console.error('[Auth] Failed to refresh user on init:', err)
+            );
+          }
         }
       } catch (e) {
         console.error('Failed to load auth state:', e);
@@ -349,6 +356,38 @@ class AuthStore {
     
     // Persist the changes
     this.persist();
+  }
+  
+  async refreshCurrentUser(): Promise<void> {
+    if (!this.currentInstance || !this.isAuthenticated) {
+      return;
+    }
+    
+    try {
+      // Just make a direct API call to get the ACTUAL data
+      const response = await fetch(`${this.currentInstance}/api/v1/accounts/verify_credentials`, {
+        headers: {
+          'Authorization': `Bearer ${await getAccessToken()}`
+        }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to fetch user data');
+      }
+      
+      const freshUserData = await response.json();
+      
+      console.log('[Auth] Fresh user data from API:', freshUserData);
+      console.log('[Auth] Avatar URL from API:', freshUserData.avatar);
+      
+      // Update the account
+      this.updateAccount(freshUserData);
+      
+      console.log('[Auth] Current user after update:', this.currentUser);
+      console.log('[Auth] Avatar after update:', this.currentUser?.avatar);
+    } catch (error) {
+      console.error('[Auth] Failed to refresh current user:', error);
+    }
   }
 }
 

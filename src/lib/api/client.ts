@@ -17,16 +17,14 @@ import type {
   PaginationParams,
   CreateStatusParams,
   AccountStatusesParams,
-  SearchParams,
   UpdateCredentialsParams,
   Announcement,
-  Marker,
-  Markers,
   FeaturedTag,
   Filter,
-  MediaAttachment
+  MediaAttachment,
+  Markers
 } from '@/types/mastodon';
-import { getAccessToken } from '@/lib/stores/auth.svelte';
+import type { SearchParams } from './schemas';
 import { secureAuthClient } from '@/lib/auth/secure-client';
 import { globalRateLimiter } from './rate-limiter';
 import {
@@ -35,13 +33,8 @@ import {
   StatusSchema,
   TimelineResponseSchema,
   InstanceSchema,
-  NotificationSchema,
-  SearchResultsSchema,
-  RelationshipSchema,
-  ListSchema,
   ContextSchema,
-  PreferencesSchema,
-  MediaAttachmentSchema
+  PreferencesSchema
 } from './schemas';
 import { WebSocketStream } from './websocket-stream';
 
@@ -66,6 +59,19 @@ interface RequestOptions {
   params?: Record<string, unknown>;
   skipAuth?: boolean;
   signal?: AbortSignal;
+}
+
+// Lesser-specific cost tracking
+export interface CostMetrics {
+  totalMicros: number;
+  dynamoDBReads: number;
+  dynamoDBWrites: number;
+}
+
+// Response with cost metrics
+export interface ResponseWithCost<T> {
+  data: T;
+  cost?: CostMetrics;
 }
 
 interface CacheEntry<T> {
@@ -109,16 +115,46 @@ export class MastodonClient {
   }
 
   /**
+   * Extract username from various account ID formats
+   * Supports:
+   * - Username: "aron" -> "aron"
+   * - Full URL: "https://lesser.host/users/aron" -> "aron"
+   * - Numeric ID: Falls back to original ID
+   */
+  private extractUsername(accountId: string): string {
+    // If it's a URL format, extract the username
+    if (accountId.startsWith('http')) {
+      const match = accountId.match(/\/users\/([^\/]+)$/);
+      if (match) {
+        return match[1];
+      }
+    }
+    // Otherwise return as-is (could be username or numeric ID)
+    return accountId;
+  }
+
+  /**
    * Encode account ID for use in URL paths
-   * Handles both username-only IDs and full URL IDs
+   * For Lesser compatibility, we prefer to use usernames
    */
   private encodeAccountId(id: string): string {
-    // If the ID contains special characters that need encoding (like URLs),
+    // Extract username if it's a URL format
+    const username = this.extractUsername(id);
+    
+    // If the ID contains special characters that need encoding,
     // encode it. Otherwise, return as-is (for simple usernames)
-    if (id.includes('/') || id.includes(':') || id.includes('@')) {
-      return encodeURIComponent(id);
+    if (username.includes('/') || username.includes(':') || username.includes('@')) {
+      return encodeURIComponent(username);
     }
-    return id;
+    return username;
+  }
+
+  // Track last request cost metrics
+  private lastRequestCost: CostMetrics | null = null;
+
+  // Get last request cost metrics
+  getLastRequestCost(): CostMetrics | null {
+    return this.lastRequestCost;
   }
 
   // Generic request method with rate limiting
@@ -228,6 +264,23 @@ export class MastodonClient {
         throw new APIError(response.status, errorMessage, errorData);
       }
 
+      // Extract Lesser cost headers if present
+      const costHeaders = {
+        totalMicros: response.headers.get('X-Cost-Total-Micros'),
+        dynamoDBReads: response.headers.get('X-Cost-DynamoDB-Reads'),
+        dynamoDBWrites: response.headers.get('X-Cost-DynamoDB-Writes')
+      };
+      
+      if (costHeaders.totalMicros) {
+        this.lastRequestCost = {
+          totalMicros: parseInt(costHeaders.totalMicros),
+          dynamoDBReads: parseInt(costHeaders.dynamoDBReads || '0'),
+          dynamoDBWrites: parseInt(costHeaders.dynamoDBWrites || '0')
+        };
+      } else {
+        this.lastRequestCost = null;
+      }
+
       // Parse response
       const data = await response.json() as T;
 
@@ -291,7 +344,7 @@ export class MastodonClient {
     // Fetch instance info
     this.instanceInfoPromise = this.request<unknown>('GET', '/api/v1/instance', { skipAuth: true })
       .then(data => {
-        const instance = validateResponse(InstanceSchema, data, 'getInstance');
+        const instance = validateResponse(InstanceSchema, data, 'getInstance') as Instance;
         this.instanceInfo = instance;
         this.instanceInfoPromise = null;
         return instance;
@@ -302,6 +355,18 @@ export class MastodonClient {
       });
     
     return this.instanceInfoPromise;
+  }
+
+  // Check if instance is a Lesser server
+  async isLesserInstance(): Promise<boolean> {
+    try {
+      const instance = await this.getInstance();
+      if (!instance) return false;
+      // Lesser instances include "Lesser" in their version string
+      return instance.version.toLowerCase().includes('lesser');
+    } catch {
+      return false;
+    }
   }
 
   async getInstanceActivity(): Promise<Array<{ week: string; statuses: string; logins: string; registrations: string }>> {
@@ -324,9 +389,10 @@ export class MastodonClient {
   }
 
   async getLocalTimeline(params?: TimelineParams): Promise<Status[]> {
-    return this.request<Status[]>('GET', '/api/v1/timelines/public', {
+    const data = await this.request<unknown>('GET', '/api/v1/timelines/public', {
       params: { ...params, local: true } as Record<string, unknown>
     });
+    return validateResponse(TimelineResponseSchema, data, 'getLocalTimeline');
   }
 
   async getTagTimeline(tag: string, params?: TimelineParams): Promise<Status[]> {
@@ -356,28 +422,76 @@ export class MastodonClient {
     return this.request<Status>('DELETE', `/api/v1/statuses/${id}`);
   }
 
-  async reblogStatus(id: string): Promise<Status> {
-    return this.request<Status>('POST', `/api/v1/statuses/${id}/reblog`);
+  /**
+   * Extract status ID from various formats
+   * Supports:
+   * - Direct ID: "12345" -> "12345"
+   * - Full URL: "https://lesser.host/statuses/12345" -> "12345"
+   */
+  private extractStatusId(statusId: string): string {
+    // If it's a URL format, extract the ID
+    if (statusId.startsWith('http')) {
+      const match = statusId.match(/\/statuses\/([^\/]+)$/);
+      if (match) {
+        return match[1];
+      }
+    }
+    // Otherwise return as-is
+    return statusId;
+  }
+
+  async reblogStatus(id: string, params?: { comment?: string; visibility?: string }): Promise<Status> {
+    const statusId = this.extractStatusId(id);
+    return this.request<Status>('POST', `/api/v1/statuses/${statusId}/reblog`, { body: params });
   }
 
   async unreblogStatus(id: string): Promise<Status> {
-    return this.request<Status>('POST', `/api/v1/statuses/${id}/unreblog`);
+    const statusId = this.extractStatusId(id);
+    return this.request<Status>('POST', `/api/v1/statuses/${statusId}/unreblog`);
   }
 
   async favouriteStatus(id: string): Promise<Status> {
-    return this.request<Status>('POST', `/api/v1/statuses/${id}/favourite`);
+    const result = await this.request<Status>('POST', `/api/v1/statuses/${id}/favourite`);
+    console.log('[API Client] Favourite response:', { 
+      id: result.id, 
+      bookmarked: result.bookmarked, 
+      favourited: result.favourited,
+      content: result.content?.substring(0, 50)
+    });
+    return result;
   }
 
   async unfavouriteStatus(id: string): Promise<Status> {
-    return this.request<Status>('POST', `/api/v1/statuses/${id}/unfavourite`);
+    const result = await this.request<Status>('POST', `/api/v1/statuses/${id}/unfavourite`);
+    console.log('[API Client] Unfavourite response:', { 
+      id: result.id, 
+      bookmarked: result.bookmarked, 
+      favourited: result.favourited,
+      content: result.content?.substring(0, 50)
+    });
+    return result;
   }
 
   async bookmarkStatus(id: string): Promise<Status> {
-    return this.request<Status>('POST', `/api/v1/statuses/${id}/bookmark`);
+    const result = await this.request<Status>('POST', `/api/v1/statuses/${id}/bookmark`);
+    console.log('[API Client] Bookmark response:', { 
+      id: result.id, 
+      bookmarked: result.bookmarked, 
+      favourited: result.favourited,
+      content: result.content?.substring(0, 50)
+    });
+    return result;
   }
 
   async unbookmarkStatus(id: string): Promise<Status> {
-    return this.request<Status>('POST', `/api/v1/statuses/${id}/unbookmark`);
+    const result = await this.request<Status>('POST', `/api/v1/statuses/${id}/unbookmark`);
+    console.log('[API Client] Unbookmark response:', { 
+      id: result.id, 
+      bookmarked: result.bookmarked, 
+      favourited: result.favourited,
+      content: result.content?.substring(0, 50)
+    });
+    return result;
   }
 
   async muteStatus(id: string): Promise<Status> {
@@ -399,17 +513,16 @@ export class MastodonClient {
   // Accounts
   async verifyCredentials(): Promise<Account> {
     const data = await this.request<unknown>('GET', '/api/v1/accounts/verify_credentials');
-    return validateResponse(AccountSchema, data, 'verifyCredentials');
+    return validateResponse(AccountSchema, data, 'verifyCredentials') as Account;
   }
 
   async updateCredentials(params: UpdateCredentialsParams): Promise<Account> {
     const formData = new FormData();
     
-    
     Object.entries(params).forEach(([key, value]) => {
       if (value !== undefined) {
         if (value instanceof File) {
-          formData.append(key, value);
+          formData.append(key, value, value.name);
         } else if (Array.isArray(value)) {
           value.forEach((item, index) => {
             Object.entries(item).forEach(([fieldKey, fieldValue]) => {
@@ -421,7 +534,6 @@ export class MastodonClient {
         }
       }
     });
-    
 
     const result = await this.request<Account>('PATCH', '/api/v1/accounts/update_credentials', {
       body: formData,
@@ -432,14 +544,14 @@ export class MastodonClient {
 
   async getAccount(id: string): Promise<Account> {
     const data = await this.request<unknown>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}`);
-    return validateResponse(AccountSchema, data, 'getAccount');
+    return validateResponse(AccountSchema, data, 'getAccount') as Account;
   }
 
   async lookupAccount(acct: string): Promise<Account> {
     const data = await this.request<unknown>('GET', '/api/v1/accounts/lookup', {
       params: { acct }
     });
-    return validateResponse(AccountSchema, data, 'lookupAccount');
+    return validateResponse(AccountSchema, data, 'lookupAccount') as Account;
   }
 
   async getAccountStatuses(id: string, params?: AccountStatusesParams): Promise<Status[]> {
@@ -493,10 +605,13 @@ export class MastodonClient {
     });
   }
 
-  // Search
+  // Search with Lesser semantic search support
   async search(params: SearchParams): Promise<SearchResults> {
+    // Include Lesser-specific parameters if provided
+    const searchParams: Record<string, unknown> = { ...params };
+    
     // Skip validation for search to handle different Mastodon instance formats
-    const data = await this.request<SearchResults>('GET', '/api/v2/search', { params: { ...params } as Record<string, unknown> });
+    const data = await this.request<SearchResults>('GET', '/api/v2/search', { params: searchParams });
     return data;
   }
 

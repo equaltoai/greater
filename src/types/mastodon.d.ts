@@ -4,7 +4,7 @@
  */
 
 // Re-export auth types that are shared
-export type { MastodonAccount as Account, CustomEmoji, AccountField } from './auth.svelte';
+export type { MastodonAccount as Account, CustomEmoji, AccountField } from './auth';
 
 // Status (Toot)
 export interface Status {
@@ -31,11 +31,11 @@ export interface Status {
   filtered?: FilterResult[];
   reblog: Status | null;
   application?: Application;
-  account: import('./auth').MastodonAccount;
+  account: Account;
   media_attachments: MediaAttachment[];
   mentions: Mention[];
   tags: Tag[];
-  emojis: import('./auth').CustomEmoji[];
+  emojis: CustomEmoji[];
   card: PreviewCard | null;
   poll: Poll | null;
 }
@@ -82,7 +82,7 @@ export interface Poll {
   votes_count: number;
   voters_count: number | null;
   options: PollOption[];
-  emojis: import('./auth').CustomEmoji[];
+  emojis: CustomEmoji[];
   voted?: boolean;
   own_votes?: number[];
 }
@@ -176,7 +176,7 @@ export interface Notification {
   id: string;
   type: NotificationType;
   created_at: string;
-  account: import('./auth').MastodonAccount;
+  account: Account;
   status?: Status;
   report?: Report;
 }
@@ -233,7 +233,7 @@ export interface Instance {
   urls: InstanceURLs;
   stats: InstanceStats;
   thumbnail: string | null;
-  contact_account: import('./auth').MastodonAccount | null;
+  contact_account: Account | null;
   rules: Rule[];
 }
 
@@ -279,7 +279,7 @@ export interface Rule {
 
 // Search
 export interface SearchResults {
-  accounts: import('./auth').MastodonAccount[];
+  accounts: Account[];
   statuses: Status[];
   hashtags: Tag[];
 }
@@ -316,7 +316,7 @@ export interface Report {
   created_at: string;
   status_ids: string[] | null;
   rule_ids: string[] | null;
-  target_account: import('./auth').MastodonAccount;
+  target_account: Account;
 }
 
 export type ReportCategory = 'spam' | 'violation' | 'other';
@@ -335,7 +335,7 @@ export interface Announcement {
   mentions: AnnouncementAccount[];
   statuses: AnnouncementStatus[];
   tags: Tag[];
-  emojis: import('./auth').CustomEmoji[];
+  emojis: CustomEmoji[];
   reactions: AnnouncementReaction[];
 }
 

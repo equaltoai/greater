@@ -1,5 +1,5 @@
 config:
   cloudflare:apiToken:
-    secure: AAABAMxvod7LrgnFDB5nbQkELGT3XFDObSfXVA9dL709GxRhB8JH5pgvAoDTmr2qmH9HFhCM+HTTxx0isPDrmveJtpRNdhCP
+    secure: AAABABzX1Ln2O45JYWRlskzpEH0F1XeKM0jPEwm7QYC0hCIe85y9eeZOJKZuHB3x/7L2kderdTe5o7GIcdS+QDmcxenMuHBU
   greater-client:accountId: f32d4379a27d6dd9fe076cc3cf0dae44
   greater-client:environment: dev

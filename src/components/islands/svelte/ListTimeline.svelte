@@ -2,7 +2,7 @@
   import { onMount, onDestroy } from 'svelte';
   import { timelineStore } from '@/lib/stores/timeline.svelte';
   import { listsStore } from '@/lib/stores/lists.svelte';
-  import VirtualizedTimeline from './VirtualizedTimeline.svelte';
+  import Timeline from './Timeline.svelte';
   import EmptyState from './EmptyState.svelte';
   import ErrorState from './ErrorState.svelte';
   import Button from './Button.svelte';
@@ -82,11 +82,9 @@
       onAction={memberCount === 0 ? handleManageList : undefined}
     />
   {:else}
-    <VirtualizedTimeline
-      {statuses}
-      {isLoading}
-      onRefresh={handleRefresh}
-      onLoadMore={loadMore}
+    <Timeline
+      type={`list:${listId}`}
+      groupConversations={false}
     />
   {/if}
 </div>

@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { onMount } from 'svelte';
 	import type { Status, Relationship } from '@/types/mastodon';
+	import type { Status as LesserStatus } from '@/lib/api/schemas';
 	import { sanitizeMastodonHtml } from '@/lib/utils/sanitize';
 	import { timelineStore } from '@/lib/stores/timeline.svelte';
 	import { authStore } from '@/lib/stores/auth.svelte';
@@ -14,6 +15,9 @@
 	}
 	
 	let { status, showThread = false }: Props = $props();
+	
+	// Cast to Lesser Status to access enhanced fields if available
+	const lesserStatus = status as unknown as LesserStatus;
 	
 	;
 	;
@@ -46,19 +50,23 @@
 	
 	let isInteracting = $state(false);
 	let showMenu = $state(false);
+	let showBoostMenu = $state(false);
 	let relationship: Relationship | null = null;
 	let followLoading = false;
 	
-	const isOwnStatus = $derived(displayStatus.account.id === authStore.currentAccount?.id);
+	const isOwnStatus = $derived(displayStatus.account.id === authStore.currentUser?.id);
 	
 	onMount(() => {
 		// Close menu when clicking outside
 		const handleClickOutside = (e: MouseEvent) => {
-			if (showMenu) {
-				const target = e.target as HTMLElement;
-				if (!target.closest('.relative')) {
-					showMenu = false;
-				}
+			const target = e.target as HTMLElement;
+			
+			if (showMenu && !target.closest('.menu-container')) {
+				showMenu = false;
+			}
+			
+			if (showBoostMenu && !target.closest('.boost-menu-container')) {
+				showBoostMenu = false;
 			}
 		};
 		
@@ -68,10 +76,12 @@
 	
 	// Load relationship on mount if not own status
 	onMount(async () => {
-		if (!isOwnStatus && authStore.currentAccount) {
+		if (!isOwnStatus && authStore.currentUser) {
 			try {
 				const client = getClient();
-				const relationships = await client.getRelationships([displayStatus.account.id]);
+				// Use username for Lesser compatibility
+				const identifier = displayStatus.account.username || displayStatus.account.id;
+				const relationships = await client.getRelationships([identifier]);
 				relationship = relationships[0];
 			} catch (err) {
 				console.error('Failed to load relationship:', err);
@@ -80,8 +90,14 @@
 	});
 	
 	async function handleFavorite() {
-		if (isInteracting || !authStore.currentAccount) return;
+		if (isInteracting || !authStore.currentUser) return;
 		isInteracting = true;
+		
+		console.log('[StatusCard] Before favorite:', { 
+			id: displayStatus.id, 
+			favourited: displayStatus.favourited, 
+			content: displayStatus.content?.substring(0, 50) 
+		});
 		
 		try {
 			if (displayStatus.favourited) {
@@ -94,9 +110,10 @@
 		}
 	}
 	
-	async function handleReblog() {
-		if (isInteracting || !authStore.currentAccount) return;
+	async function handleTraditionalBoost() {
+		if (isInteracting || !authStore.currentUser) return;
 		isInteracting = true;
+		showBoostMenu = false;
 		
 		try {
 			if (displayStatus.reblogged) {
@@ -104,13 +121,33 @@
 			} else {
 				await timelineStore.reblogStatus(displayStatus.id);
 			}
+		} catch (error) {
+			console.error('[StatusCard] Boost failed:', error);
 		} finally {
 			isInteracting = false;
 		}
 	}
 	
+	function handleQuoteBoost() {
+		showBoostMenu = false;
+		if (!authStore.currentUser) {
+			console.log('[StatusCard] Cannot quote: not logged in');
+			return;
+		}
+		
+		// Store the status we're quoting
+		const quoteContext = {
+			statusId: displayStatus.id,
+			quotedStatus: displayStatus
+		};
+		sessionStorage.setItem('compose_quote_context', JSON.stringify(quoteContext));
+		
+		// Navigate to compose page
+		window.location.href = '/compose';
+	}
+	
 	async function handleBookmark() {
-		if (isInteracting || !authStore.currentAccount) return;
+		if (isInteracting || !authStore.currentUser) return;
 		isInteracting = true;
 		
 		try {
@@ -127,15 +164,15 @@
 	function handleReply() {
 		if (typeof window === 'undefined') return;
 		
-		// Set reply context in compose store
-		import('../../../lib/stores/compose').then(({ composeReplyTo$, composeText$ }) => {
-			composeReplyTo$.set(displayStatus.id);
-			// Add mention to the beginning of the compose text
-			const mention = `@${displayStatus.account.acct} `;
-			composeText$.set(mention);
-			// Navigate to compose page
-			window.location.href = '/compose';
-		});
+		// Store reply context in sessionStorage before navigating
+		const replyContext = {
+			replyToId: displayStatus.id,
+			mention: `@${displayStatus.account.acct} `
+		};
+		sessionStorage.setItem('compose_reply_context', JSON.stringify(replyContext));
+		
+		// Navigate to compose page
+		window.location.href = '/compose';
 	}
 	
 	function handleShare() {
@@ -171,16 +208,19 @@
 	}
 	
 	async function handleFollow() {
-		if (!authStore.currentAccount || followLoading) return;
+		if (!authStore.currentUser || followLoading) return;
 		
 		followLoading = true;
 		try {
 			const client = getClient();
 			
+			// Use username for Lesser compatibility
+			const identifier = displayStatus.account.username || displayStatus.account.id;
+			
 			if (relationship?.following) {
-				relationship = await client.unfollowAccount(displayStatus.account.id);
+				relationship = await client.unfollowAccount(identifier);
 			} else {
-				relationship = await client.followAccount(displayStatus.account.id);
+				relationship = await client.followAccount(identifier);
 			}
 		} catch (err) {
 			console.error('Follow/unfollow failed:', err);
@@ -247,7 +287,7 @@
 					{displayStatus.account.display_name || displayStatus.account.username}
 				</a>
 				<span class="text-text-secondary">@{displayStatus.account.acct}</span>
-				{#if !isOwnStatus && authStore.currentAccount && relationship}
+				{#if !isOwnStatus && authStore.currentUser && relationship}
 					<Button
 						onclick={(e) => {
 							e.stopPropagation();
@@ -360,6 +400,32 @@
 				</a>
 			{/if}
 			
+			{#if lesserStatus.community_notes && lesserStatus.community_notes.length > 0}
+				<div class="mt-3 p-3 rounded-lg bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800">
+					<div class="flex items-center gap-2 mb-2">
+						<svg class="w-5 h-5 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+							<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+						</svg>
+						<span class="font-medium text-blue-900 dark:text-blue-100">Community Note</span>
+					</div>
+					{#each lesserStatus.community_notes.slice(0, 1) as note}
+						<p class="text-sm text-blue-800 dark:text-blue-200">{note.content}</p>
+						<div class="mt-2 flex items-center gap-4 text-xs text-blue-600 dark:text-blue-400">
+							<span>{note.votes_helpful} found helpful</span>
+							{#if note.votes_unhelpful > 0}
+								<span>{note.votes_unhelpful} found unhelpful</span>
+							{/if}
+						</div>
+					{/each}
+				</div>
+			{/if}
+			
+			{#if lesserStatus.delivery_cost && authStore.currentUser}
+				<div class="mt-2 text-xs text-text-secondary">
+					Delivery cost: ${(lesserStatus.delivery_cost / 1000000).toFixed(6)}
+				</div>
+			{/if}
+			
 			<div class="mt-3 flex items-center gap-1 -ml-2">
 				<button
 					onclick={handleReply}
@@ -375,13 +441,23 @@
 					{/if}
 				</button>
 				
-				<button
-					onclick={handleReblog}
-					class="flex items-center gap-1 px-2 py-1 rounded-lg transition-colors {displayStatus.reblogged ? 'text-green-500' : 'text-text-secondary'} hover:text-green-500 hover:bg-green-500/10"
-					title="Boost"
-					aria-label="{displayStatus.reblogged ? 'Unboost' : 'Boost'} post{displayStatus.reblogs_count > 0 ? `, ${displayStatus.reblogs_count} boosts` : ''}"
-					aria-pressed={displayStatus.reblogged}
-					disabled={displayStatus.visibility === 'private' || displayStatus.visibility === 'direct'}
+				<div class="relative boost-menu-container">
+					<button
+						onclick={(e) => {
+							e.stopPropagation();
+							if (displayStatus.reblogged) {
+								// If already boosted, unboosting is direct action
+								handleTraditionalBoost();
+							} else {
+								// Show menu for boost options
+								showBoostMenu = !showBoostMenu;
+							}
+						}}
+						class="flex items-center gap-1 px-2 py-1 rounded-lg transition-colors {displayStatus.reblogged ? 'text-green-500' : 'text-text-secondary'} hover:text-green-500 hover:bg-green-500/10"
+						title="Boost"
+						aria-label="{displayStatus.reblogged ? 'Unboost' : 'Boost'} post{displayStatus.reblogs_count > 0 ? `, ${displayStatus.reblogs_count} boosts` : ''}"
+						aria-pressed={displayStatus.reblogged}
+						disabled={displayStatus.visibility === 'private' || displayStatus.visibility === 'direct'}
 				>
 					<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
 						<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
@@ -390,6 +466,30 @@
 						<span class="text-sm" aria-hidden="true">{displayStatus.reblogs_count}</span>
 					{/if}
 				</button>
+				
+				{#if showBoostMenu}
+					<div class="absolute bottom-full mb-2 left-0 bg-white dark:bg-gray-900 rounded-lg shadow-lg border border-gray-200 dark:border-gray-700 py-1 z-50 min-w-[150px]">
+						<button
+							onclick={handleTraditionalBoost}
+							class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15" />
+							</svg>
+							Boost
+						</button>
+						<button
+							onclick={handleQuoteBoost}
+							class="w-full px-4 py-2 text-left text-sm hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors flex items-center gap-2"
+						>
+							<svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+								<path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 10h13m0 0l-4-4m4 4l-4 4m-9 4v-4a1 1 0 011-1h2m0-4V5a1 1 0 011-1h7" />
+							</svg>
+							Quote
+						</button>
+					</div>
+				{/if}
+				</div>
 				
 				<button
 					onclick={handleFavorite}

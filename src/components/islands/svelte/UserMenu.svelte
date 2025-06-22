@@ -1,11 +1,21 @@
 <script lang="ts">
   import { authStore } from '@/lib/stores/auth.svelte';
-  
-  // Get auth state
-  const { currentUser } = authStore;
+  import { getClient } from '@/lib/api/client';
+  import { onMount } from 'svelte';
+  import type { Account } from '@/types/mastodon';
   
   let isOpen = $state(false);
   let menuButton: HTMLButtonElement;
+  let currentUser = $state<Account | null>(null);
+  
+  onMount(async () => {
+    try {
+      const client = getClient();
+      currentUser = await client.verifyCredentials();
+    } catch (error) {
+      console.error('Failed to load user data:', error);
+    }
+  });
   
   // Toggle menu
   function toggleMenu() {
@@ -44,7 +54,7 @@
   });
 </script>
 
-{#if currentUser}
+{#if authStore.currentUser}
   <div class="relative">
     <button
       bind:this={menuButton}
@@ -55,15 +65,23 @@
       aria-expanded={isOpen}
     >
       <!-- User avatar -->
-      <img
-        src={currentUser.avatar}
-        alt={currentUser.display_name || currentUser.username}
-        class="w-8 h-8 rounded-full"
-      />
+      {#if currentUser?.avatar}
+        <img 
+          src={currentUser.avatar} 
+          alt={currentUser.display_name || currentUser.username}
+          class="w-8 h-8 rounded-full object-cover"
+        />
+      {:else}
+        <div class="w-8 h-8 rounded-full bg-gray-300 dark:bg-gray-600 flex items-center justify-center">
+          <span class="text-sm font-medium text-gray-600 dark:text-gray-300">
+            {(authStore.currentUser.display_name || authStore.currentUser.username).charAt(0).toUpperCase()}
+          </span>
+        </div>
+      {/if}
       
       <!-- Username (hidden on mobile) -->
       <span class="hidden sm:block text-sm font-medium text-gray-900 dark:text-gray-100">
-        {currentUser.display_name || currentUser.username}
+        {currentUser?.display_name || currentUser?.username || authStore.currentUser.display_name || authStore.currentUser.username}
       </span>
       
       <!-- Dropdown arrow -->
@@ -89,16 +107,16 @@
         <!-- User info -->
         <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
-            {currentUser.display_name || currentUser.username}
+            {currentUser?.display_name || currentUser?.username || authStore.currentUser.display_name || authStore.currentUser.username}
           </p>
           <p class="text-sm text-gray-500 dark:text-gray-400">
-            @{currentUser.username}
+            @{currentUser?.username || authStore.currentUser.username}
           </p>
         </div>
         
         <!-- Menu items -->
         <a
-          href={`/@${currentUser.username}`}
+          href={`/@${currentUser?.username || authStore.currentUser.username}`}
           class="block px-4 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
         >
           View Profile

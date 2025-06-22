@@ -21,6 +21,24 @@ export const AccountFieldSchema = z.object({
   verified_at: z.string().nullable().optional()
 });
 
+// Lesser-specific trust indicators
+export const TrustIndicatorsSchema = z.object({
+  score: z.number().min(0).max(100),
+  badges: z.array(z.object({
+    type: z.string(),
+    label: z.string(),
+    description: z.string()
+  })),
+  verification_level: z.enum(['none', 'basic', 'verified', 'trusted'])
+}).optional();
+
+// Lesser-specific cost transparency
+export const CostTransparencySchema = z.object({
+  monthly_cost: z.number(),
+  cost_per_post: z.number(),
+  storage_used: z.number()
+}).optional();
+
 export const AccountSchema = z.object({
   id: z.string(),
   username: z.string().min(1).max(30),
@@ -33,21 +51,24 @@ export const AccountSchema = z.object({
   created_at: DateStringSchema,
   note: z.string(),
   url: URLSchema,
-  avatar: URLSchema,
-  avatar_static: URLSchema,
-  header: URLSchema,
-  header_static: URLSchema,
+  avatar: z.union([URLSchema, z.literal('')]),
+  avatar_static: z.union([URLSchema, z.literal('')]),
+  header: z.union([URLSchema, z.literal('')]),
+  header_static: z.union([URLSchema, z.literal('')]),
   followers_count: z.number().int().min(0),
   following_count: z.number().int().min(0),
   statuses_count: z.number().int().min(0),
-  last_status_at: DateStringSchema.nullable().optional(),
+  last_status_at: z.union([DateStringSchema, z.literal('')]).nullable(),
   emojis: z.array(z.any()),
   fields: z.array(AccountFieldSchema),
   hide_collections: z.boolean().optional(),
   noindex: z.boolean().optional(),
   indexable: z.boolean().optional(),
-  roles: z.array(z.any()).optional()
-});
+  roles: z.array(z.any()).optional(),
+  // Lesser-specific fields
+  trust_indicators: TrustIndicatorsSchema,
+  cost_transparency: CostTransparencySchema
+}).passthrough(); // Allow additional fields from the API
 
 // Media attachment schemas
 export const MediaAttachmentSchema = z.object({
@@ -62,6 +83,25 @@ export const MediaAttachmentSchema = z.object({
   blurhash: z.string().nullable()
 });
 
+// Lesser-specific community notes
+export const CommunityNoteSchema = z.object({
+  id: z.string(),
+  content: z.string(),
+  author_id: z.string(),
+  created_at: DateStringSchema,
+  votes_helpful: z.number(),
+  votes_unhelpful: z.number(),
+  status: z.enum(['pending', 'approved', 'rejected'])
+}).optional();
+
+// Lesser-specific AI analysis
+export const AIAnalysisSchema = z.object({
+  sentiment: z.enum(['positive', 'neutral', 'negative']),
+  topics: z.array(z.string()),
+  content_warning_suggestions: z.array(z.string()),
+  moderation_score: z.number().min(0).max(1)
+}).optional();
+
 // Status schemas
 export const StatusSchema: z.ZodSchema<any> = z.object({
   id: z.string(),
@@ -73,7 +113,7 @@ export const StatusSchema: z.ZodSchema<any> = z.object({
   visibility: z.enum(['public', 'unlisted', 'private', 'direct']),
   language: z.string().nullable(),
   uri: z.string(),
-  url: URLSchema.nullable(),
+  url: z.union([URLSchema, z.literal('')]).nullable(),
   replies_count: z.number().int().min(0),
   reblogs_count: z.number().int().min(0),
   favourites_count: z.number().int().min(0),
@@ -112,7 +152,11 @@ export const StatusSchema: z.ZodSchema<any> = z.object({
   muted: z.boolean().nullable(),
   bookmarked: z.boolean().nullable(),
   pinned: z.boolean().optional(),
-  filtered: z.array(z.any()).nullable()
+  filtered: z.array(z.any()).nullable().optional(),
+  // Lesser-specific fields
+  delivery_cost: z.number().optional(),
+  community_notes: z.array(CommunityNoteSchema).optional(),
+  ai_analysis: AIAnalysisSchema
 });
 
 // Timeline response
@@ -149,23 +193,23 @@ export const InstanceSchema = z.object({
   registrations: z.boolean(),
   approval_required: z.boolean(),
   invites_enabled: z.boolean(),
-  configuration: z.any().optional(),
+  configuration: z.any(),
   urls: z.object({
     streaming_api: z.string(),
     status: z.string().optional()
-  }).optional(),
+  }),
   stats: z.object({
     user_count: z.number(),
     status_count: z.number(),
     domain_count: z.number()
-  }).optional(),
+  }),
   thumbnail: z.string().nullable().optional(),
   contact_account: AccountSchema.nullable(),
   rules: z.array(z.object({
     id: z.string(),
     text: z.string()
   }))
-});
+}).passthrough();
 
 // Notification schemas
 export const NotificationSchema = z.object({
@@ -260,6 +304,23 @@ export const CreateStatusParamsSchema = z.object({
   scheduled_at: DateStringSchema.optional()
 });
 
+// Lesser-specific search params
+export const SearchParamsSchema = z.object({
+  q: z.string(),
+  type: z.enum(['accounts', 'hashtags', 'statuses']).optional(),
+  resolve: z.boolean().optional(),
+  following: z.boolean().optional(),
+  account_id: z.string().optional(),
+  exclude_unreviewed: z.boolean().optional(),
+  limit: z.number().min(1).max(40).optional(),
+  offset: z.number().optional(),
+  min_id: z.string().optional(),
+  max_id: z.string().optional(),
+  // Lesser-specific
+  semantic: z.boolean().optional(),
+  trust_threshold: z.number().min(0).max(100).optional()
+});
+
 // Helper function to validate API responses
 export function validateResponse<T>(
   schema: z.ZodSchema<T>,
@@ -293,3 +354,8 @@ export type List = z.infer<typeof ListSchema>;
 export type Context = z.infer<typeof ContextSchema>;
 export type Preferences = z.infer<typeof PreferencesSchema>;
 export type CreateStatusParams = z.infer<typeof CreateStatusParamsSchema>;
+export type SearchParams = z.infer<typeof SearchParamsSchema>;
+export type TrustIndicators = z.infer<typeof TrustIndicatorsSchema>;
+export type CostTransparency = z.infer<typeof CostTransparencySchema>;
+export type CommunityNote = z.infer<typeof CommunityNoteSchema>;
+export type AIAnalysis = z.infer<typeof AIAnalysisSchema>;

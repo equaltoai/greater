@@ -32,6 +32,14 @@
       
       status = statusResult;
       context = contextResult;
+      
+      console.log('[StatusThread] Loaded thread:', {
+        statusId,
+        status: status?.id,
+        ancestors: context?.ancestors?.length || 0,
+        descendants: context?.descendants?.length || 0,
+        descendantIds: context?.descendants?.map(d => ({id: d.id, replyTo: d.in_reply_to_id}))
+      });
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load thread';
       console.error('Failed to load thread:', err);
@@ -61,45 +69,59 @@
     <StatusSkeleton />
   {:else if error}
     <ErrorState message={error} onRetry={loadThread} />
-  {:else if thread.length > 0}
-    {#snippet threadItem(s, index)}
-      <div class="relative">
-        {#if index > 0 && isDirectReply(s, index)}
-          <!-- Thread line connector -->
-          <div class="absolute left-12 -top-4 bottom-0 w-0.5 bg-gray-300 dark:bg-gray-700"></div>
-        {/if}
+  {:else if status}
+    <div class="space-y-4">
+      <!-- Main status in consistent card format -->
+      <div class="bg-surface rounded-lg border border-border overflow-hidden">
+        <StatusCard status={status} showThread={false} />
         
-        <div class:opacity-75={s.id !== statusId}>
-          <StatusCard
-            status={s}
-            showThread={false}
-          />
+        <!-- Reply composer -->
+        <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-800">
+          <button
+            onclick={() => {
+              // Store reply context in sessionStorage before navigating
+              const replyContext = {
+                replyToId: status.id,
+                mention: `@${status.account.acct} `
+              };
+              sessionStorage.setItem('compose_reply_context', JSON.stringify(replyContext));
+              window.location.href = '/compose';
+            }}
+            class="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
+          >
+            Reply to @{status.account.acct}...
+          </button>
         </div>
-        
-        {#if s.id === statusId}
-          <!-- Reply composer inline for the focused status -->
-          <div class="px-4 py-3 border-t border-gray-200 dark:border-gray-800">
-            <button
-              onclick={() => {
-                import('../../../lib/stores/compose').then(({ composeReplyTo$, composeText$ }) => {
-                  composeReplyTo$.set(s.id);
-                  composeText$.set(`@${s.account.acct} `);
-                  window.location.href = '/compose';
-                });
-              }}
-              class="w-full text-left px-4 py-3 bg-gray-50 dark:bg-gray-800 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-700 transition-colors text-gray-500 dark:text-gray-400"
-            >
-              Reply to @{s.account.acct}...
-            </button>
-          </div>
-        {/if}
       </div>
-    {/snippet}
-    
-    <div class="divide-y divide-gray-200 dark:divide-gray-800">
-      {#each thread as s, index}
-        {@render threadItem(s, index)}
-      {/each}
+      
+      <!-- Replies (descendants) -->
+      {#if context && context.descendants.length > 0}
+        <div class="bg-surface rounded-lg border border-border overflow-hidden">
+          <div class="px-4 py-2 bg-gray-50 dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+            <p class="text-sm font-medium text-gray-600 dark:text-gray-400">
+              {context.descendants.length} {context.descendants.length === 1 ? 'Reply' : 'Replies'}
+            </p>
+          </div>
+          
+          {#snippet renderReplies(statuses, parentId)}
+            {#each statuses.filter(s => s.in_reply_to_id === parentId) as reply}
+              {@const childReplies = statuses.filter(s => s.in_reply_to_id === reply.id)}
+              <div class="border-b border-gray-200 dark:border-gray-800 last:border-b-0">
+                <StatusCard status={reply} showThread={false} />
+                
+                <!-- Nested replies -->
+                {#if childReplies.length > 0}
+                  <div class="border-l-2 border-gray-200 dark:border-gray-700 ml-12">
+                    {@render renderReplies(statuses, reply.id)}
+                  </div>
+                {/if}
+              </div>
+            {/each}
+          {/snippet}
+          
+          {@render renderReplies(context.descendants, status.id)}
+        </div>
+      {/if}
     </div>
   {:else}
     <div class="p-8 text-center text-gray-500 dark:text-gray-400">

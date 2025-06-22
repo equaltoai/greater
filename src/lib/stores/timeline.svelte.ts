@@ -130,6 +130,7 @@ class TimelineStore {
       
       console.log('[Timeline Store] Loaded statuses:', statuses.length);
       console.log('[Timeline Store] First status:', statuses[0]);
+      console.log('[Timeline Store] All statuses:', statuses);
       
       const updatedTimeline = {
         ...this.timelines[type],
@@ -244,13 +245,25 @@ class TimelineStore {
   }
 
   updateStatus(statusId: string, updates: Partial<Status>): void {
+    console.log('[Timeline Store] Updating status:', { statusId, updates });
+    
     // Update in all timelines
     Object.entries(this.timelines).forEach(([type, timeline]) => {
       this.timelines[type] = {
         ...timeline,
         statuses: timeline.statuses.map(status => {
           if (status.id === statusId) {
-            return { ...status, ...updates };
+            const updated = { ...status, ...updates };
+            console.log('[Timeline Store] Status updated:', { 
+              id: statusId, 
+              wasFavorited: status.favourited, 
+              isFavorited: updated.favourited,
+              wasBookmarked: status.bookmarked,
+              isBookmarked: updated.bookmarked,
+              hadContent: !!status.content,
+              hasContent: !!updated.content
+            });
+            return updated;
           }
           // Also update if it's a reblog
           if (status.reblog?.id === statusId) {
@@ -282,7 +295,7 @@ class TimelineStore {
   }
 
   async favoriteStatus(statusId: string): Promise<void> {
-    const client = getClient();
+    const client = getClient(authStore.currentInstance || undefined);
     
     // Find the status in any timeline
     let originalStatus: Status | undefined;
@@ -311,7 +324,7 @@ class TimelineStore {
   }
 
   async unfavoriteStatus(statusId: string): Promise<void> {
-    const client = getClient();
+    const client = getClient(authStore.currentInstance || undefined);
     
     // Find the status in any timeline
     let originalStatus: Status | undefined;
@@ -340,7 +353,7 @@ class TimelineStore {
   }
 
   async reblogStatus(statusId: string): Promise<void> {
-    const client = getClient();
+    const client = getClient(authStore.currentInstance || undefined);
     
     // Find the status in any timeline
     let originalStatus: Status | undefined;
@@ -369,7 +382,7 @@ class TimelineStore {
   }
 
   async unreblogStatus(statusId: string): Promise<void> {
-    const client = getClient();
+    const client = getClient(authStore.currentInstance || undefined);
     
     // Find the status in any timeline
     let originalStatus: Status | undefined;
@@ -398,7 +411,7 @@ class TimelineStore {
   }
 
   async bookmarkStatus(statusId: string): Promise<void> {
-    const client = getClient();
+    const client = getClient(authStore.currentInstance || undefined);
     
     // Optimistic update
     this.updateStatus(statusId, { bookmarked: true });
@@ -414,7 +427,7 @@ class TimelineStore {
   }
 
   async unbookmarkStatus(statusId: string): Promise<void> {
-    const client = getClient();
+    const client = getClient(authStore.currentInstance || undefined);
     
     // Optimistic update
     this.updateStatus(statusId, { bookmarked: false });

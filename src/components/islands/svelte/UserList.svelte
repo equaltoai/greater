@@ -73,11 +73,13 @@
       }
       
       // Then load their followers/following
+      // Use username for Lesser compatibility
+      const identifier = account.username || account.id;
       let result;
       if (listType === 'followers') {
-        result = await client.getAccountFollowers(account.id, { limit: 40 });
+        result = await client.getAccountFollowers(identifier, { limit: 40 });
       } else {
-        result = await client.getAccountFollowing(account.id, { limit: 40 });
+        result = await client.getAccountFollowing(identifier, { limit: 40 });
       }
       
       users = result;
@@ -88,8 +90,9 @@
       
       // Get relationships for all users if logged in
       if (authStore.currentUser && users.length > 0) {
-        const userIds = users.map(u => u.id);
-        const rels = await client.getRelationships(userIds);
+        // Use usernames for Lesser compatibility
+        const identifiers = users.map(u => u.username || u.id);
+        const rels = await client.getRelationships(identifiers);
         relationships = new Map(rels.map(r => [r.id, r]));
       }
     } catch (err) {
@@ -108,14 +111,16 @@
     try {
       const client = getClient();
       
+      // Use username for Lesser compatibility
+      const identifier = account.username || account.id;
       let moreUsers;
       if (listType === 'followers') {
-        moreUsers = await client.getAccountFollowers(account.id, {
+        moreUsers = await client.getAccountFollowers(identifier, {
           max_id: users[users.length - 1].id,
           limit: 40
         });
       } else {
-        moreUsers = await client.getAccountFollowing(account.id, {
+        moreUsers = await client.getAccountFollowing(identifier, {
           max_id: users[users.length - 1].id,
           limit: 40
         });
@@ -123,8 +128,9 @@
       
       // Get relationships for new users
       if (authStore.currentUser && moreUsers.length > 0) {
-        const userIds = moreUsers.map(u => u.id);
-        const rels = await client.getRelationships(userIds);
+        // Use usernames for Lesser compatibility
+        const identifiers = moreUsers.map(u => u.username || u.id);
+        const rels = await client.getRelationships(identifiers);
         rels.forEach(r => relationships.set(r.id, r));
         relationships = relationships; // Trigger reactivity
       }

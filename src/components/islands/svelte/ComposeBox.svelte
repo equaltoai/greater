@@ -25,6 +25,16 @@
   import { getClient } from '../../../lib/api/client';
   import { timelineStore } from '../../../lib/stores/timeline.svelte';
 
+  // Declare the window.quoteContext type
+  declare global {
+    interface Window {
+      quoteContext?: {
+        statusId: string;
+        quotedStatus: Status;
+      };
+    }
+  }
+
   // Local state
   let text = '';
   let visibility: 'public' | 'unlisted' | 'private' | 'direct' = 'public';
@@ -37,13 +47,13 @@
   let isComposing = false;
   let isUploading = false;
   let uploadProgress = 0;
-  let error: string | null = null;
-  let characterCount = 0;
-  let canPost = false;
+  let error = $state<string | null>(null);
+  let characterCount = $state(0);
+  let canPost = $state(false);
 
   let textareaEl: HTMLTextAreaElement;
   let fileInputEl: HTMLInputElement;
-  let maxCharacters = 500;
+  let maxCharacters = $state(500);
 
   const visibilityOptions = [
     { value: 'public', label: 'Public', icon: Globe, description: 'Visible for all' },
@@ -52,17 +62,62 @@
     { value: 'direct', label: 'Direct', icon: Mail, description: 'Only people mentioned' },
   ] as const;
 
-  let showVisibilityDropdown = false;
-  let showPollForm = false;
-  let pollOptions = ['', ''];
-  let pollExpiresIn = 86400; // 24 hours in seconds
+  let showVisibilityDropdown = $state(false);
+  let showPollForm = $state(false);
+  let pollOptions = $state(['', '']);
+  let pollExpiresIn = $state(86400); // 24 hours in seconds
+  let quotedStatus = $state(null);
+  let visibilityButtonRef: HTMLButtonElement;
+  let dropdownPosition = $state<'above' | 'below'>('above');
 
-  $: isOverLimit = characterCount > maxCharacters;
+  const isOverLimit = $derived(characterCount > maxCharacters);
 
   // Store subscriptions
   const unsubscribers: Array<() => void> = [];
 
   onMount(() => {
+    // Handle click outside to close dropdown
+    const handleClickOutside = (event: MouseEvent) => {
+      if (showVisibilityDropdown && visibilityButtonRef && !visibilityButtonRef.contains(event.target as Node)) {
+        const dropdown = document.querySelector('.visibility-dropdown');
+        if (dropdown && !dropdown.contains(event.target as Node)) {
+          showVisibilityDropdown = false;
+        }
+      }
+    };
+
+    document.addEventListener('click', handleClickOutside);
+
+    // Check for reply context from sessionStorage
+    const replyContextStr = sessionStorage.getItem('compose_reply_context');
+    if (replyContextStr) {
+      try {
+        const replyContext = JSON.parse(replyContextStr);
+        composeReplyTo$.set(replyContext.replyToId);
+        composeText$.set(replyContext.mention);
+        // Clear the context after using it
+        sessionStorage.removeItem('compose_reply_context');
+      } catch (err) {
+        console.error('Failed to parse reply context:', err);
+      }
+    }
+    
+    // Check for quote context from sessionStorage
+    const quoteContextStr = sessionStorage.getItem('compose_quote_context');
+    if (quoteContextStr) {
+      try {
+        const quoteContext = JSON.parse(quoteContextStr);
+        // Store the full quote context for later use
+        window.quoteContext = quoteContext;
+        quotedStatus = quoteContext.quotedStatus;
+        // Don't pre-fill text for quotes - let user write their commentary
+        // Clear the context after using it
+        sessionStorage.removeItem('compose_quote_context');
+      } catch (err) {
+        console.error('Failed to parse quote context:', err);
+      }
+    }
+    
     // Subscribe to stores
     unsubscribers.push(
       composeText$.subscribe(v => text = v),
@@ -98,6 +153,8 @@
       if (text.trim()) {
         saveDraft();
       }
+      // Remove event listener
+      document.removeEventListener('click', handleClickOutside);
       // Unsubscribe from all stores
       unsubscribers.forEach(unsub => unsub());
     };
@@ -168,11 +225,53 @@
     // Update poll data before posting
     updatePoll();
 
+    // Check if this is a quote boost
+    if (window.quoteContext) {
+      try {
+        const client = getClient();
+        const { statusId } = window.quoteContext;
+        
+        console.log('[ComposeBox] Quote boost context:', window.quoteContext);
+        console.log('[ComposeBox] Status ID:', statusId);
+        
+        if (!statusId) {
+          throw new Error('No status ID found in quote context');
+        }
+        
+        // Use the reblogStatus method which handles ID extraction
+        const response = await client.reblogStatus(statusId, {
+          comment: text,
+          visibility: visibility
+        });
+        
+        // Add the new quote boost to timeline
+        timelineStore.prependStatus('home', response);
+        
+        // Clear the quote context
+        window.quoteContext = null;
+        
+        // Clear the compose form
+        clearCompose();
+        
+        // Navigate back
+        window.location.href = '/home';
+        return;
+      } catch (error) {
+        console.error('Quote boost failed:', error);
+        composeError$.set(error instanceof Error ? error.message : 'Failed to post quote');
+        return;
+      }
+    }
+
+    // Regular post
     const status = await createPost();
     if (status) {
       // Add the new status to the home timeline
       timelineStore.prependStatus('home', status);
       // The compose form will be cleared by createPost()
+      
+      // Navigate back to home after successful post
+      window.location.href = '/home';
     }
   }
 
@@ -181,6 +280,23 @@
     if ((event.metaKey || event.ctrlKey) && event.key === 'Enter' && canPost) {
       handleSubmit();
     }
+  }
+
+  function calculateDropdownPosition() {
+    if (!visibilityButtonRef) return;
+    
+    const rect = visibilityButtonRef.getBoundingClientRect();
+    const dropdownHeight = 240; // Approximate height of dropdown with 4 items
+    const spaceAbove = rect.top;
+    const spaceBelow = window.innerHeight - rect.bottom;
+    
+    // If not enough space above, show below
+    dropdownPosition = spaceAbove < dropdownHeight && spaceBelow > dropdownHeight ? 'below' : 'above';
+  }
+
+  function toggleVisibilityDropdown() {
+    calculateDropdownPosition();
+    showVisibilityDropdown = !showVisibilityDropdown;
   }
 </script>
 
@@ -218,6 +334,31 @@
         >
           <X class="w-4 h-4" />
         </button>
+      </div>
+    </div>
+  {/if}
+
+  <!-- Quoted Status -->
+  {#if quotedStatus}
+    <div class="mb-4 p-3 bg-gray-50 dark:bg-gray-800 rounded-lg border border-gray-200 dark:border-gray-700">
+      <div class="text-sm text-gray-500 dark:text-gray-400 mb-2">Quoting</div>
+      <div class="flex items-start gap-3">
+        <img 
+          src={quotedStatus.account.avatar} 
+          alt={quotedStatus.account.display_name || quotedStatus.account.username}
+          class="w-10 h-10 rounded-full"
+        />
+        <div class="flex-1 min-w-0">
+          <div class="font-medium">
+            {quotedStatus.account.display_name || quotedStatus.account.username}
+            <span class="text-gray-500 dark:text-gray-400 font-normal">
+              @{quotedStatus.account.acct}
+            </span>
+          </div>
+          <div class="text-gray-700 dark:text-gray-300 mt-1">
+            {@html quotedStatus.content}
+          </div>
+        </div>
       </div>
     </div>
   {/if}
@@ -407,8 +548,9 @@
       <!-- Visibility -->
       <div class="relative">
         <button
+          bind:this={visibilityButtonRef}
           type="button"
-          on:click={() => showVisibilityDropdown = !showVisibilityDropdown}
+          on:click={toggleVisibilityDropdown}
           class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg flex items-center gap-1"
           title="Visibility"
         >
@@ -419,7 +561,7 @@
         </button>
 
         {#if showVisibilityDropdown}
-          <div class="absolute bottom-full left-0 mb-2 w-48 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-10">
+          <div class="absolute {dropdownPosition === 'above' ? 'bottom-full mb-2' : 'top-full mt-2'} left-0 w-56 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg shadow-lg z-50 overflow-hidden">
             {#each visibilityOptions as option}
               <button
                 type="button"
@@ -427,14 +569,18 @@
                   composeVisibility$.set(option.value);
                   showVisibilityDropdown = false;
                 }}
-                class="w-full px-4 py-3 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                class:bg-purple-50={visibility === option.value}
+                class="w-full px-4 py-3 flex items-start gap-3 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors {visibility === option.value ? 'bg-purple-50 dark:bg-purple-900/20' : ''}"
               >
                 <svelte:component this={option.icon} class="w-5 h-5 mt-0.5 flex-shrink-0" />
-                <div class="text-left">
-                  <div class="font-medium">{option.label}</div>
-                  <div class="text-sm text-gray-500 dark:text-gray-400">{option.description}</div>
+                <div class="text-left flex-1">
+                  <div class="font-medium text-sm">{option.label}</div>
+                  <div class="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{option.description}</div>
                 </div>
+                {#if visibility === option.value}
+                  <svg class="w-4 h-4 text-purple-600 dark:text-purple-400 mt-0.5" fill="currentColor" viewBox="0 0 20 20">
+                    <path fill-rule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clip-rule="evenodd" />
+                  </svg>
+                {/if}
               </button>
             {/each}
           </div>

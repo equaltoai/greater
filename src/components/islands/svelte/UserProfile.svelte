@@ -4,6 +4,7 @@
   import { authStore } from '../../../lib/stores/auth.svelte';
   import { sanitizeUserContent } from '../../../lib/utils/sanitize';
   import type { Account, Relationship } from '../../../types/mastodon';
+  import type { Account as LesserAccount } from '../../../lib/api/schemas';
   import Button from './Button.svelte';
   import { getAccountService } from '../../../lib/api/account-service';
   
@@ -21,6 +22,9 @@
   let loading = $state(true);
   let error = $state('');
   let isInteracting = $state(false);
+  
+  // Cast to Lesser Account to access enhanced fields
+  const lesserAccount = $derived(account as unknown as LesserAccount | null);
   
   // Derived state
   const isOwnProfile = $derived(
@@ -60,7 +64,9 @@
       
       // Get relationship if logged in and not own profile
       if (authStore.currentUser && account.id !== authStore.currentUser.id) {
-        const relationships = await client.getRelationships([account.id]);
+        // Use username for Lesser compatibility
+        const identifier = account.username || account.id;
+        const relationships = await client.getRelationships([identifier]);
         relationship = relationships[0];
       }
     } catch (err) {
@@ -76,12 +82,15 @@
     
     isInteracting = true;
     try {
-      const client = getClient();
+      const client = getClient(authStore.currentInstance || undefined);
+      
+      // Use username instead of ID for Lesser compatibility
+      const identifier = account.username || account.id;
       
       if (relationship?.following) {
-        relationship = await client.unfollowAccount(account.id);
+        relationship = await client.unfollowAccount(identifier);
       } else {
-        relationship = await client.followAccount(account.id);
+        relationship = await client.followAccount(identifier);
       }
     } catch (err) {
       console.error('Follow/unfollow failed:', err);
@@ -179,6 +188,22 @@
               <path fill-rule="evenodd" d="M5 9V7a5 5 0 0110 0v2a2 2 0 012 2v5a2 2 0 01-2 2H5a2 2 0 01-2-2v-5a2 2 0 012-2zm8-2v2H7V7a3 3 0 016 0z" clip-rule="evenodd" />
             </svg>
           {/if}
+          {#if lesserAccount?.trust_indicators}
+            <!-- Trust Score Badge -->
+            <span class="px-3 py-1 text-sm rounded-full {
+              lesserAccount.trust_indicators.score >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+              lesserAccount.trust_indicators.score >= 60 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+              'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+            }">
+              Trust: {lesserAccount.trust_indicators.score}
+            </span>
+            <!-- Verification Badge -->
+            {#if lesserAccount.trust_indicators.verification_level !== 'none'}
+              <span class="px-3 py-1 text-sm rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                {lesserAccount.trust_indicators.verification_level}
+              </span>
+            {/if}
+          {/if}
         </h1>
         <p class="text-gray-600 dark:text-gray-400">@{account.acct}</p>
       </div>
@@ -227,6 +252,26 @@
           <span class="text-gray-600 dark:text-gray-400"> Posts</span>
         </div>
       </div>
+      
+      {#if lesserAccount?.cost_transparency && (isOwnProfile || authStore.currentUser)}
+        <div class="mt-4 p-3 rounded-lg bg-gray-100 dark:bg-gray-800 space-y-2">
+          <h3 class="font-medium text-sm text-gray-700 dark:text-gray-300">Cost Transparency</h3>
+          <div class="grid grid-cols-3 gap-4 text-sm">
+            <div>
+              <span class="text-gray-600 dark:text-gray-400">Monthly Cost</span>
+              <div class="font-semibold">${(lesserAccount.cost_transparency.monthly_cost / 100).toFixed(2)}</div>
+            </div>
+            <div>
+              <span class="text-gray-600 dark:text-gray-400">Cost per Post</span>
+              <div class="font-semibold">${(lesserAccount.cost_transparency.cost_per_post / 1000000).toFixed(6)}</div>
+            </div>
+            <div>
+              <span class="text-gray-600 dark:text-gray-400">Storage Used</span>
+              <div class="font-semibold">{Math.round(lesserAccount.cost_transparency.storage_used / 1024 / 1024)} MB</div>
+            </div>
+          </div>
+        </div>
+      {/if}
       
       <!-- Relationship badges -->
       {#if relationship}

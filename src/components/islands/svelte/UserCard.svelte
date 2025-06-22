@@ -1,5 +1,6 @@
 <script lang="ts">
   import type { Account, Relationship } from '@/types/mastodon';
+  import type { Account as LesserAccount } from '@/lib/api/schemas';
   import { getClient } from '@/lib/api/client';
   import { authStore } from '@/lib/stores/auth.svelte';
   import { stripHtmlSafe } from '@/lib/utils/sanitize';
@@ -11,6 +12,9 @@
   }
   
   let { user, relationship, onRelationshipUpdate }: Props = $props();
+  
+  // Cast to Lesser Account to access trust indicators if available
+  const lesserUser = user as unknown as LesserAccount;
   
   let isFollowing = $state(relationship?.following || false);
   let isFollowingLoading = $state(false);
@@ -27,17 +31,19 @@
   });
   
   async function toggleFollow() {
-    const client = getClient();
+    const client = getClient(authStore.currentInstance || undefined);
     if (!client || isOwnProfile) return;
     
     isFollowingLoading = true;
     
     try {
+      // Use username for Lesser compatibility
+      const identifier = user.username || user.id;
       let newRelationship: Relationship;
       if (isFollowing) {
-        newRelationship = await client.unfollowAccount(user.id);
+        newRelationship = await client.unfollowAccount(identifier);
       } else {
-        newRelationship = await client.followAccount(user.id);
+        newRelationship = await client.followAccount(identifier);
       }
       
       isFollowing = newRelationship.following;
@@ -79,10 +85,26 @@
     <div class="flex items-center justify-between">
       <div class="truncate">
         <a href={`/@${user.acct}`} class="hover:underline">
-          <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate">
+          <h3 class="font-semibold text-gray-900 dark:text-gray-100 truncate flex items-center">
             {user.display_name || user.username}
             {#if user.bot}
               <span class="ml-1 text-xs bg-gray-200 dark:bg-gray-700 px-1.5 py-0.5 rounded">BOT</span>
+            {/if}
+            {#if lesserUser.trust_indicators}
+              <!-- Trust Score Badge -->
+              <span class="ml-2 text-xs px-2 py-0.5 rounded-full {
+                lesserUser.trust_indicators.score >= 80 ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' :
+                lesserUser.trust_indicators.score >= 60 ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200' :
+                'bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-200'
+              }">
+                Trust: {lesserUser.trust_indicators.score}
+              </span>
+              <!-- Verification Badge -->
+              {#if lesserUser.trust_indicators.verification_level !== 'none'}
+                <span class="ml-1 text-xs px-2 py-0.5 rounded-full bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                  {lesserUser.trust_indicators.verification_level}
+                </span>
+              {/if}
             {/if}
           </h3>
           <p class="text-sm text-gray-500 dark:text-gray-400">@{user.acct}</p>
