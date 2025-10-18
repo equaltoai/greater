@@ -32,13 +32,13 @@ git clone https://github.com/aron23/greater.git
 cd greater
 
 # Install dependencies
-npm install
+pnpm install
 
 # Copy environment variables
 cp .env.example .env.local
 
 # Run development server
-npm run dev
+pnpm run dev
 ```
 
 Visit `http://localhost:4321` to see your local instance.
@@ -48,23 +48,23 @@ Visit `http://localhost:4321` to see your local instance.
 ### Prerequisites
 
 - Node.js >= 20.0.0
-- npm >= 10.0.0
+- pnpm >= 9.0.0
 - Git >= 2.30.0
 
 ### Setup
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Run development server
-npm run dev
+pnpm run dev
 
 # Run tests
-npm test
+pnpm test
 
 # Build for production
-npm run build
+pnpm run build
 ```
 
 ### Project Structure

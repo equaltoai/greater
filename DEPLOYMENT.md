@@ -46,12 +46,12 @@ This guide covers the deployment process for Greater, a modern Mastodon client b
 
 Deploy to development:
 ```bash
-npm run deploy:dev
+ppnpm run deploy:dev
 ```
 
 Deploy to production:
 ```bash
-npm run deploy
+pnpm run deploy
 ```
 
 ### Advanced Deployment Options
@@ -60,13 +60,13 @@ The deployment script supports various flags:
 
 ```bash
 # Skip infrastructure creation (use existing resources)
-npm run deploy:dev -- --skip-infrastructure
+ppnpm run deploy:dev -- --skip-infrastructure
 
 # Skip build step (use existing dist folder)
-npm run deploy:dev -- --skip-build
+ppnpm run deploy:dev -- --skip-build
 
 # Show help
-npm run deploy -- --help
+pnpm run deploy -- --help
 ```
 
 ## Deployment Process
@@ -140,7 +140,7 @@ For GitHub Actions deployment:
 2. Use the provided workflow:
    ```yaml
    - name: Deploy
-     run: npm run deploy:${{ github.event.inputs.environment || 'dev' }}
+     run: pnpm run deploy:${{ github.event.inputs.environment || 'dev' }}
    ```
 
 ## Troubleshooting
@@ -157,7 +157,7 @@ For GitHub Actions deployment:
 
 3. **Build failures**
    - Check Node.js version: `node --version` (should be 18+)
-   - Clear cache: `rm -rf node_modules dist && npm install`
+   - Clear cache: `rm -rf node_modules dist && pnpm install`
 
 4. **Deployment failures**
    - Verify Cloudflare API token has correct permissions
@@ -168,7 +168,7 @@ For GitHub Actions deployment:
 
 For verbose output during deployment:
 ```bash
-DEBUG=* npm run deploy:dev
+DEBUG=* ppnpm run deploy:dev
 ```
 
 ## Resource Management

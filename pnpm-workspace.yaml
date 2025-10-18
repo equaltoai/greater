@@ -1,0 +1,3 @@
+packages:
+  - '.'
+  - '../greater-components/packages/*'

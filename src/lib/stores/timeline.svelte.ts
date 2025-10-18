@@ -7,7 +7,7 @@ import type { Status, TimelineParams } from '@/types/mastodon';
 import { getClient } from '@/lib/api/client';
 import { authStore } from './auth.svelte';
 
-interface TimelineData {
+export interface TimelineData {
   statuses: Status[];
   hasMore: boolean;
   isLoading: boolean;
@@ -18,7 +18,7 @@ interface TimelineData {
   gaps: TimelineGap[];
 }
 
-interface TimelineGap {
+export interface TimelineGap {
   above: string; // Status ID above the gap
   below: string; // Status ID below the gap
 }

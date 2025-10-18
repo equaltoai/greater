@@ -1,5 +1,35 @@
 /* Global styles - Tailwind is imported in app.css */
 
+/**
+ * THEME MAPPING: Greater vs Greater Components Tokens
+ * 
+ * Greater (current)          -> Greater Components (@equaltoai/greater-components)
+ * ---------------------------------------------------------------------
+ * --color-primary            -> --gr-color-primary-600
+ * --color-primaryLight       -> --gr-color-primary-400
+ * --color-primaryDark        -> --gr-color-primary-700
+ * --color-background         -> --gr-color-semantic-background (light)
+ * --color-backgroundAlt      -> --gr-color-gray-50
+ * --color-surface            -> --gr-color-semantic-surface
+ * --color-surfaceHover       -> --gr-color-semantic-surface-hover
+ * --color-border             -> --gr-color-semantic-border
+ * --color-borderHover        -> --gr-color-semantic-border-hover
+ * --color-text               -> --gr-color-semantic-text
+ * --color-textMuted          -> --gr-color-semantic-text-muted
+ * --color-textInverse        -> --gr-color-base-white
+ * --color-success            -> --gr-color-success-500
+ * --color-warning            -> --gr-color-warning-500
+ * --color-error              -> --gr-color-error-500
+ * --color-info               -> --gr-color-primary-500
+ * --color-boost              -> --gr-color-primary-500 (Purple accent in GC)
+ * --color-favorite           -> --gr-color-error-400 (Pink/red in GC)
+ * 
+ * GAPS/NOTES:
+ * - accent1/accent2/accent3 don't have direct equivalents in GC semantic tokens
+ * - Consider migrating to GC semantic tokens in later phases
+ * - GC uses dark mode via data-theme attribute, Greater may need adapter
+ */
+
 /* CSS Custom Properties for theming */
 @layer base {
   :root {

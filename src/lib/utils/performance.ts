@@ -1,5 +1,9 @@
 import type { Metric } from 'web-vitals'
 
+type WebVitalsModule = typeof import('web-vitals') & {
+  onFID?: (onReport: (metric: Metric) => void) => void
+}
+
 export interface PerformanceMetrics {
   CLS?: number
   FID?: number
@@ -20,7 +24,7 @@ class PerformanceMonitor {
 
   private async initializeMonitoring() {
     try {
-      const webVitals = await import('web-vitals')
+      const webVitals = (await import('web-vitals')) as WebVitalsModule
       
       // Only call functions that exist
       if (webVitals.onCLS) webVitals.onCLS(this.handleMetric.bind(this))
@@ -125,7 +129,7 @@ export function preconnectOrigin(origin: string) {
 }
 
 // Bundle size analysis helper
-export function measureBundleImpact(chunkName: string) {
+export function measureBundleImpact(chunkName: string): { sizeKB: number; loadTime: number } | undefined {
   if (typeof window === 'undefined' || !performance.getEntriesByType) return
 
   const resources = performance.getEntriesByType('resource') as PerformanceResourceTiming[]
@@ -141,4 +145,6 @@ export function measureBundleImpact(chunkName: string) {
     
     return { sizeKB, loadTime }
   }
+
+  return undefined
 }

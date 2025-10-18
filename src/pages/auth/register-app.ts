@@ -13,6 +13,12 @@ interface OAuthApp {
 export const POST: APIRoute = async ({ request, locals }) => {
   try {
     const runtime = locals.runtime;
+    if (!runtime?.env) {
+      return new Response(JSON.stringify({ error: 'Runtime env not available' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     const env = runtime.env;
     
     // Check if OAUTH_APPS KV is available

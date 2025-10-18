@@ -24,7 +24,7 @@ PROJECT_NAME="greater-${ENVIRONMENT}"
 echo "📦 Building for environment: $ENVIRONMENT"
 
 # Build the project
-npm run build
+pnpm run build
 
 # Deploy to Cloudflare Pages
 echo "☁️  Deploying to Cloudflare Pages..."

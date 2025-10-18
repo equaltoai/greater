@@ -1,5 +1,9 @@
 @import "tailwindcss";
 
+/* Import Greater Components design tokens and styles */
+@import "@equaltoai/greater-components/tokens/theme.css";
+@import "@equaltoai/greater-components/primitives/styles.css";
+
 /* Register custom theme values */
 @theme {
   /* Extend default spacing scale */

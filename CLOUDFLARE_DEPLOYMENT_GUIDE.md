@@ -24,7 +24,7 @@ This will:
 2. Navigate to **Workers & Pages** > **Create application** > **Pages**
 3. Connect to Git and select your repository
 4. Configure build settings:
-   - **Build command**: `npm run build`
+   - **Build command**: `pnpm run build`
    - **Build output directory**: `dist`
    - **Root directory**: `/` (leave empty)
    - **Environment variables**: Add any needed (see below)
@@ -74,23 +74,23 @@ POSTHOG_API_KEY=your-posthog-key
 
 ```bash
 # Install dependencies
-npm install
+pnpm install
 
 # Run with Cloudflare Pages dev server (recommended)
-npx wrangler pages dev --compatibility-date=2024-01-01 -- npm run dev
+pnpm exec wrangler pages dev --compatibility-date=2024-01-01 -- pnpm run dev
 
 # Or use Astro dev (without CF bindings)
-npm run dev
+pnpm run dev
 ```
 
 ### Manual Deployment
 
 ```bash
 # Build the project
-npm run build
+pnpm run build
 
 # Deploy to Pages
-npx wrangler pages deploy dist --project-name=greater
+pnpm exec wrangler pages deploy dist --project-name=greater
 ```
 
 ### Preview Deployments

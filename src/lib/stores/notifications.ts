@@ -53,18 +53,15 @@ export const notificationCounts$ = computed([notifications$], (notifications) =>
     favourite: 0,
     poll: 0,
     update: 0,
-    admin: {
-      sign_up: 0,
-      report: 0
-    }
+    'admin.sign_up': 0,
+    'admin.report': 0
   };
   
   Object.values(notifications).forEach(notification => {
     counts.all++;
-    if (notification.type === 'admin.sign_up' || notification.type === 'admin.report') {
-      counts.admin[notification.type.split('.')[1] as 'sign_up' | 'report']++;
-    } else {
-      counts[notification.type as keyof typeof counts]++;
+    const notificationType = notification.type as NotificationType;
+    if (counts[notificationType] !== undefined) {
+      counts[notificationType]++;
     }
   });
   

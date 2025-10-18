@@ -16,6 +16,12 @@ interface TokenData {
 export const POST: APIRoute = async ({ request, locals, cookies }) => {
   try {
     const runtime = locals.runtime;
+    if (!runtime?.env) {
+      return new Response(JSON.stringify({ error: 'Runtime env not available' }), {
+        status: 500,
+        headers: { 'Content-Type': 'application/json' }
+      });
+    }
     const env = runtime.env;
     
     const body = await request.json() as { instance: string; token: OAuthToken };

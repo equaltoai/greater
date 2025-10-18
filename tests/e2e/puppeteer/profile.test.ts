@@ -3,7 +3,8 @@ import { describe, it, expect, beforeAll, afterAll, beforeEach } from 'vitest';
 import { puppeteerConfig, testConfig, testAccounts } from './config';
 import { AuthHelper } from './helpers/auth';
 
-describe('Profile and Posting Tests', () => {
+// TODO: Requires a running Greater instance; skip until we can provision one in CI.
+describe.skip('Profile and Posting Tests', () => {
   let browser: Browser;
   let page: Page;
   let authHelper: AuthHelper;

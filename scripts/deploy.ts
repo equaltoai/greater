@@ -11,7 +11,7 @@ console.log(`🚀 Deploying Greater Client to ${environment}...`);
 try {
   // 1. Build the Astro application
   console.log('📦 Building Astro application...');
-  execSync('npm run build', { stdio: 'inherit' });
+  execSync('pnpm run build', { stdio: 'inherit' });
 
   // 2. Update worker script with actual built content
   console.log('🔧 Preparing worker script...');

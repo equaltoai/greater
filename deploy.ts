@@ -96,10 +96,10 @@ class Deployer {
       throw new Error(`Node.js 18+ required. Current version: ${nodeVersion}`);
     }
     
-    // Check if npm packages are installed
+    // Check if pnpm packages are installed
     if (!existsSync('node_modules')) {
       console.log('📦 Installing dependencies...');
-      execSync('npm install', { stdio: 'inherit' });
+      execSync('pnpm install', { stdio: 'inherit' });
     }
     
     console.log('✅ Environment validated');
@@ -323,7 +323,7 @@ database_id = "${outputs.analyticsDbId?.value || outputs.analyticsDbId}"
     
     // Run build
     try {
-      execSync('npm run build', { stdio: 'inherit' });
+      execSync('pnpm run build', { stdio: 'inherit' });
       console.log('✅ Build completed');
     } catch (error) {
       throw new Error('Build failed. Check the error messages above.');
@@ -377,7 +377,7 @@ async function main() {
     console.log(`
 Greater Deployment Script
 
-Usage: npm run deploy [environment] [options]
+Usage: pnpm run deploy [environment] [options]
 
 Environments:
   dev         Development environment (default)
@@ -390,9 +390,9 @@ Options:
   --help, -h            Show this help message
 
 Examples:
-  npm run deploy                    Deploy to dev environment
-  npm run deploy production         Deploy to production
-  npm run deploy dev --skip-build   Deploy dev without rebuilding
+  pnpm run deploy                    Deploy to dev environment
+  pnpm run deploy production         Deploy to production
+  pnpm run deploy dev --skip-build   Deploy dev without rebuilding
 
 Required Environment Variables:
   CLOUDFLARE_ACCOUNT_ID   Your Cloudflare account ID

@@ -52,8 +52,8 @@ Unsure where to begin contributing? You can start by looking through these issue
    ```bash
    git clone https://github.com/your-username/greater.git
    cd greater
-   npm install
-   npm run dev
+   pnpm install
+   pnpm run dev
    ```
 
 2. **Create a feature branch**
@@ -68,7 +68,7 @@ Unsure where to begin contributing? You can start by looking through these issue
 
 4. **Run checks locally**
    ```bash
-   npm run ci
+   pnpm run ci
    ```
 
 5. **Commit your changes**

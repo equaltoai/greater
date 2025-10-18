@@ -932,25 +932,46 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      
+      - name: Enable pnpm
+        run: corepack enable
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
       
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       
       - name: Type check
-        run: npm run type-check
+        run: pnpm run type-check
       
       - name: Lint
-        run: npm run lint
+        run: pnpm run lint
       
       - name: Unit tests
-        run: npm run test:unit
+        run: pnpm run test:unit
       
       - name: Component tests
-        run: npm run test:components
+        run: pnpm run test:components
       
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
   e2e:
     needs: test
@@ -962,16 +983,23 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      
+      - name: Enable pnpm
+        run: corepack enable
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       
       - name: Install Playwright
-        run: npx playwright install --with-deps
+        run: pnpm exec playwright install --with-deps
       
       - name: E2E tests
-        run: npm run test:e2e
+        run: pnpm run test:e2e
       
       - name: Upload test results
         if: always()
@@ -991,13 +1019,20 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
-          cache: 'npm'
+      
+      - name: Enable pnpm
+        run: corepack enable
+      
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 9
       
       - name: Install dependencies
-        run: npm ci
+        run: pnpm install --frozen-lockfile
       
       - name: Build for production
-        run: npm run build
+        run: pnpm run build
         env:
           PUBLIC_COMMIT_SHA: ${{ github.sha }}
           PUBLIC_BUILD_TIME: ${{ github.event.head_commit.timestamp }}

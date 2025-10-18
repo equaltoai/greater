@@ -6,6 +6,7 @@
 import { timelineStore } from './timeline.svelte';
 import { getClient } from '@/lib/api/client';
 import type { Status } from '@/types/mastodon';
+import type { TimelineData } from './timeline.svelte';
 
 interface OptimisticUpdate {
   id: string;
@@ -36,7 +37,7 @@ export async function toggleFavorite(status: Status): Promise<void> {
   });
   
   // Optimistic update
-  timelineStore.getState().updateStatus(status.id, {
+  timelineStore.updateStatus(status.id, {
     favourited: newState,
     favourites_count: status.favourites_count + (newState ? 1 : -1)
   });
@@ -48,7 +49,7 @@ export async function toggleFavorite(status: Status): Promise<void> {
       : await client.unfavouriteStatus(status.id);
     
     // Update with server response
-    timelineStore.getState().updateStatus(status.id, {
+    timelineStore.updateStatus(status.id, {
       favourited: updatedStatus.favourited,
       favourites_count: updatedStatus.favourites_count
     });
@@ -57,7 +58,7 @@ export async function toggleFavorite(status: Status): Promise<void> {
     pendingUpdates.delete(updateId);
   } catch (error) {
     // Revert on error
-    timelineStore.getState().updateStatus(status.id, {
+    timelineStore.updateStatus(status.id, {
       favourited: previousState,
       favourites_count: status.favourites_count
     });
@@ -84,7 +85,7 @@ export async function toggleReblog(status: Status): Promise<void> {
   });
   
   // Optimistic update
-  timelineStore.getState().updateStatus(status.id, {
+  timelineStore.updateStatus(status.id, {
     reblogged: newState,
     reblogs_count: status.reblogs_count + (newState ? 1 : -1)
   });
@@ -96,7 +97,7 @@ export async function toggleReblog(status: Status): Promise<void> {
       : await client.unreblogStatus(status.id);
     
     // Update with server response
-    timelineStore.getState().updateStatus(status.id, {
+    timelineStore.updateStatus(status.id, {
       reblogged: updatedStatus.reblogged,
       reblogs_count: updatedStatus.reblogs_count
     });
@@ -104,7 +105,7 @@ export async function toggleReblog(status: Status): Promise<void> {
     pendingUpdates.delete(updateId);
   } catch (error) {
     // Revert on error
-    timelineStore.getState().updateStatus(status.id, {
+    timelineStore.updateStatus(status.id, {
       reblogged: previousState,
       reblogs_count: status.reblogs_count
     });
@@ -131,7 +132,7 @@ export async function toggleBookmark(status: Status): Promise<void> {
   });
   
   // Optimistic update
-  timelineStore.getState().updateStatus(status.id, {
+  timelineStore.updateStatus(status.id, {
     bookmarked: newState
   });
   
@@ -142,14 +143,14 @@ export async function toggleBookmark(status: Status): Promise<void> {
       : await client.unbookmarkStatus(status.id);
     
     // Update with server response
-    timelineStore.getState().updateStatus(status.id, {
+    timelineStore.updateStatus(status.id, {
       bookmarked: updatedStatus.bookmarked
     });
     
     pendingUpdates.delete(updateId);
   } catch (error) {
     // Revert on error
-    timelineStore.getState().updateStatus(status.id, {
+    timelineStore.updateStatus(status.id, {
       bookmarked: previousState
     });
     
@@ -162,16 +163,12 @@ export async function toggleBookmark(status: Status): Promise<void> {
  * Delete status with optimistic removal
  */
 export async function deleteStatus(statusId: string): Promise<void> {
-  // Store the status before removing (in case we need to restore)
-  const timeline = timelineStore.getState();
-  const status = timeline.home.statuses.find(s => s.id === statusId) ||
-                 timeline.local.statuses.find(s => s.id === statusId) ||
-                 timeline.federated.statuses.find(s => s.id === statusId);
+  const status = findStatus(statusId);
   
   if (!status) return;
   
   // Optimistic removal
-  timeline.removeStatus(statusId);
+  timelineStore.removeStatus(statusId);
   
   try {
     const client = getClient();
@@ -214,4 +211,22 @@ export function cleanupPendingUpdates(): void {
 // Periodically clean up old pending updates
 if (typeof window !== 'undefined') {
   setInterval(cleanupPendingUpdates, 10000); // Every 10 seconds
+}
+
+function findStatus(statusId: string): Status | undefined {
+  const timelines = timelineStore.timelines as Record<string, TimelineData>;
+  
+  for (const timeline of Object.values(timelines)) {
+    const directMatch = timeline.statuses.find((item) => item.id === statusId);
+    if (directMatch) {
+      return directMatch;
+    }
+    
+    const reblogMatch = timeline.statuses.find((item) => item.reblog?.id === statusId);
+    if (reblogMatch?.reblog) {
+      return reblogMatch.reblog;
+    }
+  }
+  
+  return undefined;
 }

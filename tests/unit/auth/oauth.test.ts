@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import {
   generateCodeVerifier,
   generateCodeChallenge,
@@ -7,14 +7,21 @@ import {
   buildAuthorizationUrl,
   registerApp
 } from '@/lib/auth/oauth';
-
-// Mock fetch
-global.fetch = vi.fn();
+import { secureAuthClient } from '@/lib/auth/secure-client';
 
 describe('OAuth Client', () => {
   beforeEach(() => {
+    vi.restoreAllMocks();
+    global.fetch = vi.fn();
+    vi.spyOn(secureAuthClient, 'storeApp').mockResolvedValue();
+    vi.spyOn(secureAuthClient, 'storeToken').mockResolvedValue();
+    vi.spyOn(secureAuthClient, 'getToken').mockResolvedValue(null);
     vi.clearAllMocks();
     sessionStorage.clear();
+  });
+
+  afterEach(() => {
+    vi.restoreAllMocks();
   });
 
   describe('PKCE Generation', () => {
@@ -110,11 +117,7 @@ describe('OAuth Client', () => {
           }
         })
       );
-      
-      // Check if app was stored
-      const stored = sessionStorage.getItem('app_https://mastodon.social');
-      expect(stored).toBeTruthy();
-      expect(JSON.parse(stored!)).toEqual(mockApp);
+      expect(secureAuthClient.storeApp).toHaveBeenCalledWith('https://mastodon.social', mockApp);
     });
 
     it('should handle registration failure', async () => {
@@ -134,8 +137,10 @@ describe('OAuth Client', () => {
         client_secret: 'test_client_secret'
       };
 
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      const storedKey = `app_https://mastodon.social_${redirectUri}`;
       sessionStorage.setItem(
-        'app_https://mastodon.social',
+        storedKey,
         JSON.stringify(mockApp)
       );
 
@@ -159,8 +164,10 @@ describe('OAuth Client', () => {
     });
 
     it('should include custom scopes', async () => {
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      const storedKey = `app_https://mastodon.social_${redirectUri}`;
       sessionStorage.setItem(
-        'app_https://mastodon.social',
+        storedKey,
         JSON.stringify({ client_id: 'test' })
       );
 
@@ -173,8 +180,10 @@ describe('OAuth Client', () => {
     });
 
     it('should include force_login parameter', async () => {
+      const redirectUri = `${window.location.origin}/auth/callback`;
+      const storedKey = `app_https://mastodon.social_${redirectUri}`;
       sessionStorage.setItem(
-        'app_https://mastodon.social',
+        storedKey,
         JSON.stringify({ client_id: 'test' })
       );
 

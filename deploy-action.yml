@@ -36,11 +36,29 @@ jobs:
       - uses: actions/setup-node@v4
         with:
           node-version: '20'
-          cache: 'npm'
       
-      - name: Install dependencies
-        run: npm ci
+      - name: Enable pnpm
+        run: corepack enable
       
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v4
+        with:
+          version: 10.18.3
+      
+      - name: Get pnpm store directory
+        id: pnpm-cache
+        shell: bash
+        run: |
+          echo "STORE_PATH=$(pnpm store path)" >> $GITHUB_OUTPUT
+      
+      - name: Setup pnpm cache
+        uses: actions/cache@v4
+        with:
+          path: ${{ steps.pnpm-cache.outputs.STORE_PATH }}
+          key: ${{ runner.os }}-pnpm-store-${{ hashFiles('**/pnpm-lock.yaml') }}
+          restore-keys: |
+            ${{ runner.os }}-pnpm-store-
+
       - name: Determine environment
         id: env
         run: |
@@ -54,8 +72,18 @@ jobs:
             echo "environment=preview" >> $GITHUB_OUTPUT
           fi
       
+      - name: Install dependencies (frozen)
+        if: steps.env.outputs.environment == 'production'
+        run: pnpm install --frozen-lockfile
+      
+      - name: Install dependencies (mutable)
+        if: steps.env.outputs.environment != 'production'
+        env:
+          PNPM_PREFER_FROZEN_LOCKFILE: false
+        run: pnpm install --no-frozen-lockfile
+      
       - name: Deploy to Cloudflare
-        run: npm run deploy:${{ steps.env.outputs.environment }}
+        run: pnpm run deploy:${{ steps.env.outputs.environment }}
       
       - name: Comment PR
         if: github.event_name == 'pull_request'

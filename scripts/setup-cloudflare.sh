@@ -14,7 +14,7 @@ NC='\033[0m' # No Color
 # Check if wrangler is installed
 if ! command -v wrangler &> /dev/null; then
     echo -e "${RED}❌ wrangler CLI not found. Installing...${NC}"
-    npm install -g wrangler
+    pnpm add -g wrangler
 fi
 
 # Login to Cloudflare
@@ -109,13 +109,13 @@ echo "Next steps:"
 echo "1. Go to https://dash.cloudflare.com/pages"
 echo "2. Create a new Pages project named 'greater'"
 echo "3. Connect your GitHub repository"
-echo "4. Set the build command to: npm run build"
+echo "4. Set the build command to: pnpm run build"
 echo "5. Set the build output directory to: dist"
 echo "6. Configure environment variables:"
 echo "   - Add any API keys or secrets using the dashboard"
 echo
 echo "For local development, run:"
-echo "  npm run dev"
+echo "  pnpm run dev"
 echo
 echo "To deploy manually:"
-echo "  npm run build && wrangler pages deploy dist" 
+echo "  pnpm run build && wrangler pages deploy dist" 

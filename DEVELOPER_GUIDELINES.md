@@ -53,7 +53,7 @@ We are committed to providing a welcoming and inclusive environment. All contrib
 ```bash
 # Required versions
 node >= 20.0.0
-npm >= 10.0.0
+pnpm >= 9.0.0
 
 # Optional but recommended
 git >= 2.30.0
@@ -67,28 +67,28 @@ git clone https://github.com/greater-website/greater.git
 cd greater
 
 # Install dependencies
-npm install
+pnpm install
 
 # Copy environment variables
 cp .env.example .env.local
 
 # Run development server
-npm run dev
+pnpm run dev
 ```
 
 ### Development Commands
 
 ```bash
-npm run dev          # Start development server
-npm run build        # Build for production
-npm run preview      # Preview production build
-npm run test         # Run all tests
-npm run test:unit    # Run unit tests only
-npm run test:e2e     # Run E2E tests
-npm run lint         # Lint code
-npm run format       # Format code
-npm run typecheck    # Type check TypeScript
-npm run analyze      # Analyze bundle size
+pnpm run dev          # Start development server
+pnpm run build        # Build for production
+pnpm run preview      # Preview production build
+pnpm run test         # Run all tests
+pnpm run test:unit    # Run unit tests only
+pnpm run test:e2e     # Run E2E tests
+pnpm run lint         # Lint code
+pnpm run format       # Format code
+pnpm run typecheck    # Type check TypeScript
+pnpm run analyze      # Analyze bundle size
 ```
 
 ---
@@ -957,7 +957,7 @@ Fixes #123
 1. **Create feature branch** from `develop`
 2. **Write code** following all guidelines
 3. **Write tests** for new functionality
-4. **Run checks** locally: `npm run ci`
+4. **Run checks** locally: `pnpm run ci`
 5. **Create PR** with description template
 6. **Address feedback** from reviewers
 7. **Squash and merge** when approved

@@ -40,7 +40,7 @@ cd ..
 
 # Step 2: Build the Astro project
 echo "🔨 Building Astro project..."
-npm run build
+pnpm run build
 
 # Step 3: Deploy to Cloudflare Pages with bindings
 echo "☁️  Deploying to Cloudflare Pages..."
