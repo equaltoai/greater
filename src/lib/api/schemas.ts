@@ -103,7 +103,7 @@ export const AIAnalysisSchema = z.object({
 }).optional();
 
 // Status schemas
-export const StatusSchema: z.ZodSchema<any> = z.object({
+export const StatusSchema = z.object({
   id: z.string(),
   created_at: DateStringSchema,
   in_reply_to_id: z.string().nullable(),

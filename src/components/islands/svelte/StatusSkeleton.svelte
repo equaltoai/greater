@@ -1,37 +1,37 @@
 <script lang="ts">
-	// Status skeleton loader component
+	import { GCSkeleton } from '@/lib/components';
 </script>
 
-<div class="card p-4 space-y-3 animate-pulse">
+<div class="card p-4 space-y-3">
 	<div class="flex items-start gap-3">
 		<!-- Avatar skeleton -->
-		<div class="w-12 h-12 rounded-full bg-surface-variant"></div>
+		<GCSkeleton variant="circular" width="48px" height="48px" />
 		
 		<div class="flex-1 space-y-3">
 			<!-- Header skeleton -->
 			<div class="flex items-center gap-2">
-				<div class="h-4 w-32 bg-surface-variant rounded"></div>
-				<div class="h-3 w-24 bg-surface-variant rounded"></div>
+				<GCSkeleton variant="text" width="128px" height="16px" />
+				<GCSkeleton variant="text" width="96px" height="12px" />
 			</div>
 			
 			<!-- Content skeleton -->
 			<div class="space-y-2">
-				<div class="h-4 w-full bg-surface-variant rounded"></div>
-				<div class="h-4 w-4/5 bg-surface-variant rounded"></div>
-				<div class="h-4 w-3/5 bg-surface-variant rounded"></div>
+				<GCSkeleton variant="text" width="100%" height="16px" />
+				<GCSkeleton variant="text" width="80%" height="16px" />
+				<GCSkeleton variant="text" width="60%" height="16px" />
 			</div>
 			
 			<!-- Media skeleton (randomly show) -->
 			{#if Math.random() > 0.5}
-				<div class="h-48 w-full bg-surface-variant rounded-lg"></div>
+				<GCSkeleton variant="rectangular" width="100%" height="192px" class="rounded-lg" />
 			{/if}
 			
 			<!-- Actions skeleton -->
 			<div class="flex items-center gap-6 pt-2">
-				<div class="h-5 w-5 bg-surface-variant rounded"></div>
-				<div class="h-5 w-5 bg-surface-variant rounded"></div>
-				<div class="h-5 w-5 bg-surface-variant rounded"></div>
-				<div class="h-5 w-5 bg-surface-variant rounded"></div>
+				<GCSkeleton variant="circular" width="20px" height="20px" />
+				<GCSkeleton variant="circular" width="20px" height="20px" />
+				<GCSkeleton variant="circular" width="20px" height="20px" />
+				<GCSkeleton variant="circular" width="20px" height="20px" />
 			</div>
 		</div>
 	</div>

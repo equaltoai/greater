@@ -37,9 +37,11 @@
     "pulumi": "cd infrastructure && pulumi"
   },
   "dependencies": {
+    "@apollo/client": "^3.11.0",
     "@astrojs/cloudflare": "^12.5.5",
     "@astrojs/svelte": "^7.1.0",
     "@equaltoai/greater-components": "workspace:*",
+    "@graphql-typed-document-node/core": "^3.2.0",
     "@nanostores/persistent": "^1.0.0",
     "@sentry/astro": "^10.20.0",
     "@sentry/svelte": "^10.20.0",
@@ -47,6 +49,8 @@
     "@tanstack/svelte-virtual": "^3.13.10",
     "astro": "^5.9.4",
     "glob": "^11.0.3",
+    "graphql": "^16.9.0",
+    "graphql-ws": "^5.16.0",
     "isomorphic-dompurify": "^2.25.0",
     "lucide-svelte": "^0.546.0",
     "nanostores": "^1.0.1",
@@ -56,6 +60,7 @@
     "zod": "^4.1.12"
   },
   "devDependencies": {
+    "@eslint/js": "^9.38.0",
     "@playwright/test": "^1.40.0",
     "@pulumi/cloudflare": "^6.3.1",
     "@pulumi/pulumi": "^3.177.0",

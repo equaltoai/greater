@@ -1,4 +1,5 @@
 <script lang="ts">
+  import { GCTextField } from '@/lib/components';
   import { searchStore } from '@/lib/stores/search.svelte';
   
   ;
@@ -26,14 +27,29 @@
   }
   
   function handleBlur() {
-    isFocused = false;
+    // Delay to allow clicking suggestions
+    setTimeout(() => {
+      isFocused = false;
+    }, 200);
+  }
+  
+  // Handle clear
+  function handleClear() {
+    searchQuery = '';
   }
 </script>
 
 <form onsubmit={handleSearch} class="relative w-full max-w-md">
-  <div class="relative">
-    <!-- Search icon -->
-    <div class="absolute inset-y-0 left-0 flex items-center pl-3 pointer-events-none">
+  <GCTextField
+    bind:value={searchQuery}
+    type="search"
+    placeholder="Search posts, users, hashtags..."
+    onfocus={handleFocus}
+    onblur={handleBlur}
+    class="w-full search-field"
+    aria-label="Search"
+  >
+    {#snippet prefix()}
       <svg 
         class="w-5 h-5 text-gray-400"
         fill="none" 
@@ -47,44 +63,32 @@
           d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
         />
       </svg>
-    </div>
-    
-    <!-- Search input -->
-    <input
-      type="search"
-      bind:value={searchQuery}
-      onfocus={handleFocus}
-      onblur={handleBlur}
-      placeholder="Search posts, users, hashtags..."
-      class="w-full pl-10 pr-4 py-2 bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-full text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all appearance-none"
-      class:ring-2={isFocused}
-      class:ring-blue-500={isFocused}
-    />
-    
-    <!-- Clear button (shown when there's text) -->
-    {#if searchQuery}
-      <button
-        type="button"
-        onclick={() => searchQuery = ''}
-        class="absolute inset-y-0 right-0 flex items-center pr-3 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
-        aria-label="Clear search"
-      >
-        <svg 
-          class="w-5 h-5" 
-          fill="none" 
-          stroke="currentColor" 
-          viewBox="0 0 24 24"
+    {/snippet}
+    {#snippet suffix()}
+      {#if searchQuery}
+        <button
+          type="button"
+          onclick={handleClear}
+          class="text-gray-400 hover:text-gray-600 dark:hover:text-gray-300"
+          aria-label="Clear search"
         >
-          <path 
-            stroke-linecap="round" 
-            stroke-linejoin="round" 
-            stroke-width="2" 
-            d="M6 18L18 6M6 6l12 12"
-          />
-        </svg>
-      </button>
-    {/if}
-  </div>
+          <svg 
+            class="w-5 h-5" 
+            fill="none" 
+            stroke="currentColor" 
+            viewBox="0 0 24 24"
+          >
+            <path 
+              stroke-linecap="round" 
+              stroke-linejoin="round" 
+              stroke-width="2" 
+              d="M6 18L18 6M6 6l12 12"
+            />
+          </svg>
+        </button>
+      {/if}
+    {/snippet}
+  </GCTextField>
   
   <!-- Search suggestions -->
   {#if isFocused && (filteredHistory.length > 0 || searchQuery)}

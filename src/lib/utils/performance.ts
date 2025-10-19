@@ -1,4 +1,5 @@
 import type { Metric } from 'web-vitals'
+import { logDebug } from './logger'
 
 type WebVitalsModule = typeof import('web-vitals') & {
   onFID?: (onReport: (metric: Metric) => void) => void
@@ -43,7 +44,7 @@ class PerformanceMonitor {
     
     // Log to console in development
     if (import.meta.env.DEV) {
-      console.log(`${metric.name}: ${metric.value.toFixed(2)}`)
+      logDebug(`${metric.name}: ${metric.value.toFixed(2)}`)
     }
 
     // Report if callback is set
@@ -139,9 +140,11 @@ export function measureBundleImpact(chunkName: string): { sizeKB: number; loadTi
     const sizeKB = chunk.transferSize / 1024
     const loadTime = chunk.responseEnd - chunk.startTime
     
-    console.log(`Bundle: ${chunkName}`)
-    console.log(`  Size: ${sizeKB.toFixed(2)} KB`)
-    console.log(`  Load time: ${loadTime.toFixed(2)} ms`)
+    logDebug('Bundle metrics', {
+      chunk: chunkName,
+      sizeKB: Number(sizeKB.toFixed(2)),
+      loadTime: Number(loadTime.toFixed(2))
+    })
     
     return { sizeKB, loadTime }
   }

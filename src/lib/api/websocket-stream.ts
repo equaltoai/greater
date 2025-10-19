@@ -4,6 +4,7 @@
  */
 
 import { secureAuthClient } from '@/lib/auth/secure-client';
+import { logDebug } from '@/lib/utils/logger';
 
 export interface WebSocketStreamOptions {
   instance: string;
@@ -60,12 +61,12 @@ export class WebSocketStream {
         url += '?' + params.toString();
       }
 
-      console.log('[WebSocket] Connecting to:', url);
+      logDebug('[WebSocket] Connecting to:', url);
       
       this.ws = new WebSocket(url);
       
       this.ws.onopen = (event) => {
-        console.log('[WebSocket] Connected');
+        logDebug('[WebSocket] Connected');
         this.reconnectAttempts = 0;
         this.reconnectDelay = 1000;
         this.startHeartbeat();
@@ -102,7 +103,7 @@ export class WebSocketStream {
       };
 
       this.ws.onclose = (event) => {
-        console.log('[WebSocket] Closed:', event.code, event.reason);
+        logDebug('[WebSocket] Closed:', { code: event.code, reason: event.reason });
         this.stopHeartbeat();
         this.options.onClose?.(event);
         
@@ -132,7 +133,11 @@ export class WebSocketStream {
       this.maxReconnectDelay
     );
 
-    console.log(`[WebSocket] Reconnecting in ${delay}ms (attempt ${this.reconnectAttempts + 1}/${this.maxReconnectAttempts})`);
+    logDebug('[WebSocket] Reconnecting', {
+      delay,
+      attempt: this.reconnectAttempts + 1,
+      maxAttempts: this.maxReconnectAttempts,
+    });
 
     this.reconnectTimeout = window.setTimeout(() => {
       this.reconnectAttempts++;
@@ -220,7 +225,7 @@ export async function checkStreamingMethod(instance: string, stream: string): Pr
     // If we get here, SSE should work
     return { method: 'sse' };
   } catch (error) {
-    console.log('[Streaming] Error checking streaming method:', error);
+    console.error('[Streaming] Error checking streaming method:', error);
     // Default to SSE on error
     return { method: 'sse' };
   }

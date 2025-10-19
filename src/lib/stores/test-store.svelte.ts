@@ -1,3 +1,5 @@
+import { logDebug } from '@/lib/utils/logger';
+
 // Minimal store for testing
 class TestStore {
   count = $state(0);
@@ -5,7 +7,7 @@ class TestStore {
   constructor() {
     // Test $effect in constructor
     $effect(() => {
-      console.log('Count changed to:', this.count);
+      logDebug('Count changed to:', this.count);
     });
   }
   

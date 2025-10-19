@@ -53,6 +53,8 @@ export interface MediaAttachment {
   meta?: MediaMeta;
   description: string | null;
   blurhash: string | null;
+  sensitive?: boolean;
+  spoiler_text?: string | null;
 }
 
 export type AttachmentType = 'unknown' | 'image' | 'gifv' | 'video' | 'audio';
@@ -61,6 +63,10 @@ export interface MediaMeta {
   original?: MediaDimensions;
   small?: MediaDimensions;
   focus?: { x: number; y: number };
+  media_category?: string;
+  media_type?: string;
+  mime_type?: string | null;
+  warnings?: string[];
 }
 
 export interface MediaDimensions {

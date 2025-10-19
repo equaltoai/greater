@@ -1,6 +1,7 @@
 <script lang="ts">
   import type { Account, Relationship } from '@/types/mastodon';
   import type { Account as LesserAccount } from '@/lib/api/schemas';
+  import { GCAvatar } from '@/lib/components';
   import { getClient } from '@/lib/api/client';
   import { authStore } from '@/lib/stores/auth.svelte';
   import { stripHtmlSafe } from '@/lib/utils/sanitize';
@@ -72,11 +73,11 @@
 <div class="flex items-start space-x-3">
   <!-- Avatar -->
   <a href={`/@${user.acct}`} class="flex-shrink-0">
-    <img
+    <GCAvatar
       src={user.avatar}
       alt={user.display_name || user.username}
-      class="w-12 h-12 rounded-full"
-      loading="lazy"
+      size="md"
+      fallback={(user.display_name || user.username).charAt(0).toUpperCase()}
     />
   </a>
   

@@ -19,8 +19,9 @@ export class AccountService {
     }
 
     // Check cache first
-    if (this.accountCache.has(identifier)) {
-      return this.accountCache.get(identifier)!;
+    const cachedAccount = this.accountCache.get(identifier);
+    if (cachedAccount) {
+      return cachedAccount;
     }
 
     let account: Account;

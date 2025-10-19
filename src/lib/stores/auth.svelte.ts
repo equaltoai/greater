@@ -17,6 +17,7 @@ import {
 } from '@/lib/auth/oauth';
 import { AuthError } from '@/types/auth';
 import { secureAuthClient } from '@/lib/auth/secure-client';
+import { logDebug } from '@/lib/utils/logger';
 
 // Create auth state with Svelte 5 runes
 class AuthStore {
@@ -377,14 +378,14 @@ class AuthStore {
       
       const freshUserData = await response.json();
       
-      console.log('[Auth] Fresh user data from API:', freshUserData);
-      console.log('[Auth] Avatar URL from API:', freshUserData.avatar);
+      logDebug('[Auth] Fresh user data from API:', freshUserData);
+      logDebug('[Auth] Avatar URL from API:', freshUserData.avatar);
       
       // Update the account
       this.updateAccount(freshUserData);
       
-      console.log('[Auth] Current user after update:', this.currentUser);
-      console.log('[Auth] Avatar after update:', this.currentUser?.avatar);
+      logDebug('[Auth] Current user after update:', this.currentUser);
+      logDebug('[Auth] Avatar after update:', this.currentUser?.avatar);
     } catch (error) {
       console.error('[Auth] Failed to refresh current user:', error);
     }

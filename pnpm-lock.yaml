@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@apollo/client':
+        specifier: ^3.11.0
+        version: 3.14.0(@types/react@19.2.2)(graphql-ws@5.16.2(graphql@16.11.0))(graphql@16.11.0)(react-dom@19.2.0(react@19.2.0))(react@19.2.0)
       '@astrojs/cloudflare':
         specifier: ^12.5.5
         version: 12.6.10(@types/node@24.8.1)(astro@5.14.6(@types/node@24.8.1)(jiti@2.6.1)(lightningcss@1.30.1)(rollup@4.52.5)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1))(jiti@2.6.1)(lightningcss@1.30.1)(tsx@4.20.6)(yaml@2.8.1)
@@ -17,6 +20,9 @@ importers:
       '@equaltoai/greater-components':
         specifier: workspace:*
         version: link:../greater-components/packages/greater-components
+      '@graphql-typed-document-node/core':
+        specifier: ^3.2.0
+        version: 3.2.0(graphql@16.11.0)
       '@nanostores/persistent':
         specifier: ^1.0.0
         version: 1.1.0(nanostores@1.0.1)
@@ -38,6 +44,12 @@ importers:
       glob:
         specifier: ^11.0.3
         version: 11.0.3
+      graphql:
+        specifier: ^16.9.0
+        version: 16.11.0
+      graphql-ws:
+        specifier: ^5.16.0
+        version: 5.16.2(graphql@16.11.0)
       isomorphic-dompurify:
         specifier: ^2.25.0
         version: 2.29.0(postcss@8.5.6)
@@ -60,6 +72,9 @@ importers:
         specifier: ^4.1.12
         version: 4.1.12
     devDependencies:
+      '@eslint/js':
+        specifier: ^9.38.0
+        version: 9.38.0
       '@playwright/test':
         specifier: ^1.40.0
         version: 1.56.1

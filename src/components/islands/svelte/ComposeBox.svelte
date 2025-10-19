@@ -1,26 +1,24 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { 
-    composeText$,
-    composeVisibility$,
-    composeSensitive$,
-    composeSpoilerText$,
-    composeMedia$,
-    composePoll$,
-    composeReplyTo$,
-    isComposing$,
-    isUploading$,
-    uploadProgress$,
-    composeError$,
-    uploadMedia,
-    removeMedia,
-    createPost,
-    saveDraft,
-    clearCompose,
-    characterCount$,
+import { GCTextField } from '@/lib/components';
+import Button from './Button.svelte';
+import MediaUpload from './MediaUpload.svelte';
+import { 
+  composeText$,
+  composeVisibility$,
+  composeSensitive$,
+  composeSpoilerText$,
+  composePoll$,
+  composeReplyTo$,
+  isComposing$,
+  composeError$,
+  createPost,
+  saveDraft,
+  clearCompose,
+  characterCount$,
     canPost$
   } from '../../../lib/stores/compose';
-  import type { CreatePollParams, MediaAttachment, Status } from '../../../types/mastodon';
+import type { CreatePollParams, Status } from '../../../types/mastodon';
   import { Globe, Lock, Mail, Users, X } from 'lucide-svelte';
   import { getClient } from '../../../lib/api/client';
   import { timelineStore } from '../../../lib/stores/timeline.svelte';
@@ -40,19 +38,15 @@
   let visibility: 'public' | 'unlisted' | 'private' | 'direct' = 'public';
   let sensitive = false;
   let spoilerText = '';
-  let media: MediaAttachment[] = [];
   let poll: CreatePollParams | null = null;
   let replyToId: string | null = null;
   let replyToStatus: Status | null = null;
   let isComposing = false;
-  let isUploading = false;
-  let uploadProgress = 0;
   let error = $state<string | null>(null);
   let characterCount = $state(0);
   let canPost = $state(false);
 
   let textareaEl: HTMLTextAreaElement;
-  let fileInputEl: HTMLInputElement;
   let maxCharacters = $state(500);
 
   const visibilityOptions = [
@@ -124,7 +118,6 @@
       composeVisibility$.subscribe(v => visibility = v),
       composeSensitive$.subscribe(v => sensitive = v),
       composeSpoilerText$.subscribe(v => spoilerText = v),
-      composeMedia$.subscribe(v => media = v),
       composePoll$.subscribe(v => poll = v),
       composeReplyTo$.subscribe(async (v) => {
         replyToId = v;
@@ -141,8 +134,6 @@
         }
       }),
       isComposing$.subscribe(v => isComposing = v),
-      isUploading$.subscribe(v => isUploading = v),
-      uploadProgress$.subscribe(v => uploadProgress = v),
       composeError$.subscribe(v => error = v),
       characterCount$.subscribe(v => characterCount = v),
       canPost$.subscribe(v => canPost = v)
@@ -167,22 +158,6 @@
       textareaEl.style.height = 'auto';
       textareaEl.style.height = textareaEl.scrollHeight + 'px';
     }
-  }
-
-  async function handleFileSelect(event: Event) {
-    const target = event.target as HTMLInputElement;
-    const files = Array.from(target.files || []);
-    
-    for (const file of files) {
-      if (file.size > 8 * 1024 * 1024) {
-        composeError$.set('File size must be less than 8MB');
-        continue;
-      }
-      
-      await uploadMedia(file);
-    }
-    
-    target.value = '';
   }
 
   function togglePoll() {
@@ -366,12 +341,11 @@
   <!-- Content Warning -->
   {#if sensitive}
     <div class="mb-4">
-      <input
-        type="text"
+      <GCTextField
         bind:value={spoilerText}
-        on:input={() => composeSpoilerText$.set(spoilerText)}
+        oninput={() => composeSpoilerText$.set(spoilerText)}
         placeholder="Content warning"
-        class="w-full px-3 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+        class="w-full"
       />
     </div>
   {/if}
@@ -398,21 +372,21 @@
       <h3 class="font-medium mb-3">Poll options</h3>
       {#each pollOptions as option, index}
         <div class="flex gap-2 mb-2">
-          <input
-            type="text"
+          <GCTextField
             bind:value={pollOptions[index]}
-            on:input={updatePoll}
+            oninput={updatePoll}
             placeholder={`Option ${index + 1}`}
-            class="flex-1 px-3 py-2 border border-gray-300 dark:border-gray-700 rounded bg-white dark:bg-gray-900 focus:outline-none focus:ring-2 focus:ring-purple-500"
+            class="flex-1"
           />
           {#if pollOptions.length > 2}
-            <button
+            <Button
               type="button"
-              on:click={() => removePollOption(index)}
-              class="px-3 py-2 text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 rounded"
+              onclick={() => removePollOption(index)}
+              variant="danger"
+              size="sm"
             >
               Remove
-            </button>
+            </Button>
           {/if}
         </div>
       {/each}
@@ -448,77 +422,11 @@
     </div>
   {/if}
 
-  <!-- Media Previews -->
-  {#if media.length > 0}
-    <div class="mt-4 grid grid-cols-2 gap-2">
-      {#each media as attachment}
-        <div class="relative group">
-          {#if attachment.type === 'image'}
-            <img
-              src={attachment.preview_url || attachment.url}
-              alt={attachment.description || 'Media preview'}
-              class="w-full h-32 object-cover rounded-lg"
-            />
-          {:else}
-            <div class="w-full h-32 bg-gray-200 dark:bg-gray-800 rounded-lg flex items-center justify-center">
-              <span class="text-gray-500 dark:text-gray-400">{attachment.type}</span>
-            </div>
-          {/if}
-          <button
-            type="button"
-            on:click={() => removeMedia(attachment.id)}
-            class="absolute top-2 right-2 p-1 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity"
-          >
-            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-          </button>
-        </div>
-      {/each}
-    </div>
-  {/if}
-
-  <!-- Upload Progress -->
-  {#if isUploading}
-    <div class="mt-4">
-      <div class="flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-        <span>Uploading...</span>
-        <span>{uploadProgress}%</span>
-      </div>
-      <div class="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2 mt-1">
-        <div
-          class="bg-purple-600 h-2 rounded-full transition-all duration-300"
-          style="width: {uploadProgress}%"
-        />
-      </div>
-    </div>
-  {/if}
+  <MediaUpload maxFiles={4} />
 
   <!-- Actions Bar -->
   <div class="mt-4 flex items-center justify-between">
     <div class="flex items-center gap-2">
-      <!-- Media Upload -->
-      <input
-        bind:this={fileInputEl}
-        type="file"
-        accept="image/*,video/*"
-        multiple
-        on:change={handleFileSelect}
-        class="hidden"
-        disabled={media.length >= 4 || isUploading}
-      />
-      <button
-        type="button"
-        on:click={() => fileInputEl.click()}
-        disabled={media.length >= 4 || isUploading}
-        class="p-2 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed"
-        title="Add media"
-      >
-        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16l4.586-4.586a2 2 0 012.828 0L16 16m-2-2l1.586-1.586a2 2 0 012.828 0L20 14m-6-6h.01M6 20h12a2 2 0 002-2V6a2 2 0 00-2-2H6a2 2 0 00-2 2v12a2 2 0 002 2z" />
-        </svg>
-      </button>
-
       <!-- Poll -->
       <button
         type="button"

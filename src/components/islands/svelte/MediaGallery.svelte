@@ -84,15 +84,33 @@
   }
   
   // Image optimization
-  function getOptimizedUrl(attachment: MediaAttachment, size: 'preview' | 'small' | 'original' = 'small'): string {
-    if (size === 'preview' && attachment.preview_url) {
-      return attachment.preview_url;
-    }
-    if (size === 'small' && attachment.preview_url) {
-      return attachment.preview_url;
-    }
-    return attachment.url;
+function getOptimizedUrl(attachment: MediaAttachment, size: 'preview' | 'small' | 'original' = 'small'): string {
+  if (size === 'preview' && attachment.preview_url) {
+    return attachment.preview_url;
   }
+  if (size === 'small' && attachment.preview_url) {
+    return attachment.preview_url;
+  }
+  return attachment.url;
+}
+
+function getMediaCategory(attachment: MediaAttachment): string {
+  if (attachment.meta?.media_category) {
+    return attachment.meta.media_category;
+  }
+  switch (attachment.type) {
+    case 'image':
+      return 'IMAGE';
+    case 'video':
+      return 'VIDEO';
+    case 'audio':
+      return 'AUDIO';
+    case 'gifv':
+      return 'GIFV';
+    default:
+      return 'UNKNOWN';
+  }
+}
   
   onMount(() => {
     document.addEventListener('keydown', handleKeydown);
@@ -126,64 +144,91 @@
     <!-- Media grid -->
     <div class="grid gap-1 {gridClass} rounded-lg overflow-hidden">
       {#each media as attachment, index}
-        {#if attachment.type === 'image' || attachment.type === 'gifv' || attachment.type === 'video'}
-          <button
-            onclick={() => openLightbox(index)}
-            class="relative overflow-hidden bg-gray-100 dark:bg-gray-800 {itemClass(index)} focus:outline-none focus:ring-2 focus:ring-blue-500"
-            style="aspect-ratio: {getAspectRatio(attachment)}"
-          >
-            {#if attachment.type === 'video' || attachment.type === 'gifv'}
-              <video
-                src={attachment.url}
-                poster={attachment.preview_url}
-                class="w-full h-full object-cover"
-                muted
-                loop={attachment.type === 'gifv'}
-                playsinline
-              >
-                <source src={attachment.url} type="video/mp4" />
-              </video>
-              <div class="absolute inset-0 flex items-center justify-center pointer-events-none">
-                <div class="bg-black/60 rounded-full p-3">
-                  <svg class="w-8 h-8 text-white" fill="currentColor" viewBox="0 0 20 20">
-                    <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
-                  </svg>
+        {@const category = getMediaCategory(attachment)}
+        <div class="relative group">
+          {#if category === 'IMAGE' || category === 'GIFV' || category === 'VIDEO'}
+            <button
+              onclick={() => openLightbox(index)}
+              class="relative overflow-hidden bg-gray-100 dark:bg-gray-800 {itemClass(index)} focus:outline-none focus:ring-2 focus:ring-blue-500"
+              style="aspect-ratio: {getAspectRatio(attachment)}"
+            >
+              {#if category === 'VIDEO'}
+                <video
+                  src={attachment.url}
+                  poster={attachment.preview_url}
+                  class="h-full w-full object-cover"
+                  muted
+                  playsinline
+                  controls
+                />
+                <div class="pointer-events-none absolute inset-0 flex items-center justify-center">
+                  <div class="rounded-full bg-black/60 p-3">
+                    <svg class="h-8 w-8 text-white" fill="currentColor" viewBox="0 0 20 20">
+                      <path d="M6.3 2.841A1.5 1.5 0 004 4.11V15.89a1.5 1.5 0 002.3 1.269l9.344-5.89a1.5 1.5 0 000-2.538L6.3 2.84z" />
+                    </svg>
+                  </div>
                 </div>
-              </div>
-            {:else}
-              <img
-                src={getOptimizedUrl(attachment, 'small')}
-                alt={attachment.description || ''}
-                class="w-full h-full object-cover"
-                loading="lazy"
-                onload={() => imageLoadStates[attachment.id] = true}
-              />
-              {#if !imageLoadStates[attachment.id]}
-                <div class="absolute inset-0 bg-gray-200 dark:bg-gray-700 animate-pulse" />
+              {:else if category === 'GIFV'}
+                <video
+                  src={attachment.url}
+                  poster={attachment.preview_url}
+                  class="h-full w-full object-cover"
+                  muted
+                  loop
+                  autoplay
+                  playsinline
+                />
+              {:else}
+                <img
+                  src={getOptimizedUrl(attachment, 'small')}
+                  alt={attachment.description || ''}
+                  class="h-full w-full object-cover"
+                  loading="lazy"
+                  onload={() => imageLoadStates[attachment.id] = true}
+                />
+                {#if !imageLoadStates[attachment.id]}
+                  <div class="absolute inset-0 animate-pulse bg-gray-200 dark:bg-gray-700" />
+                {/if}
               {/if}
-            {/if}
-            
-            {#if attachment.description}
-              <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
-                <span class="text-xs text-white">ALT</span>
+
+              {#if attachment.spoiler_text}
+                <div class="absolute left-2 top-2 rounded-full bg-black/60 px-2 py-1 text-[11px] font-medium uppercase tracking-wide text-white">
+                  CW
+                </div>
+              {/if}
+
+              <div class="absolute right-2 top-2 rounded-full bg-black/50 px-2 py-1 text-[11px] uppercase tracking-wide text-white">
+                {category}
               </div>
-            {/if}
-          </button>
-        {:else if attachment.type === 'audio'}
-          <div class="bg-gray-100 dark:bg-gray-800 rounded-lg p-4 flex items-center space-x-3">
-            <svg class="w-12 h-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
-            </svg>
-            <div class="flex-1">
-              <audio
-                src={attachment.url}
-                controls
-                class="w-full"
-                preload="metadata"
-              />
+
+              {#if attachment.description}
+                <div class="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/60 to-transparent p-2">
+                  <span class="text-xs text-white">ALT</span>
+                </div>
+              {/if}
+            </button>
+          {:else if category === 'AUDIO'}
+            <div class="flex items-center space-x-3 rounded-lg bg-gray-100 p-4 dark:bg-gray-800">
+              <svg class="h-12 w-12 text-gray-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19V6l12-3v13M9 19c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zm12-3c0 1.105-1.343 2-3 2s-3-.895-3-2 1.343-2 3-2 3 .895 3 2zM9 10l12-3" />
+              </svg>
+              <div class="flex-1">
+                <audio src={attachment.url} controls class="w-full" preload="metadata" />
+              </div>
             </div>
-          </div>
-        {/if}
+          {:else if category === 'DOCUMENT'}
+            <div class="flex h-32 items-center justify-center rounded-lg bg-gray-100 p-4 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              <svg class="mr-2 h-5 w-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M7 21h10a2 2 0 002-2V9l-6-6H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+              </svg>
+              Document attachment
+            </div>
+          {:else}
+            <div class="flex h-32 items-center justify-center rounded-lg bg-gray-100 p-4 text-sm text-gray-600 dark:bg-gray-800 dark:text-gray-300">
+              Unsupported media
+            </div>
+          {/if}
+        </div>
       {/each}
     </div>
   {/if}

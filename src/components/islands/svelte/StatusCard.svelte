@@ -2,6 +2,7 @@
 	import { onMount } from 'svelte';
 	import type { Status, Relationship } from '@/types/mastodon';
 	import type { Status as LesserStatus } from '@/lib/api/schemas';
+	import { GCAvatar } from '@/lib/components';
 	import { sanitizeMastodonHtml } from '@/lib/utils/sanitize';
 	import { timelineStore } from '@/lib/stores/timeline.svelte';
 	import { authStore } from '@/lib/stores/auth.svelte';
@@ -293,33 +294,12 @@
 	
 	<div class="flex items-start gap-3">
 		<a href={`/@${displayStatus.account.acct}`} class="flex-shrink-0">
-			{#if displayStatus.account.avatar}
-				<img
-					src={displayStatus.account.avatar}
-					alt={displayStatus.account.display_name || displayStatus.account.username}
-					class="w-12 h-12 rounded-full object-cover"
-					loading="lazy"
-					onerror={(e) => {
-						e.currentTarget.style.display = 'none';
-						const nextSibling = e.currentTarget.nextElementSibling;
-						if (nextSibling) {
-							nextSibling.style.display = 'flex';
-						}
-					}}
-				/>
-				<div 
-					class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg"
-					style="display: none;"
-				>
-					{avatarPlaceholder}
-				</div>
-			{:else}
-				<div 
-					class="w-12 h-12 rounded-full bg-gradient-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white font-semibold text-lg"
-				>
-					{avatarPlaceholder}
-				</div>
-			{/if}
+			<GCAvatar
+				src={displayStatus.account.avatar}
+				alt={displayStatus.account.display_name || displayStatus.account.username}
+				size="md"
+				fallback={avatarPlaceholder}
+			/>
 		</a>
 		
 		<div class="flex-1 min-w-0">

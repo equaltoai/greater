@@ -1,7 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   import { searchStore } from '@/lib/stores/search.svelte';
-  import { getClient } from '@/lib/api/client';
   import StatusCard from './StatusCard.svelte';
   import UserCard from './UserCard.svelte';
   import HashtagCard from './HashtagCard.svelte';
@@ -25,15 +24,14 @@
   });
   
   async function performSearch() {
-    const client = getClient();
-    if (!searchQuery.trim() || !client) return;
+    if (!searchQuery.trim()) return;
     
     // Update URL
     const url = new URL(window.location.href);
     url.searchParams.set('q', searchQuery);
     window.history.replaceState({}, '', url);
     
-    await searchStore.search(client, searchQuery);
+    await searchStore.search(searchQuery, activeTab);
   }
   
   function handleSubmit(e: Event) {

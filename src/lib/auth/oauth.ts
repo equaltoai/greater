@@ -5,6 +5,7 @@
 
 import type { OAuthApp, OAuthToken, AuthorizeParams, TokenExchangeParams } from '@/types/auth';
 import { secureAuthClient } from './secure-client';
+import { logDebug } from '../utils/logger';
 
 const OAUTH_SCOPES = 'read write follow push';
 
@@ -98,7 +99,7 @@ export async function getOrCreateApp(instance: string): Promise<OAuthApp> {
   if (stored) {
     try {
       const app = JSON.parse(stored) as OAuthApp;
-      console.log('[OAuth] Using stored app for', instanceUrl);
+      logDebug('[OAuth] Using stored app for', instanceUrl);
       return app;
     } catch (e) {
       console.error('[OAuth] Failed to parse stored app:', e);
@@ -110,13 +111,13 @@ export async function getOrCreateApp(instance: string): Promise<OAuthApp> {
   const keys = Object.keys(sessionStorage);
   keys.forEach(key => {
     if (key.startsWith(`app_${instanceUrl}_`) && key !== storedKey) {
-      console.log('[OAuth] Removing old app registration:', key);
+      logDebug('[OAuth] Removing old app registration:', key);
       sessionStorage.removeItem(key);
     }
   });
   
   // Register new app
-  console.log('[OAuth] Registering new app for', instanceUrl, 'with redirect URI:', currentRedirectUri);
+logDebug('[OAuth] Registering new app for', instanceUrl, 'with redirect URI:', currentRedirectUri);
   const app = await registerApp(instance);
   
   // Store with redirect URI in key to differentiate
@@ -346,7 +347,7 @@ export function clearAppRegistrations(instance?: string): void {
   keys.forEach(key => {
     if (key.startsWith('app_')) {
       if (!instance || key.includes(normalizeInstanceUrl(instance))) {
-        console.log('[OAuth] Clearing app registration:', key);
+        logDebug('[OAuth] Clearing app registration:', key);
         sessionStorage.removeItem(key);
       }
     }

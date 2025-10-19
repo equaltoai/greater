@@ -157,18 +157,41 @@ export const globalRateLimiter = new RateLimiter();
 /**
  * Rate limit decorator for async functions
  */
-export function rateLimited(
-  keyFn: (...args: any[]) => string,
+type RateLimitErrorLike = {
+  status?: number;
+  headers?: {
+    get(name: string): string | null;
+  };
+};
+
+function isRateLimitError(error: unknown): error is RateLimitErrorLike {
+  return (
+    typeof error === 'object' &&
+    error !== null &&
+    'status' in error &&
+    typeof (error as RateLimitErrorLike).status === 'number'
+  );
+}
+
+export function rateLimited<TArgs extends unknown[], TResult>(
+  keyFn: (...args: TArgs) => string,
   limiter: RateLimiter = globalRateLimiter
 ) {
-  return function (
-    target: any,
+  return function <
+    This,
+    Method extends (...args: TArgs) => Promise<TResult> | TResult
+  >(
+    target: This,
     propertyKey: string,
-    descriptor: PropertyDescriptor
-  ) {
+    descriptor: TypedPropertyDescriptor<Method>
+  ): TypedPropertyDescriptor<Method> {
     const originalMethod = descriptor.value;
 
-    descriptor.value = async function (...args: any[]) {
+    if (!originalMethod) {
+      return descriptor;
+    }
+
+    descriptor.value = (async function (this: This, ...args: TArgs) {
       const key = keyFn.apply(this, args);
 
       if (!limiter.canMakeRequest(key)) {
@@ -181,16 +204,15 @@ export function rateLimited(
       try {
         limiter.recordRequest(key);
         return await originalMethod.apply(this, args);
-      } catch (error: any) {
-        // Check if it's a rate limit error
-        if (error.status === 429) {
+      } catch (error) {
+        if (isRateLimitError(error) && error.status === 429) {
           const retryAfter = error.headers?.get('Retry-After');
-          const retryAfterMs = retryAfter ? parseInt(retryAfter) * 1000 : undefined;
+          const retryAfterMs = retryAfter ? parseInt(retryAfter, 10) * 1000 : undefined;
           limiter.recordRateLimitError(key, retryAfterMs);
         }
         throw error;
       }
-    };
+    }) as Method;
 
     return descriptor;
   };

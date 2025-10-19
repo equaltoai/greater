@@ -1,19 +1,26 @@
 /**
- * Notifications state management using Nanostores
+ * Notifications state management using GraphQL
  * Handles real-time updates, filtering, and marking as read
  */
 
 import { atom, map, computed } from 'nanostores';
-import type { Notification, NotificationType } from '@/types/mastodon';
-import { getClient } from '@/lib/api/client';
+import type { Notification, NotificationType, Status, Account } from '@/types/mastodon';
+import { getGraphQLAdapter } from '@/lib/api/graphql-client';
+import { logDebug } from '@/lib/utils/logger';
+import { mapGraphQLMediaToAttachment } from '@/lib/mappers/media';
 import { authStore } from './auth.svelte';
+
+// Subscription type from Apollo Client (provided via greater-components)
+type Subscription = {
+  unsubscribe: () => void;
+};
 
 // Notification state
 export const notifications$ = map<Record<string, Notification>>({});
 export const isLoadingNotifications$ = atom<boolean>(false);
 export const notificationsError$ = atom<string | null>(null);
 export const hasMoreNotifications$ = atom<boolean>(true);
-export const lastNotificationId$ = atom<string | null>(null);
+export const endCursor$ = atom<string | null>(null);
 
 // Filter state
 export const notificationFilter$ = atom<NotificationType | 'all'>('all');
@@ -68,6 +75,120 @@ export const notificationCounts$ = computed([notifications$], (notifications) =>
   return counts;
 });
 
+/**
+ * Map GraphQL notification to Mastodon-compatible format
+ */
+function mapGraphQLToNotification(node: any): Notification {
+  const notification = node.notification || node;
+  
+  // Map GraphQL notification type to Mastodon type
+  const typeMap: Record<string, NotificationType> = {
+    'MENTION': 'mention',
+    'LIKE': 'favourite',
+    'SHARE': 'reblog',
+    'FOLLOW': 'follow',
+    'FOLLOW_REQUEST': 'follow_request',
+    'POLL': 'poll',
+    'STATUS': 'status',
+    'UPDATE': 'update',
+    'ADMIN_SIGN_UP': 'admin.sign_up',
+    'ADMIN_REPORT': 'admin.report',
+  };
+  
+  const type = typeMap[notification.type] || 'mention';
+  
+  // Map account (actor)
+  const account: Account = mapGraphQLToAccount(notification.actor || notification.account);
+  
+  // Map status if present
+  const status: Status | null = notification.object ? mapGraphQLToStatus(notification.object) : null;
+  
+  return {
+    id: notification.id,
+    type,
+    created_at: notification.createdAt || notification.created_at || new Date().toISOString(),
+    account,
+    status: status || undefined,
+  };
+}
+
+function mapGraphQLToAccount(actor: any): Account {
+  if (!actor) {
+    return {
+      id: 'unknown',
+      username: 'unknown',
+      acct: 'unknown',
+      display_name: 'Unknown',
+      avatar: '',
+      header: '',
+    } as Account;
+  }
+
+  return {
+    id: actor.id,
+    username: actor.preferredUsername || actor.username,
+    acct: actor.webfinger || `${actor.preferredUsername}@${new URL(actor.id).hostname}`,
+    display_name: actor.name || actor.preferredUsername,
+    locked: actor.manuallyApprovesFollowers || false,
+    bot: actor.type === 'Service',
+    created_at: actor.published || new Date().toISOString(),
+    note: actor.summary || '',
+    url: actor.url || actor.id,
+    avatar: actor.icon?.url || '',
+    avatar_static: actor.icon?.url || '',
+    header: actor.image?.url || '',
+    header_static: actor.image?.url || '',
+    followers_count: actor.followers?.totalCount || 0,
+    following_count: actor.following?.totalCount || 0,
+    statuses_count: actor.outbox?.totalCount || 0,
+    last_status_at: null,
+    emojis: [],
+    fields: (actor.attachment || [])
+      .filter((a: any) => a.type === 'PropertyValue')
+      .map((a: any) => ({
+        name: a.name,
+        value: a.value,
+        verified_at: null,
+      })),
+    discoverable: true,
+    group: false,
+  } as Account;
+}
+
+function mapGraphQLToStatus(obj: any): Status {
+  return {
+    id: obj.id,
+    uri: obj.id,
+    url: obj.id,
+    created_at: obj.published || obj.createdAt || new Date().toISOString(),
+    account: mapGraphQLToAccount(obj.attributedTo || obj.author),
+    content: obj.content || '',
+    visibility: (obj.visibility?.toLowerCase() || 'public') as any,
+    sensitive: obj.sensitive ?? false,
+    spoiler_text: obj.summary ?? obj.spoilerText ?? '',
+    media_attachments: (obj.attachments || []).map((a: any) => mapGraphQLMediaToAttachment(a)),
+    mentions: [],
+    tags: [],
+    emojis: [],
+    reblogs_count: obj.shares?.totalCount || obj.sharesCount || 0,
+    favourites_count: obj.likes?.totalCount || obj.likesCount || 0,
+    replies_count: obj.replies?.totalCount || obj.repliesCount || 0,
+    reblogged: obj.userInteractions?.shared || false,
+    favourited: obj.userInteractions?.liked || false,
+    bookmarked: obj.userInteractions?.bookmarked || false,
+    pinned: obj.userInteractions?.pinned || false,
+    reblog: obj.shareOf ? mapGraphQLToStatus(obj.shareOf) : null,
+    in_reply_to_id: obj.inReplyTo?.id || null,
+    in_reply_to_account_id: null,
+    application: null as any,
+    language: obj.language || null,
+    muted: false,
+    poll: null,
+    card: null,
+    edited_at: obj.updated || null,
+  };
+}
+
 // Load notifications
 export async function loadNotifications(reset = false) {
   if (isLoadingNotifications$.get()) return;
@@ -76,31 +197,37 @@ export async function loadNotifications(reset = false) {
   notificationsError$.set(null);
   
   try {
-    const client = getClient();
-    const params: any = { limit: 20 };
+    const adapter = await getGraphQLAdapter();
     
-    if (!reset && lastNotificationId$.get()) {
-      params.max_id = lastNotificationId$.get();
-    }
+    const variables: any = { 
+      first: 20,
+      after: reset ? undefined : endCursor$.get(),
+    };
     
-    const newNotifications = await client.getNotifications(params);
+    const response = await adapter.fetchNotifications(variables);
     
-    if (newNotifications.length < 20) {
+    const newNotifications = (response?.edges || [])
+      .map((edge: any) => mapGraphQLToNotification(edge.node));
+    
+    const pageInfo = response?.pageInfo;
+    
+    if (!pageInfo?.hasNextPage) {
       hasMoreNotifications$.set(false);
     }
     
-    if (newNotifications.length > 0) {
-      lastNotificationId$.set(newNotifications[newNotifications.length - 1].id);
+    if (pageInfo?.endCursor) {
+      endCursor$.set(pageInfo.endCursor);
     }
     
     // Add to store
     const notificationsMap = reset ? {} : { ...notifications$.get() };
-    newNotifications.forEach(notification => {
+    newNotifications.forEach((notification: Notification) => {
       notificationsMap[notification.id] = notification;
     });
     
     notifications$.set(notificationsMap);
   } catch (error) {
+    console.error('[Notifications] Error loading notifications:', error);
     notificationsError$.set(error instanceof Error ? error.message : 'Failed to load notifications');
   } finally {
     isLoadingNotifications$.set(false);
@@ -110,11 +237,13 @@ export async function loadNotifications(reset = false) {
 // Clear all notifications
 export async function clearAllNotifications() {
   try {
-    const client = getClient();
-    await client.clearNotifications();
+    const adapter = await getGraphQLAdapter();
+    await adapter.clearNotifications();
     
     // Clear local state
     notifications$.set({});
+    endCursor$.set(null);
+    hasMoreNotifications$.set(true);
   } catch (error) {
     console.error('Failed to clear all notifications:', error);
   }
@@ -123,8 +252,8 @@ export async function clearAllNotifications() {
 // Clear notification
 export async function dismissNotification(notificationId: string) {
   try {
-    const client = getClient();
-    await client.dismissNotification(notificationId);
+    const adapter = await getGraphQLAdapter();
+    await adapter.dismissNotification(notificationId);
     
     // Remove from local state
     const updatedNotifications = { ...notifications$.get() };
@@ -136,49 +265,56 @@ export async function dismissNotification(notificationId: string) {
 }
 
 // Real-time streaming
-let streamConnection: { close: () => void } | null = null;
+let streamConnection: Subscription | null = null;
 
 export async function startNotificationStream() {
   if (streamConnection) return;
   
   if (!authStore.currentUser) return;
   
-  const client = getClient();
-  streamConnection = await client.createStream('user', {}, {
-    onMessage: (event) => {
+  const adapter = await getGraphQLAdapter();
+  
+  streamConnection = adapter.subscribeToNotificationStream().subscribe({
+    next: (result: any) => {
       try {
-        // The event.type property is set by our WebSocket wrapper
-        // For SSE, we need to check the actual event type
-        const eventType = (event as any).type || event.type;
+        const update = result.data?.notificationStream;
+        if (!update) return;
         
-        if (eventType === 'notification') {
-          const notification: Notification = JSON.parse(event.data);
-          
-          // Add to store
-          notifications$.set({
-            ...notifications$.get(),
-            [notification.id]: notification
-          });
-          
-          // Trigger browser notification if enabled
-          if ('Notification' in window && Notification.permission === 'granted') {
-            showBrowserNotification(notification);
-          }
-        } else if (eventType === 'delete') {
-          const notificationId = JSON.parse(event.data);
-          dismissNotification(notificationId);
+        switch (update.type) {
+          case 'NEW':
+            if (update.notification) {
+              const notification = mapGraphQLToNotification(update.notification);
+              
+              // Add to store
+              notifications$.set({
+                ...notifications$.get(),
+                [notification.id]: notification
+              });
+              
+              // Trigger browser notification if enabled
+              if ('Notification' in window && Notification.permission === 'granted') {
+                showBrowserNotification(notification);
+              }
+            }
+            break;
+          case 'DELETE':
+            if (update.notificationId) {
+              dismissNotification(update.notificationId);
+            }
+            break;
         }
       } catch (error) {
         console.error('Failed to parse notification event:', error);
       }
     },
-    onError: (error) => {
+    error: (error: unknown) => {
       console.error('Notification stream error:', error);
       stopNotificationStream();
       // Retry after 5 seconds
       setTimeout(() => startNotificationStream(), 5000);
     },
-    onClose: () => {
+    complete: () => {
+      logDebug('Notification stream closed');
       streamConnection = null;
     }
   });
@@ -186,7 +322,7 @@ export async function startNotificationStream() {
 
 export function stopNotificationStream() {
   if (streamConnection) {
-    streamConnection.close();
+    streamConnection.unsubscribe();
     streamConnection = null;
   }
 }
@@ -251,6 +387,6 @@ export async function requestNotificationPermission() {
 export function cleanupNotifications() {
   stopNotificationStream();
   notifications$.set({});
-  lastNotificationId$.set(null);
+  endCursor$.set(null);
   hasMoreNotifications$.set(true);
 }

@@ -37,6 +37,7 @@ import {
   PreferencesSchema
 } from './schemas';
 import { WebSocketStream } from './websocket-stream';
+import { logDebug } from '@/lib/utils/logger';
 
 export class APIError extends Error {
   constructor(
@@ -223,22 +224,22 @@ export class MastodonClient {
     const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 second timeout
     
     // Prepare body
-    let body: any = undefined;
+    let requestBody: BodyInit | undefined;
     if (options.body) {
       if (options.body instanceof FormData) {
-        body = options.body;
+        requestBody = options.body;
         // Remove Content-Type header for FormData - browser will set it with boundary
         delete headers['Content-Type'];
       } else {
-        body = JSON.stringify(options.body);
+        requestBody = JSON.stringify(options.body);
       }
     }
-    
+
     try {
       const response = await fetch(url.toString(), {
         method,
         headers,
-        body,
+        body: requestBody,
         signal: options.signal || controller.signal
       });
       
@@ -452,9 +453,9 @@ export class MastodonClient {
 
   async favouriteStatus(id: string): Promise<Status> {
     const result = await this.request<Status>('POST', `/api/v1/statuses/${id}/favourite`);
-    console.log('[API Client] Favourite response:', { 
-      id: result.id, 
-      bookmarked: result.bookmarked, 
+    logDebug('[API Client] Favourite response:', {
+      id: result.id,
+      bookmarked: result.bookmarked,
       favourited: result.favourited,
       content: result.content?.substring(0, 50)
     });
@@ -463,9 +464,9 @@ export class MastodonClient {
 
   async unfavouriteStatus(id: string): Promise<Status> {
     const result = await this.request<Status>('POST', `/api/v1/statuses/${id}/unfavourite`);
-    console.log('[API Client] Unfavourite response:', { 
-      id: result.id, 
-      bookmarked: result.bookmarked, 
+    logDebug('[API Client] Unfavourite response:', {
+      id: result.id,
+      bookmarked: result.bookmarked,
       favourited: result.favourited,
       content: result.content?.substring(0, 50)
     });
@@ -474,9 +475,9 @@ export class MastodonClient {
 
   async bookmarkStatus(id: string): Promise<Status> {
     const result = await this.request<Status>('POST', `/api/v1/statuses/${id}/bookmark`);
-    console.log('[API Client] Bookmark response:', { 
-      id: result.id, 
-      bookmarked: result.bookmarked, 
+    logDebug('[API Client] Bookmark response:', {
+      id: result.id,
+      bookmarked: result.bookmarked,
       favourited: result.favourited,
       content: result.content?.substring(0, 50)
     });
@@ -485,9 +486,9 @@ export class MastodonClient {
 
   async unbookmarkStatus(id: string): Promise<Status> {
     const result = await this.request<Status>('POST', `/api/v1/statuses/${id}/unbookmark`);
-    console.log('[API Client] Unbookmark response:', { 
-      id: result.id, 
-      bookmarked: result.bookmarked, 
+    logDebug('[API Client] Unbookmark response:', {
+      id: result.id,
+      bookmarked: result.bookmarked,
       favourited: result.favourited,
       content: result.content?.substring(0, 50)
     });
@@ -555,9 +556,9 @@ export class MastodonClient {
   }
 
   async getAccountStatuses(id: string, params?: AccountStatusesParams): Promise<Status[]> {
-    console.log('[API Client] Getting account statuses for:', id);
+    logDebug('[API Client] Getting account statuses for:', id);
     const response = await this.request<Status[]>('GET', `/api/v1/accounts/${this.encodeAccountId(id)}/statuses`, { params: params as Record<string, unknown> });
-    console.log('[API Client] Account statuses response:', response);
+    logDebug('[API Client] Account statuses response:', response);
     return response;
   }
 
@@ -818,7 +819,7 @@ export class MastodonClient {
     
     if (wsUrl) {
       // Instance explicitly provides WebSocket URL, use it
-      console.log('[Streaming] Using WebSocket URL from instance:', wsUrl);
+      logDebug('[Streaming] Using WebSocket URL from instance:', wsUrl);
       
       // Get access token
       const accessToken = await this.getAccessToken();
@@ -859,12 +860,19 @@ export class MastodonClient {
         case 'user':
           eventSource = await this.streamUser();
           break;
-        case 'public':
-          eventSource = await this.streamPublic(params as any);
+        case 'public': {
+          const publicParams = {
+            local: params?.local === 'true',
+            only_media: params?.only_media === 'true'
+          };
+          eventSource = await this.streamPublic(publicParams);
           break;
+        }
         case 'hashtag':
           if (!params?.tag) throw new Error('Hashtag stream requires tag parameter');
-          eventSource = await this.streamHashtag(params.tag, params as any);
+          eventSource = await this.streamHashtag(params.tag, {
+            local: params.local === 'true'
+          });
           break;
         case 'list':
           if (!params?.list) throw new Error('List stream requires list parameter');
@@ -876,27 +884,23 @@ export class MastodonClient {
       
       // Add event listeners for SSE
       eventSource.addEventListener('update', (event) => {
-        // Create a synthetic event with type property for consistency
-        const syntheticEvent = new MessageEvent('message', {
+        const syntheticEvent = new MessageEvent('update', {
           data: event.data
         });
-        (syntheticEvent as any).type = 'update';
         handlers?.onMessage?.(syntheticEvent);
       });
       
       eventSource.addEventListener('delete', (event) => {
-        const syntheticEvent = new MessageEvent('message', {
+        const syntheticEvent = new MessageEvent('delete', {
           data: event.data
         });
-        (syntheticEvent as any).type = 'delete';
         handlers?.onMessage?.(syntheticEvent);
       });
       
       eventSource.addEventListener('notification', (event) => {
-        const syntheticEvent = new MessageEvent('message', {
+        const syntheticEvent = new MessageEvent('notification', {
           data: event.data
         });
-        (syntheticEvent as any).type = 'notification';
         handlers?.onMessage?.(syntheticEvent);
       });
       
@@ -940,10 +944,10 @@ export function getClient(instance?: string): MastodonClient {
   // Fallback to a default if still no instance
   currentInstance = currentInstance || 'lesser.host';
   
-  console.log('[API Client] Using instance:', currentInstance);
+  logDebug('[API Client] Using instance:', currentInstance);
   
   if (!globalClient || globalClient['instance'] !== currentInstance) {
-    console.log('[API Client] Creating new client for instance:', currentInstance);
+    logDebug('[API Client] Creating new client for instance:', currentInstance);
     globalClient = new MastodonClient(currentInstance);
   }
   return globalClient;

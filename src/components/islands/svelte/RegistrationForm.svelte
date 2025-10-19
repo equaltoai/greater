@@ -1,5 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { GCTextField } from '@/lib/components';
+  import Button from './Button.svelte';
   
   let username = $state('');
   let isLoading = $state(false);
@@ -205,17 +207,16 @@
       <label for="username" class="block text-sm font-medium text-text mb-2">
         Choose your username
       </label>
-      <input
+      <GCTextField
         id="username"
-        type="text"
         bind:value={username}
         placeholder="johndoe"
         required
         disabled={isLoading || !webAuthnSupported}
-        class="block w-full px-3 py-2 border border-border rounded-md bg-background text-text placeholder-text-muted focus:ring-2 focus:ring-primary focus:border-primary transition-colors disabled:opacity-50"
         autocomplete="username"
         autocapitalize="off"
         autocorrect="off"
+        class="w-full"
       />
       <p class="mt-1 text-xs text-text-muted">
         Your handle will be @{username || 'username'}@lesser.host
@@ -246,10 +247,12 @@
     </div>
   {/if}
   
-  <button
+  <Button
     type="submit"
     disabled={isLoading || !webAuthnSupported}
-    class="w-full py-3 px-4 bg-primary text-white font-medium rounded-md hover:bg-primary-hover focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+    variant="primary"
+    fullWidth
+    loading={isLoading}
   >
     {#if isLoading}
       {#if step === 'username'}
@@ -260,7 +263,7 @@
     {:else}
       Create account with passkey
     {/if}
-  </button>
+  </Button>
   
   <div class="text-center text-sm text-text-muted">
     Already have an account?

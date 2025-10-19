@@ -1,11 +1,18 @@
 /**
- * Timeline state management with Svelte 5
- * Handles home, local, and federated timelines with caching
+ * Timeline state management with Svelte 5 - GraphQL Edition
+ * Handles home, local, and federated timelines using Lesser GraphQL API
  */
 
 import type { Status, TimelineParams } from '@/types/mastodon';
-import { getClient } from '@/lib/api/client';
+import { getGraphQLAdapter } from '@/lib/api/graphql-client';
+import { mapGraphQLMediaToAttachment } from '@/lib/mappers/media';
+import { logDebug } from '@/lib/utils/logger';
 import { authStore } from './auth.svelte';
+
+// Subscription type from Apollo Client (provided via greater-components)
+type Subscription = {
+  unsubscribe: () => void;
+};
 
 export interface TimelineData {
   statuses: Status[];
@@ -14,8 +21,9 @@ export interface TimelineData {
   isLoadingMore: boolean;
   error: Error | null;
   lastFetch: number;
-  stream: EventSource | { close: () => void } | null;
+  stream: Subscription | null;
   gaps: TimelineGap[];
+  endCursor: string | null;
 }
 
 export interface TimelineGap {
@@ -26,6 +34,7 @@ export interface TimelineGap {
 export type TimelineType = 'home' | 'local' | 'federated';
 
 const CACHE_DURATION = 5 * 60 * 1000; // 5 minutes
+const DEFAULT_PAGE_SIZE = 20;
 
 const initialTimelineData: TimelineData = {
   statuses: [],
@@ -35,8 +44,128 @@ const initialTimelineData: TimelineData = {
   error: null,
   lastFetch: 0,
   stream: null,
-  gaps: []
+  gaps: [],
+  endCursor: null,
 };
+
+/**
+ * Map GraphQL timeline response to Mastodon-compatible Status objects
+ */
+function mapGraphQLToStatus(node: any): Status {
+  // Extract the object from the GraphQL structure
+  const obj = node.object || node;
+  
+  return {
+    id: obj.id,
+    uri: obj.id,
+    url: obj.id,
+    created_at: obj.published || obj.createdAt || new Date().toISOString(),
+    account: mapGraphQLToAccount(obj.attributedTo || obj.author),
+    content: obj.content || '',
+    visibility: (obj.visibility?.toLowerCase() || 'public') as any,
+    sensitive: obj.sensitive ?? false,
+    spoiler_text: obj.summary ?? obj.spoilerText ?? '',
+    media_attachments: (obj.attachments || []).map(mapGraphQLToMedia),
+    mentions: (obj.mentions || obj.tag?.filter((t: any) => t.type === 'Mention') || []).map(mapGraphQLToMention),
+    tags: (obj.hashtags || obj.tag?.filter((t: any) => t.type === 'Hashtag') || []).map(mapGraphQLToTag),
+    emojis: [],
+    reblogs_count: obj.shares?.totalCount || obj.sharesCount || 0,
+    favourites_count: obj.likes?.totalCount || obj.likesCount || 0,
+    replies_count: obj.replies?.totalCount || obj.repliesCount || 0,
+    reblogged: obj.userInteractions?.shared || false,
+    favourited: obj.userInteractions?.liked || false,
+    bookmarked: obj.userInteractions?.bookmarked || false,
+    pinned: obj.userInteractions?.pinned || false,
+    reblog: obj.shareOf ? mapGraphQLToStatus(obj.shareOf) : null,
+    in_reply_to_id: obj.inReplyTo?.id || null,
+    in_reply_to_account_id: null,
+    application: null as any,
+    language: obj.language || null,
+    muted: false,
+    poll: obj.poll ? mapGraphQLToPoll(obj.poll) : null,
+    card: null,
+    edited_at: obj.updated || null,
+  };
+}
+
+function mapGraphQLToAccount(actor: any): any {
+  if (!actor) {
+    return {
+      id: 'unknown',
+      username: 'unknown',
+      acct: 'unknown',
+      display_name: 'Unknown',
+      avatar: '',
+      header: '',
+    };
+  }
+
+  return {
+    id: actor.id,
+    username: actor.preferredUsername || actor.username,
+    acct: actor.webfinger || `${actor.preferredUsername}@${new URL(actor.id).hostname}`,
+    display_name: actor.name || actor.preferredUsername,
+    locked: actor.manuallyApprovesFollowers || false,
+    bot: actor.type === 'Service',
+    created_at: actor.published || new Date().toISOString(),
+    note: actor.summary || '',
+    url: actor.url || actor.id,
+    avatar: actor.icon?.url || '',
+    avatar_static: actor.icon?.url || '',
+    header: actor.image?.url || '',
+    header_static: actor.image?.url || '',
+    followers_count: actor.followers?.totalCount || 0,
+    following_count: actor.following?.totalCount || 0,
+    statuses_count: actor.outbox?.totalCount || 0,
+    last_status_at: null,
+    emojis: [],
+    fields: (actor.attachment || [])
+      .filter((a: any) => a.type === 'PropertyValue')
+      .map((a: any) => ({
+        name: a.name,
+        value: a.value,
+        verified_at: null,
+      })),
+  };
+}
+
+function mapGraphQLToMedia(attachment: any) {
+  return mapGraphQLMediaToAttachment(attachment);
+}
+
+function mapGraphQLToMention(mention: any): any {
+  return {
+    id: mention.href || mention.id,
+    username: mention.name?.replace('@', '') || '',
+    url: mention.href || mention.id,
+    acct: mention.name?.replace('@', '') || '',
+  };
+}
+
+function mapGraphQLToTag(tag: any): any {
+  return {
+    name: tag.name?.replace('#', '') || '',
+    url: tag.href || '',
+  };
+}
+
+function mapGraphQLToPoll(poll: any): any {
+  return {
+    id: poll.id,
+    expires_at: poll.endTime,
+    expired: new Date(poll.endTime) < new Date(),
+    multiple: poll.anyOf !== undefined, // anyOf = multiple choice
+    votes_count: poll.votersCount || 0,
+    voters_count: poll.votersCount || 0,
+    voted: poll.voted || false,
+    own_votes: poll.ownVotes || [],
+    options: (poll.oneOf || poll.anyOf || []).map((opt: any) => ({
+      title: opt.name,
+      votes_count: opt.replies?.totalCount || 0,
+    })),
+    emojis: [],
+  };
+}
 
 // Timeline state management with Svelte 5 runes
 class TimelineStore {
@@ -99,62 +228,77 @@ class TimelineStore {
     this.timelines[type] = { ...this.timelines[type], isLoading: true, error: null };
     
     try {
-      console.log('[Timeline Store] Loading timeline:', {
+      logDebug('[Timeline Store] Loading timeline:', {
         type,
         currentInstance: authStore.currentInstance,
         isAuthenticated: authStore.isAuthenticated,
         currentUser: authStore.currentUser?.username
       });
       
-      const client = getClient(authStore.currentInstance || undefined);
-      let statuses: Status[];
+      const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
+      let timelineResponse: any;
+      
+      // Determine pagination based on params
+      const pagination = {
+        first: params?.limit || DEFAULT_PAGE_SIZE,
+        after: params?.since_id ? undefined : timeline.endCursor,
+      };
       
       if (type.startsWith('list:')) {
         const listId = type.replace('list:', '');
-        statuses = await client.getListTimeline(listId, params);
+        timelineResponse = await adapter.fetchListTimeline(listId, pagination);
       } else {
         switch (type) {
           case 'home':
-            statuses = await client.getHomeTimeline(params);
+            timelineResponse = await adapter.fetchHomeTimeline(pagination);
             break;
           case 'local':
-            statuses = await client.getLocalTimeline(params);
+            timelineResponse = await adapter.fetchPublicTimeline(pagination, 'LOCAL');
             break;
           case 'federated':
-            statuses = await client.getPublicTimeline(params);
+            timelineResponse = await adapter.fetchPublicTimeline(pagination, 'PUBLIC');
             break;
           default:
             throw new Error(`Unknown timeline type: ${type}`);
         }
       }
       
-      console.log('[Timeline Store] Loaded statuses:', statuses.length);
-      console.log('[Timeline Store] First status:', statuses[0]);
-      console.log('[Timeline Store] All statuses:', statuses);
+      // Map GraphQL response to Status objects
+      const statuses: Status[] = (timelineResponse?.edges || [])
+        .map((edge: any) => mapGraphQLToStatus(edge.node));
+      
+      const pageInfo = timelineResponse?.pageInfo;
+      
+      logDebug('[Timeline Store] Loaded statuses:', statuses.length);
+      logDebug('[Timeline Store] First status:', statuses[0]);
+      logDebug('[Timeline Store] PageInfo:', pageInfo);
       
       const updatedTimeline = {
         ...this.timelines[type],
         statuses: params?.since_id 
           ? [...statuses, ...this.timelines[type].statuses]
           : statuses,
-        hasMore: statuses.length >= (params?.limit || 20),
+        hasMore: pageInfo?.hasNextPage || false,
+        endCursor: pageInfo?.endCursor || null,
         isLoading: false,
         lastFetch: now,
         error: null
       };
       
-      console.log('[Timeline Store] Setting timeline state:', {
+      logDebug('[Timeline Store] Setting timeline state:', {
         type,
         statusCount: updatedTimeline.statuses.length,
         isLoading: updatedTimeline.isLoading,
-        error: updatedTimeline.error
+        error: updatedTimeline.error,
+        hasMore: updatedTimeline.hasMore,
       });
-      
+
       this.timelines[type] = updatedTimeline;
       this.isLoading = false;
-      
-      console.log('[Timeline Store] Timeline state after update:', this.timelines[type]);
+
+      logDebug('[Timeline Store] Timeline state after update:', this.timelines[type]);
     } catch (error) {
+      console.error('[Timeline Store] Error loading timeline:', error);
       this.timelines[type] = {
         ...this.timelines[type],
         isLoading: false,
@@ -168,49 +312,54 @@ class TimelineStore {
   async loadMore(type: string): Promise<void> {
     const timeline = this.timelines[type];
     
-    if (!timeline || !timeline.hasMore || timeline.isLoadingMore || timeline.statuses.length === 0) {
+    if (!timeline || !timeline.hasMore || timeline.isLoadingMore) {
       return;
     }
-    
-    const lastStatus = timeline.statuses[timeline.statuses.length - 1];
     
     this.timelines[type] = { ...this.timelines[type], isLoadingMore: true };
     
     try {
-      const client = getClient(authStore.currentInstance || undefined);
-      let statuses: Status[];
+      const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
+      let timelineResponse: any;
       
-      const params: TimelineParams = {
-        max_id: lastStatus.id,
-        limit: 20
+      const pagination = {
+        first: DEFAULT_PAGE_SIZE,
+        after: timeline.endCursor,
       };
       
       if (type.startsWith('list:')) {
         const listId = type.replace('list:', '');
-        statuses = await client.getListTimeline(listId, params);
+        timelineResponse = await adapter.fetchListTimeline(listId, pagination);
       } else {
         switch (type) {
           case 'home':
-            statuses = await client.getHomeTimeline(params);
+            timelineResponse = await adapter.fetchHomeTimeline(pagination);
             break;
           case 'local':
-            statuses = await client.getLocalTimeline(params);
+            timelineResponse = await adapter.fetchPublicTimeline(pagination, 'LOCAL');
             break;
           case 'federated':
-            statuses = await client.getPublicTimeline(params);
+            timelineResponse = await adapter.fetchPublicTimeline(pagination, 'PUBLIC');
             break;
           default:
             throw new Error(`Unknown timeline type: ${type}`);
         }
       }
       
+      const statuses: Status[] = (timelineResponse?.edges || [])
+        .map((edge: any) => mapGraphQLToStatus(edge.node));
+      
+      const pageInfo = timelineResponse?.pageInfo;
+      
       this.timelines[type] = {
         ...this.timelines[type],
         statuses: [...this.timelines[type].statuses, ...statuses],
-        hasMore: statuses.length >= 20,
+        hasMore: pageInfo?.hasNextPage || false,
+        endCursor: pageInfo?.endCursor || null,
         isLoadingMore: false
       };
     } catch (error) {
+      console.error('[Timeline Store] Error loading more:', error);
       this.timelines[type] = {
         ...this.timelines[type],
         isLoadingMore: false,
@@ -226,11 +375,11 @@ class TimelineStore {
       return this.loadTimeline(type);
     }
     
-    const firstStatus = timeline.statuses[0];
-    
     try {
-      await this.loadTimeline(type, { since_id: firstStatus.id });
+      // Force refresh by clearing cache
+      await this.loadTimeline(type, { limit: DEFAULT_PAGE_SIZE });
     } catch (error) {
+      console.error('[Timeline Store] Error refreshing timeline:', error);
       // Failed to refresh timeline - keep existing data
     }
   }
@@ -245,7 +394,7 @@ class TimelineStore {
   }
 
   updateStatus(statusId: string, updates: Partial<Status>): void {
-    console.log('[Timeline Store] Updating status:', { statusId, updates });
+    logDebug('[Timeline Store] Updating status:', { statusId, updates });
     
     // Update in all timelines
     Object.entries(this.timelines).forEach(([type, timeline]) => {
@@ -254,14 +403,12 @@ class TimelineStore {
         statuses: timeline.statuses.map(status => {
           if (status.id === statusId) {
             const updated = { ...status, ...updates };
-            console.log('[Timeline Store] Status updated:', { 
+            logDebug('[Timeline Store] Status updated:', { 
               id: statusId, 
               wasFavorited: status.favourited, 
               isFavorited: updated.favourited,
               wasBookmarked: status.bookmarked,
               isBookmarked: updated.bookmarked,
-              hadContent: !!status.content,
-              hasContent: !!updated.content
             });
             return updated;
           }
@@ -295,7 +442,7 @@ class TimelineStore {
   }
 
   async favoriteStatus(statusId: string): Promise<void> {
-    const client = getClient(authStore.currentInstance || undefined);
+    const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
     
     // Find the status in any timeline
     let originalStatus: Status | undefined;
@@ -311,11 +458,11 @@ class TimelineStore {
     });
     
     try {
-      const status = await client.favouriteStatus(statusId);
-      // Only update the favorite-related fields, not the entire status
+      const response = await adapter.likeObject(statusId) as any;
+      // Update with server response
       this.updateStatus(statusId, {
-        favourited: status.favourited,
-        favourites_count: status.favourites_count
+        favourited: response.userInteractions?.liked || true,
+        favourites_count: response.likes?.totalCount || response.likesCount || (originalStatus?.favourites_count || 0) + 1
       });
     } catch (error) {
       // Revert on error
@@ -328,7 +475,7 @@ class TimelineStore {
   }
 
   async unfavoriteStatus(statusId: string): Promise<void> {
-    const client = getClient(authStore.currentInstance || undefined);
+    const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
     
     // Find the status in any timeline
     let originalStatus: Status | undefined;
@@ -344,11 +491,11 @@ class TimelineStore {
     });
     
     try {
-      const status = await client.unfavouriteStatus(statusId);
-      // Only update the favorite-related fields, not the entire status
+      const response = await adapter.unlikeObject(statusId) as any;
+      // Update with server response
       this.updateStatus(statusId, {
-        favourited: status.favourited,
-        favourites_count: status.favourites_count
+        favourited: response.userInteractions?.liked || false,
+        favourites_count: response.likes?.totalCount || response.likesCount || Math.max(0, (originalStatus?.favourites_count || 1) - 1)
       });
     } catch (error) {
       // Revert on error
@@ -361,7 +508,7 @@ class TimelineStore {
   }
 
   async reblogStatus(statusId: string): Promise<void> {
-    const client = getClient(authStore.currentInstance || undefined);
+    const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
     
     // Find the status in any timeline
     let originalStatus: Status | undefined;
@@ -377,11 +524,11 @@ class TimelineStore {
     });
     
     try {
-      const status = await client.reblogStatus(statusId);
-      // Only update the reblog-related fields, not the entire status
+      const response = await adapter.shareObject(statusId) as any;
+      // Update with server response
       this.updateStatus(statusId, {
-        reblogged: status.reblogged,
-        reblogs_count: status.reblogs_count
+        reblogged: response.userInteractions?.shared || true,
+        reblogs_count: response.shares?.totalCount || response.sharesCount || (originalStatus?.reblogs_count || 0) + 1
       });
     } catch (error) {
       // Revert on error
@@ -394,7 +541,7 @@ class TimelineStore {
   }
 
   async unreblogStatus(statusId: string): Promise<void> {
-    const client = getClient(authStore.currentInstance || undefined);
+    const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
     
     // Find the status in any timeline
     let originalStatus: Status | undefined;
@@ -410,11 +557,11 @@ class TimelineStore {
     });
     
     try {
-      const status = await client.unreblogStatus(statusId);
-      // Only update the reblog-related fields, not the entire status
+      const response = await adapter.unshareObject(statusId) as any;
+      // Update with server response
       this.updateStatus(statusId, {
-        reblogged: status.reblogged,
-        reblogs_count: status.reblogs_count
+        reblogged: response.userInteractions?.shared || false,
+        reblogs_count: response.shares?.totalCount || response.sharesCount || Math.max(0, (originalStatus?.reblogs_count || 1) - 1)
       });
     } catch (error) {
       // Revert on error
@@ -427,16 +574,16 @@ class TimelineStore {
   }
 
   async bookmarkStatus(statusId: string): Promise<void> {
-    const client = getClient(authStore.currentInstance || undefined);
+    const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
     
     // Optimistic update
     this.updateStatus(statusId, { bookmarked: true });
     
     try {
-      const status = await client.bookmarkStatus(statusId);
-      // Only update the bookmark field, not the entire status
+      const response = await adapter.bookmarkObject(statusId) as any;
+      // Update with server response
       this.updateStatus(statusId, {
-        bookmarked: status.bookmarked
+        bookmarked: response.userInteractions?.bookmarked || true
       });
     } catch (error) {
       // Revert on error
@@ -446,16 +593,16 @@ class TimelineStore {
   }
 
   async unbookmarkStatus(statusId: string): Promise<void> {
-    const client = getClient(authStore.currentInstance || undefined);
+    const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
     
     // Optimistic update
     this.updateStatus(statusId, { bookmarked: false });
     
     try {
-      const status = await client.unbookmarkStatus(statusId);
-      // Only update the bookmark field, not the entire status
+      const response = await adapter.unbookmarkObject(statusId) as any;
+      // Update with server response
       this.updateStatus(statusId, {
-        bookmarked: status.bookmarked
+        bookmarked: response.userInteractions?.bookmarked || false
       });
     } catch (error) {
       // Revert on error
@@ -465,10 +612,10 @@ class TimelineStore {
   }
 
   async deleteStatus(statusId: string): Promise<void> {
-    const client = getClient();
+    const adapter = await getGraphQLAdapter(authStore.currentInstance || undefined);
     
     try {
-      await client.deleteStatus(statusId);
+      await adapter.deleteObject(statusId);
       // Remove from all timelines
       this.removeStatus(statusId);
     } catch (error) {
@@ -484,71 +631,87 @@ class TimelineStore {
       return;
     }
     
-    const client = getClient();
-    let streamType: 'user' | 'public' | 'hashtag' | 'list';
-    let params: Record<string, string> = {};
+    const adapter = await getGraphQLAdapter();
+    
+    // Determine timeline type for subscription
+    let timelineType: 'HOME' | 'PUBLIC' | 'LOCAL' | 'DIRECT' | 'HASHTAG' | 'LIST' = 'HOME';
+    let listId: string | undefined;
     
     if (type.startsWith('list:')) {
-      const listId = type.replace('list:', '');
-      streamType = 'list';
-      params.list = listId;
+      timelineType = 'LIST';
+      listId = type.replace('list:', '');
     } else {
       switch (type) {
         case 'home':
-          streamType = 'user';
+          timelineType = 'HOME';
           break;
         case 'local':
-          streamType = 'public';
-          params.local = 'true';
+          timelineType = 'LOCAL';
           break;
         case 'federated':
-          streamType = 'public';
+          timelineType = 'PUBLIC';
           break;
         default:
-          throw new Error(`Unknown timeline type for streaming: ${type}`);
+          console.warn(`[Timeline Stream] Unknown timeline type for streaming: ${type}`);
+          return;
       }
     }
     
-    const stream = await client.createStream(streamType, params, {
-      onMessage: (event) => {
+    // Subscribe to timeline updates
+    const subscription = adapter.subscribeToTimelineUpdates({
+      type: timelineType,
+      listId,
+    }).subscribe({
+      next: (result: any) => {
         try {
-          // The event.type property is set by our WebSocket wrapper
-          // For SSE, we need to check the actual event type
-          const eventType = (event as any).type || event.type;
+          const update = result.data?.timelineUpdate;
+          if (!update) return;
           
-          if (eventType === 'update') {
-            const status = JSON.parse(event.data) as Status;
-            this.prependStatus(type, status);
-          } else if (eventType === 'delete') {
-            const statusId = event.data;
-            this.removeStatus(statusId);
+          switch (update.type) {
+            case 'NEW_OBJECT':
+              if (update.object) {
+                const status = mapGraphQLToStatus(update.object);
+                this.prependStatus(type, status);
+              }
+              break;
+            case 'DELETE':
+              if (update.deletedObjectId) {
+                this.removeStatus(update.deletedObjectId);
+              }
+              break;
+            case 'UPDATE':
+              if (update.object) {
+                const status = mapGraphQLToStatus(update.object);
+                this.updateStatus(status.id, status);
+              }
+              break;
           }
         } catch (error) {
-          // Failed to parse streaming update - skip this update
-          console.error('[Timeline Stream] Failed to parse event:', error);
+          console.error('[Timeline Stream] Failed to process update:', error);
         }
       },
-      onError: (error) => {
+      error: (error: any) => {
         console.error('[Timeline Stream] Error:', error);
+        this.timelines[type] = { ...this.timelines[type], stream: null };
         // Reconnect after delay
         setTimeout(() => {
           this.connectStream(type);
         }, 5000);
       },
-      onClose: () => {
-        console.log('[Timeline Stream] Connection closed');
+      complete: () => {
+        logDebug('[Timeline Stream] Connection closed');
         this.timelines[type] = { ...this.timelines[type], stream: null };
       }
     });
     
-    this.timelines[type] = { ...this.timelines[type], stream };
+    this.timelines[type] = { ...this.timelines[type], stream: subscription };
   }
 
   disconnectStream(type: string): void {
     const timeline = this.timelines[type];
     
     if (timeline?.stream) {
-      timeline.stream.close();
+      timeline.stream.unsubscribe();
       this.timelines[type] = { ...this.timelines[type], stream: null };
     }
   }
