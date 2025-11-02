@@ -1,11 +1,10 @@
 import { execSync } from 'child_process';
-import { writeFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
+import { writeFileSync, existsSync } from 'fs';
 import { resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import * as pulumi from '@pulumi/pulumi';
 import * as cloudflare from '@pulumi/cloudflare';
 import dotenv from 'dotenv';
-import { spawn } from 'child_process';
 
 // Load environment variables
 dotenv.config();
@@ -131,7 +130,7 @@ class Deployer {
       
       // Run update
       console.log('📈 Updating infrastructure...');
-      const upResult = await stack.up({ 
+      await stack.up({ 
         onOutput: (msg) => process.stdout.write(msg),
         color: 'always'
       });
@@ -156,7 +155,7 @@ class Deployer {
         await stack.setConfig('cloudflare:apiToken', { value: this.config.apiToken, secret: true });
         
         // Run update
-        const upResult = await stack.up({ 
+        await stack.up({ 
           onOutput: (msg) => process.stdout.write(msg),
           color: 'always'
         });
@@ -245,8 +244,8 @@ class Deployer {
     await stack.setConfig('cloudflare:apiToken', { value: this.config.apiToken, secret: true });
     
     // Run the update
-    const upResult = await stack.up({ onOutput: console.log });
-    return upResult.outputs;
+    const { outputs } = await stack.up({ onOutput: console.log });
+    return outputs;
   }
 
   private async generateWranglerConfig(outputs: any) {

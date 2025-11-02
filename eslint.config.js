@@ -24,6 +24,7 @@ export default [
       'scripts/**',
       'infra/**',
       'infrastructure/**',
+      'notes/**',
       'migration-examples/**',
       'src/pages/**',
       'src/lib/stores/**',

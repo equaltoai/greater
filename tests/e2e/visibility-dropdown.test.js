@@ -4,7 +4,6 @@ describe('Visibility Dropdown', () => {
   let browser;
   let page;
   const baseUrl = 'https://dev.greater.website';
-  const apiUrl = 'https://lesser.host';
 
   beforeAll(async () => {
     browser = await puppeteer.launch({

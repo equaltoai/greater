@@ -3,7 +3,7 @@
  * Persisted to localStorage
  */
 
-import { persistentAtom, persistentMap } from '@nanostores/persistent';
+import { persistentAtom } from '@nanostores/persistent';
 import { computed } from 'nanostores';
 
 // Theme preference

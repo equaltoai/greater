@@ -641,7 +641,7 @@ class TimelineStore {
       const adapter = await getGraphQLAdapter(authStore.currentInstance);
     
     // Determine timeline type for subscription
-    let timelineType: 'HOME' | 'PUBLIC' | 'LOCAL' | 'DIRECT' | 'HASHTAG' | 'LIST' = 'HOME';
+    let timelineType: 'HOME' | 'PUBLIC' | 'LOCAL' | 'DIRECT' | 'HASHTAG' | 'LIST';
     let listId: string | undefined;
     
     if (type.startsWith('list:')) {

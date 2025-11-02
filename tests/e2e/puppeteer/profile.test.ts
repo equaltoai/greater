@@ -39,6 +39,7 @@ describe.skip('Profile and Posting Tests', () => {
       expect(displayName).toBeTruthy();
       expect(username).toBeTruthy();
       expect(avatar).toBeTruthy();
+      expect(bio).toBeTruthy();
       
       // Get profile info
       const displayNameText = await displayName?.evaluate(el => el.textContent);
@@ -245,7 +246,10 @@ describe.skip('Profile and Posting Tests', () => {
       // Test favorite
       const favoriteButton = await firstStatus?.$('[data-testid="favorite-button"]');
       const initialFavCount = await firstStatus?.$('[data-testid="favorite-count"]');
-      const initialCount = await initialFavCount?.evaluate(el => el.textContent || '0');
+      const initialCountText = await initialFavCount?.evaluate(el => el.textContent || '0');
+      if (initialCountText) {
+        console.log('Initial favorite count:', initialCountText);
+      }
       
       if (favoriteButton) {
         await favoriteButton.click();

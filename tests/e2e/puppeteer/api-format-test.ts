@@ -1,7 +1,6 @@
 #!/usr/bin/env node
 
 import puppeteer from 'puppeteer';
-import { testConfig } from './config';
 
 async function testAPIFormats() {
   console.log('🔍 Testing Lesser API Response Formats\n');

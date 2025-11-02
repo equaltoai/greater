@@ -8,8 +8,11 @@ import type { Notification, NotificationType, Status, Account } from '@/types/ma
 import { getGraphQLAdapter } from '@/lib/api/graphql-client';
 import { logDebug } from '@/lib/utils/logger';
 import { mapGraphQLMediaToAttachment } from '@/lib/mappers/media';
-import { stripHtmlSafe } from '@/lib/utils/sanitize';
 import { authStore } from './auth.svelte';
+import { stripHtmlSafe } from '@/lib/utils/sanitize';
+
+const supportsBrowserNotifications = (): boolean =>
+  typeof window !== 'undefined' && typeof window.Notification === 'function';
 
 // Subscription type from Apollo Client (provided via greater-components)
 type Subscription = {
@@ -293,7 +296,7 @@ export async function startNotificationStream() {
               });
               
               // Trigger browser notification if enabled
-              if ('Notification' in window && Notification.permission === 'granted') {
+              if (supportsBrowserNotifications() && window.Notification.permission === 'granted') {
                 showBrowserNotification(notification);
               }
             }
@@ -330,6 +333,10 @@ export function stopNotificationStream() {
 
 // Browser notifications
 function showBrowserNotification(notification: Notification) {
+  if (!supportsBrowserNotifications()) {
+    return;
+  }
+  
   let title = '';
   let body = '';
   let icon = notification.account?.avatar;
@@ -366,7 +373,7 @@ function showBrowserNotification(notification: Notification) {
   }
   
   if (title) {
-    new Notification(title, {
+    new window.Notification(title, {
       body: body.length > 100 ? body.substring(0, 100) + '...' : body,
       icon,
       tag: notification.id,
@@ -377,8 +384,8 @@ function showBrowserNotification(notification: Notification) {
 
 // Request permission for browser notifications
 export async function requestNotificationPermission() {
-  if ('Notification' in window && Notification.permission === 'default') {
-    const permission = await Notification.requestPermission();
+  if (supportsBrowserNotifications() && window.Notification.permission === 'default') {
+    const permission = await window.Notification.requestPermission();
     return permission === 'granted';
   }
   return false;

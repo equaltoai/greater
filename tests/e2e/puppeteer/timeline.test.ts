@@ -160,6 +160,14 @@ describe.skip('Timeline Integration Tests', () => {
         const count = await replyCount.evaluate(el => el.textContent);
         console.log('Reply count:', count);
       }
+      if (boostCount) {
+        const count = await boostCount.evaluate(el => el.textContent);
+        console.log('Boost count:', count);
+      }
+      if (favoriteCount) {
+        const count = await favoriteCount.evaluate(el => el.textContent);
+        console.log('Favorite count:', count);
+      }
     });
 
     it('should handle timeline errors gracefully', async () => {

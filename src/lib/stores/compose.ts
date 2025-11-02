@@ -3,8 +3,8 @@
  * Handles drafts, media uploads, and post creation
  */
 
-import { atom, map, computed } from 'nanostores';
-import { persistentAtom, persistentMap } from '@nanostores/persistent';
+import { atom, computed } from 'nanostores';
+import { persistentAtom } from '@nanostores/persistent';
 import type { CreateStatusParams, MediaAttachment, CreatePollParams, Status } from '@/types/mastodon';
 import { getGraphQLAdapter, uploadMediaAsset } from '@/lib/api/graphql-client';
 import type { MediaCategory } from '@/lib/api/graphql-client';

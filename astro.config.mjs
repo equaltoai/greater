@@ -4,8 +4,6 @@ import svelte from '@astrojs/svelte';
 import tailwindcss from '@tailwindcss/vite';
 import { visualizer } from 'rollup-plugin-visualizer';
 
-import sentry from '@sentry/astro';
-
 // https://astro.build/config
 export default defineConfig({
   site: import.meta.env.PUBLIC_APP_URL || 'https://localhost:4321',
