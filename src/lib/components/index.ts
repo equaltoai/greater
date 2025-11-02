@@ -15,16 +15,22 @@
 // - GraphQLCache from '@equaltoai/greater-components/adapters/graphql/cache.js'
 
 // Re-export primitives directly where signatures match
-export { default as GCButton } from '@equaltoai/greater-components/primitives/components/Button';
-export { default as GCModal } from '@equaltoai/greater-components/primitives/components/Modal';
-export { default as GCTextField } from '@equaltoai/greater-components/primitives/components/TextField';
-export { default as GCAvatar } from '@equaltoai/greater-components/primitives/components/Avatar';
-export { default as GCTooltip } from '@equaltoai/greater-components/primitives/components/Tooltip';
-export { default as GCSkeleton } from '@equaltoai/greater-components/primitives/components/Skeleton';
-export { default as GCMenu } from '@equaltoai/greater-components/primitives/components/Menu';
-export { default as GCTabs } from '@equaltoai/greater-components/primitives/components/Tabs';
-export { default as GCThemeProvider } from '@equaltoai/greater-components/primitives/components/ThemeProvider';
-export { default as GCThemeSwitcher } from '@equaltoai/greater-components/primitives/components/ThemeSwitcher';
+// Note: The .svelte extension is added by the package exports mapping
+export { default as GCButton } from '@equaltoai/greater-components/primitives/Button';
+export { default as GCModal } from '@equaltoai/greater-components/primitives/Modal';
+export { default as GCTextField } from '@equaltoai/greater-components/primitives/TextField';
+export { default as GCTextArea } from '@equaltoai/greater-components/primitives/TextArea';
+export { default as GCSelect } from '@equaltoai/greater-components/primitives/Select';
+export { default as GCCheckbox } from '@equaltoai/greater-components/primitives/Checkbox';
+export { default as GCSwitch } from '@equaltoai/greater-components/primitives/Switch';
+export { default as GCFileUpload } from '@equaltoai/greater-components/primitives/FileUpload';
+export { default as GCAvatar } from '@equaltoai/greater-components/primitives/Avatar';
+export { default as GCTooltip } from '@equaltoai/greater-components/primitives/Tooltip';
+export { default as GCSkeleton } from '@equaltoai/greater-components/primitives/Skeleton';
+export { default as GCMenu } from '@equaltoai/greater-components/primitives/Menu';
+export { default as GCTabs } from '@equaltoai/greater-components/primitives/Tabs';
+export { default as GCThemeProvider } from '@equaltoai/greater-components/primitives/ThemeProvider';
+export { default as GCThemeSwitcher } from '@equaltoai/greater-components/primitives/ThemeSwitcher';
 
 /**
  * TODO: Create adapter wrappers for components with signature mismatches

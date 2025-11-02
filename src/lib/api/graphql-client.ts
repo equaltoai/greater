@@ -15,7 +15,9 @@ import {
   type MediaCategory,
 } from '@equaltoai/greater-components/adapters';
 import { secureAuthClient } from '@/lib/auth/secure-client';
+import { authStore } from '@/lib/stores/auth.svelte';
 import { logDebug } from '@/lib/utils/logger';
+import { ensureGraphQLWebSocketCompatibility } from './graphql-ws-patch';
 
 type GraphQLEndpoints = { http: string; ws: string };
 
@@ -27,8 +29,8 @@ declare global {
 
 // GraphQL endpoint configuration
 // These can be overridden via environment variables in production
-const DEFAULT_HTTP_ENDPOINT = 'https://lesser.host/graphql';
-const DEFAULT_WS_ENDPOINT = 'wss://lesser.host/graphql';
+const DEFAULT_HTTP_ENDPOINT = 'https://dev.lesser.host/api/graphql';
+const DEFAULT_WS_ENDPOINT = 'wss://graphql-ws.dev.lesser.host';
 
 /**
  * Get GraphQL endpoints from environment or defaults
@@ -58,10 +60,38 @@ let currentToken: string | null = null;
  * and reuses the existing one otherwise.
  */
 export async function getGraphQLAdapter(instance?: string): Promise<LesserGraphQLAdapter> {
-  // Get current auth state
-  const authInstance = instance || (typeof window !== 'undefined' ? localStorage.getItem('current-instance') : null);
-  const token = authInstance ? await secureAuthClient.getToken(authInstance) : null;
+  ensureGraphQLWebSocketCompatibility();
+
+  // Ensure authStore is initialized before accessing it
+  if (typeof window !== 'undefined') {
+    authStore.initialize();
+  }
+
+  // Get current auth state - use authStore instead of localStorage directly
+  const authInstance = instance || (typeof window !== 'undefined' ? authStore.currentInstance : null);
+  
+  if (!authInstance) {
+    logDebug('[GraphQL Client] No instance available:', {
+      providedInstance: instance,
+      authStoreInstance: typeof window !== 'undefined' ? authStore.currentInstance : null,
+      isAuthenticated: typeof window !== 'undefined' ? authStore.isAuthenticated : false,
+    });
+    throw new Error('[GraphQL Client] Cannot create adapter without instance. Please ensure you are logged in.');
+  }
+  
+  const token = await secureAuthClient.getToken(authInstance);
   const tokenString = token?.access_token || null;
+
+  // CRITICAL: GraphQL adapter requires a token for WebSocket subscriptions
+  // Don't create adapter if we don't have authentication
+  if (!tokenString) {
+    logDebug('[GraphQL Client] No token available:', {
+      instance: authInstance,
+      hasToken: Boolean(token),
+      tokenKeys: token ? Object.keys(token) : [],
+    });
+    throw new Error('[GraphQL Client] Cannot create adapter without authentication token');
+  }
 
   // Check if we need to create a new adapter
   const needsNewAdapter = 
@@ -79,17 +109,20 @@ export async function getGraphQLAdapter(instance?: string): Promise<LesserGraphQ
     const endpoints = getGraphQLEndpoints();
     
     // Build instance-specific endpoints if we have an instance
+    // Note: authInstance already includes the protocol (https://)
     const httpEndpoint = authInstance 
-      ? `https://${authInstance}/graphql`
+      ? `${authInstance}/api/graphql`
       : endpoints.http;
+    
+    // WebSocket uses graphql-ws subdomain for Lesser instances
     const wsEndpoint = authInstance
-      ? `wss://${authInstance}/graphql`
+      ? `wss://graphql-ws.${authInstance.replace('https://', '')}`
       : endpoints.ws;
 
     const config: LesserGraphQLAdapterConfig = {
       httpEndpoint,
       wsEndpoint,
-      token: tokenString || undefined,
+      token: tokenString,
       debug: import.meta.env.DEV,
       enableRetry: true,
       maxRetries: 3,
@@ -201,7 +234,33 @@ export async function uploadMediaAsset(params: UploadMediaParams): Promise<Uploa
     mediaType: rest.mediaType ?? null,
   };
 
-  return adapter.uploadMedia(normalizedInput);
+  // Use type assertion to handle readonly arrays and missing properties from GraphQL
+  const result = await adapter.uploadMedia(normalizedInput);
+  return result as UploadMediaPayload;
+}
+
+/**
+ * Fetch hashtag timeline
+ * Wrapper for Lesser's hashtagTimeline query
+ */
+export async function fetchHashtagTimeline(
+  hashtag: string,
+  options?: { first?: number; after?: string }
+) {
+  const adapter = await getGraphQLAdapter();
+  return adapter.fetchHashtagTimeline(hashtag, {
+    first: options?.first ?? 20,
+    after: options?.after,
+  });
+}
+
+/**
+ * Fetch thread context (ancestors and descendants)
+ * Wrapper for Lesser's threadContext query
+ */
+export async function fetchThreadContext(noteId: string) {
+  const adapter = await getGraphQLAdapter();
+  return adapter.getThreadContext(noteId);
 }
 
 // Export types for convenience

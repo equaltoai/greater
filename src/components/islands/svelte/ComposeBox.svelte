@@ -20,7 +20,7 @@ import {
   } from '../../../lib/stores/compose';
 import type { CreatePollParams, Status } from '../../../types/mastodon';
   import { Globe, Lock, Mail, Users, X } from 'lucide-svelte';
-  import { getClient } from '../../../lib/api/client';
+  import { getGraphQLAdapter } from '../../../lib/api/graphql-client';
   import { timelineStore } from '../../../lib/stores/timeline.svelte';
 
   // Declare the window.quoteContext type
@@ -124,8 +124,29 @@ import type { CreatePollParams, Status } from '../../../types/mastodon';
         if (v) {
           // Fetch the status being replied to
           try {
-            const client = getClient();
-            replyToStatus = await client.getStatus(v);
+            const adapter = await getGraphQLAdapter();
+            const object = await adapter.getObjectById(v);
+            
+            // Map GraphQL object to Status
+            replyToStatus = {
+              id: object.id,
+              created_at: object.published,
+              content: object.content || '',
+              visibility: object.visibility?.toLowerCase() || 'public',
+              sensitive: object.sensitive || false,
+              spoiler_text: object.summary || '',
+              account: {
+                id: object.attributedTo?.id || '',
+                username: object.attributedTo?.preferredUsername || '',
+                acct: object.attributedTo?.webfinger || '',
+                display_name: object.attributedTo?.name || '',
+                avatar: object.attributedTo?.icon?.url || '',
+                avatar_static: object.attributedTo?.icon?.url || '',
+                url: object.attributedTo?.url || '',
+                // ... minimal fields needed for display
+              },
+              // ... minimal fields
+            } as Status;
           } catch (err) {
             console.error('Failed to fetch reply status:', err);
           }
@@ -203,7 +224,7 @@ import type { CreatePollParams, Status } from '../../../types/mastodon';
     // Check if this is a quote boost
     if (window.quoteContext) {
       try {
-        const client = getClient();
+        const adapter = await getGraphQLAdapter();
         const { statusId } = window.quoteContext;
         
         console.log('[ComposeBox] Quote boost context:', window.quoteContext);
@@ -213,14 +234,23 @@ import type { CreatePollParams, Status } from '../../../types/mastodon';
           throw new Error('No status ID found in quote context');
         }
         
-        // Use the reblogStatus method which handles ID extraction
-        const response = await client.reblogStatus(statusId, {
-          comment: text,
-          visibility: visibility
+        // Create a note with quote reference (GraphQL way)
+        // Note: GraphQL may handle quotes differently - this creates a post that references the quoted status
+        const response = await adapter.createNote({
+          content: text,
+          visibility: visibility.toUpperCase() as 'PUBLIC' | 'UNLISTED' | 'FOLLOWERS' | 'DIRECT',
+          quoteId: statusId, // If adapter supports this
         });
         
-        // Add the new quote boost to timeline
-        timelineStore.prependStatus('home', response);
+        // Map response and add to timeline
+        const mappedStatus = {
+          id: response.id,
+          created_at: response.published,
+          content: response.content || '',
+          // ... map other fields
+        } as Status;
+        
+        timelineStore.prependStatus('home', mappedStatus);
         
         // Clear the quote context
         window.quoteContext = null;

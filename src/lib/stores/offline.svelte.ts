@@ -1,4 +1,6 @@
 import type { CreateStatusParams } from '@/types/mastodon';
+import { getGraphQLAdapter } from '@/lib/api/graphql-client';
+import type { LesserGraphQLAdapter } from '@equaltoai/greater-components/adapters';
 
 interface OfflinePost {
   id: string;
@@ -175,13 +177,12 @@ class OfflineStore {
     this.isSyncing = true;
 
     try {
-      // Import API client dynamically to avoid circular dependencies
-      const { getClient } = await import('@/lib/api/client');
-      const client = getClient();
+      const adapter = await getGraphQLAdapter();
 
       for (const post of this.posts) {
         try {
-          await client.createStatus(post.data);
+          const variables = mapCreateStatusParamsToGraphQL(post.data);
+          await adapter.createNote(variables);
           this.removePost(post.id);
         } catch (error) {
           // Update retry count and error
@@ -214,3 +215,59 @@ class OfflineStore {
 
 // Create singleton instance
 export const offlineStore = new OfflineStore();
+
+/**
+ * Map CreateStatusParams (Mastodon REST shape) into Lesser GraphQL createNote variables.
+ */
+type CreateNoteVariables = Parameters<LesserGraphQLAdapter['createNote']>[0];
+
+function mapCreateStatusParamsToGraphQL(params: CreateStatusParams): CreateNoteVariables {
+  const variables: Record<string, unknown> = {
+    content: params.status ?? '',
+    visibility: mapVisibilityToGraphQL(params.visibility ?? 'public'),
+    sensitive: params.sensitive ?? false,
+  };
+
+  if (params.spoiler_text) {
+    variables.summary = params.spoiler_text;
+  }
+
+  if (params.in_reply_to_id) {
+    variables.inReplyTo = params.in_reply_to_id;
+  }
+
+  if (params.media_ids?.length) {
+    variables.mediaIds = [...params.media_ids];
+  }
+
+  if (params.poll) {
+    variables.poll = {
+      options: [...params.poll.options],
+      expiresIn: params.poll.expires_in,
+      multiple: params.poll.multiple ?? false,
+      hideTotals: params.poll.hide_totals ?? false,
+    };
+  }
+
+  if (params.language) {
+    variables.language = params.language;
+  }
+
+  return variables as unknown as CreateNoteVariables;
+}
+
+/**
+ * Convert Mastodon visibility strings into Lesser GraphQL enum values.
+ */
+function mapVisibilityToGraphQL(
+  visibility: NonNullable<CreateStatusParams['visibility']>
+): 'PUBLIC' | 'UNLISTED' | 'FOLLOWERS' | 'DIRECT' {
+  const visibilityMap = {
+    public: 'PUBLIC',
+    unlisted: 'UNLISTED',
+    private: 'FOLLOWERS',
+    direct: 'DIRECT',
+  } as const;
+
+  return visibilityMap[visibility] ?? 'PUBLIC';
+}

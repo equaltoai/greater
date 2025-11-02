@@ -6,6 +6,11 @@ import LoginFormSafe from '@/components/islands/svelte/LoginFormSafe.svelte';
 <BaseLayout title="Login - Greater" description="Login to Greater">
   <div class="min-h-screen flex items-center justify-center p-4">
     <div class="w-full max-w-md">
+      <div class="text-center mb-8">
+        <h1 class="text-3xl font-bold text-text mb-2">Welcome to Greater</h1>
+        <p class="text-text-muted">An ActivityPub client from Equal To AI</p>
+        <p class="text-text-muted mt-4">To get started, sign in with Lesser or your favorite Mastodon compatible server.</p>
+      </div>
       <LoginFormSafe client:load />
     </div>
   </div>

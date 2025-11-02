@@ -90,8 +90,8 @@ directory = "./dist"
 
 [vars]
 ENVIRONMENT = "${environment}"
-LESSER_GRAPHQL_HTTP_ENDPOINT = "https://lesser.host/graphql"
-LESSER_GRAPHQL_WS_ENDPOINT = "wss://lesser.host/graphql"
+LESSER_GRAPHQL_HTTP_ENDPOINT = "https://dev.lesser.host/api/graphql"
+LESSER_GRAPHQL_WS_ENDPOINT = "wss://dev.lesser.host/api/graphql"
 
 [observability]
 enabled = true

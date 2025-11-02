@@ -1,6 +1,5 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getClient } from '../../../lib/api/client';
   import { authStore } from '../../../lib/stores/auth.svelte';
   import type { Status, Account } from '../../../types/mastodon';
   import StatusCard from './StatusCard.svelte';
@@ -72,7 +71,7 @@
       const lastStatus = statuses[statuses.length - 1];
       
       const moreStatuses = await getAccountStatuses(account.id, {
-        max_id: lastStatus.id,
+        after: lastStatus.id,
         limit: 20
       });
       

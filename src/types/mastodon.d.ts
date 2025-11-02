@@ -28,9 +28,9 @@ export interface Status {
   bookmarked?: boolean | null;
   pinned?: boolean | null;
   content: string;
-  filtered?: FilterResult[];
+  filtered?: FilterResult[] | null;
   reblog: Status | null;
-  application?: Application;
+  application?: Application | null;
   account: Account;
   media_attachments: MediaAttachment[];
   mentions: Mention[];

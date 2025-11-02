@@ -3,7 +3,6 @@
  */
 
 import type { Status, Account, Notification, TimelineParams } from '@/types/mastodon';
-import { getClient } from './client';
 
 /**
  * Timeline utilities
@@ -283,53 +282,6 @@ export function getPollPercentage(option: import('@/types/mastodon').PollOption,
   const total = getPollTotalVotes(poll);
   if (total === 0 || option.votes_count === null) return 0;
   return Math.round((option.votes_count / total) * 100);
-}
-
-/**
- * Instance capability detection
- */
-export async function getInstanceFeatures(_instance: string): Promise<{
-  version: string;
-  supportsEditing: boolean;
-  supportsReactions: boolean;
-  supportsQuotes: boolean;
-  supportsLocalOnly: boolean;
-  maxCharacters: number;
-  maxMediaAttachments: number;
-  maxPollOptions: number;
-}> {
-  try {
-    const client = getClient();
-    const info = await client.getInstance();
-    const version = info.version;
-    
-    // Version detection for features
-    const majorVersion = parseInt(version.split('.')[0]);
-    // const minorVersion = parseInt(version.split('.')[1] || '0');
-    
-    return {
-      version,
-      supportsEditing: majorVersion >= 4,
-      supportsReactions: version.includes('glitch') || version.includes('hometown'),
-      supportsQuotes: version.includes('glitch') || version.includes('misskey'),
-      supportsLocalOnly: version.includes('glitch') || version.includes('hometown'),
-      maxCharacters: info.configuration?.statuses?.max_characters || 500,
-      maxMediaAttachments: info.configuration?.media_attachments?.image_size_limit || 4,
-      maxPollOptions: info.configuration?.polls?.max_options || 4
-    };
-  } catch {
-    // Fallback for older instances
-    return {
-      version: 'unknown',
-      supportsEditing: false,
-      supportsReactions: false,
-      supportsQuotes: false,
-      supportsLocalOnly: false,
-      maxCharacters: 500,
-      maxMediaAttachments: 4,
-      maxPollOptions: 4
-    };
-  }
 }
 
 /**

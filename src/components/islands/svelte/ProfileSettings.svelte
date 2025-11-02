@@ -1,10 +1,10 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getClient } from '../../../lib/api/client';
+  import { getGraphQLAdapter, uploadMediaAsset } from '../../../lib/api/graphql-client';
   import { authStore } from '../../../lib/stores/auth.svelte';
-  import type { Account, UpdateCredentialsParams } from '../../../types/mastodon';
+  import { GCTextField, GCTextArea, GCCheckbox, GCButton as Button } from '@/lib/components';
+  import type { Account } from '../../../types/mastodon';
   import { resizeAvatar, resizeHeader, formatFileSize } from '../../../lib/utils/imageResize';
-  import Button from './Button.svelte';
   
   let account = $state<Account | null>(null);
   let loading = $state(true);
@@ -25,6 +25,8 @@
   let headerPreview = $state('');
   let avatarFileInfo = $state('');
   let headerFileInfo = $state('');
+  let avatarInputEl: HTMLInputElement | null = null;
+  let headerInputEl: HTMLInputElement | null = null;
   
   onMount(async () => {
     await loadProfile();
@@ -35,8 +37,12 @@
     error = '';
     
     try {
-      const client = getClient();
-      account = await client.verifyCredentials();
+      // Use currentUser from authStore (already loaded via GraphQL/OAuth)
+      account = authStore.currentUser;
+      
+      if (!account) {
+        throw new Error('Not logged in');
+      }
       
       // Initialize form fields
       displayName = account.display_name || '';
@@ -48,7 +54,7 @@
       headerPreview = account.header;
       
       // Initialize fields (ensure we have 4 slots)
-      fields = account.fields.map(f => ({ 
+      fields = (account.fields ?? []).map(f => ({ 
         name: f.name, 
         value: stripHtml(f.value) 
       }));
@@ -113,100 +119,119 @@
   function removeField(index: number) {
     fields = fields.filter((_, i) => i !== index);
   }
-  
+
   async function handleSubmit(event: Event) {
     event.preventDefault();
     saving = true;
     error = '';
     successMessage = '';
-    
+
     try {
-      const client = getClient();
-      
-      const params: UpdateCredentialsParams = {
-        display_name: displayName,
-        note,
+      const adapter = await getGraphQLAdapter();
+
+      const fieldInputs = fields
+        .map((field) => ({
+          name: field.name.trim(),
+          value: field.value.trim(),
+        }))
+        .filter((field) => field.name.length > 0 || field.value.length > 0);
+
+      const updateInput: {
+        displayName?: string;
+        bio?: string;
+        locked?: boolean;
+        bot?: boolean;
+        discoverable?: boolean;
+        fields?: { name: string; value: string }[];
+        avatar?: string;
+        header?: string;
+      } = {
+        displayName,
+        bio: note,
         locked,
         bot,
         discoverable,
-        fields_attributes: fields.filter(f => f.name || f.value)
+        fields: fieldInputs,
       };
-      
-      // Get fresh references to the files from the input elements
-      // This ensures we have the actual File objects with their content
-      const avatarInput = document.getElementById('avatar-upload') as HTMLInputElement;
-      const headerInput = document.getElementById('header-upload') as HTMLInputElement;
-      
+
+      const avatarInput = avatarInputEl;
       if (avatarInput?.files?.[0]) {
         let file = avatarInput.files[0];
-        // Verify file has content
         if (file.size > 0) {
-          try {
-            // Resize if needed (always resize to ensure consistent dimensions)
-            console.log('Original avatar size:', formatFileSize(file.size));
-            file = await resizeAvatar(file);
-            console.log('Resized avatar size:', formatFileSize(file.size));
-            params.avatar = file;
-          } catch (err) {
-            console.error('Failed to resize avatar:', err);
-            error = 'Failed to process avatar image';
-            return;
+          file = await resizeAvatar(file);
+          const upload = await uploadMediaAsset({
+            file,
+            filename: file.name,
+            description: 'Profile avatar',
+            sensitive: false,
+            spoilerText: null,
+            mediaType: 'IMAGE',
+          });
+          const avatarUrl = upload.media?.url;
+          if (!avatarUrl) {
+            throw new Error('Avatar upload failed');
           }
-        } else {
-          console.warn('Avatar file has no content');
+          updateInput.avatar = avatarUrl;
         }
       }
-      
+
+      const headerInput = headerInputEl;
       if (headerInput?.files?.[0]) {
         let file = headerInput.files[0];
-        // Verify file has content
         if (file.size > 0) {
-          try {
-            // Resize if needed (always resize to ensure consistent dimensions)
-            console.log('Original header size:', formatFileSize(file.size));
-            file = await resizeHeader(file);
-            console.log('Resized header size:', formatFileSize(file.size));
-            params.header = file;
-          } catch (err) {
-            console.error('Failed to resize header:', err);
-            error = 'Failed to process header image';
-            return;
+          file = await resizeHeader(file);
+          const upload = await uploadMediaAsset({
+            file,
+            filename: file.name,
+            description: 'Profile header',
+            sensitive: false,
+            spoilerText: null,
+            mediaType: 'IMAGE',
+          });
+          const headerUrl = upload.media?.url;
+          if (!headerUrl) {
+            throw new Error('Header upload failed');
           }
-        } else {
-          console.warn('Header file has no content');
+          updateInput.header = headerUrl;
         }
       }
-      
-      const updatedAccount = await client.updateCredentials(params);
-      account = updatedAccount;
-      
-      console.log('Profile updated:', {
-        id: updatedAccount.id,
-        avatar: updatedAccount.avatar,
-        header: updatedAccount.header
-      });
-      
-      // Update auth store
-      if (authStore.currentUser?.id === updatedAccount.id) {
-        console.log('Updating auth store with new account data');
-        authStore.updateAccount(updatedAccount);
+
+      const updatedActor = await adapter.updateProfile(updateInput);
+      const { getAccountService } = await import('../../../lib/api/account-service');
+      const accountService = getAccountService();
+      accountService.clearCache();
+      const refreshedAccount = await accountService.resolveAccount(updatedActor.id);
+
+      account = refreshedAccount;
+      displayName = account.display_name || '';
+      note = account.source?.note || stripHtml(account.note || '');
+      locked = account.locked;
+      bot = account.bot;
+      discoverable = account.discoverable ?? true;
+      avatarPreview = account.avatar;
+      headerPreview = account.header;
+
+      fields = (account.fields ?? []).map((f) => ({
+        name: f.name,
+        value: stripHtml(f.value),
+      }));
+      while (fields.length < 4) {
+        fields.push({ name: '', value: '' });
       }
-      
+
+      if (authStore.currentUser?.id === account.id) {
+        authStore.updateAccount(account);
+      }
+
       successMessage = 'Profile updated successfully!';
-      
-      // Reset file inputs
+
       if (avatarInput) avatarInput.value = '';
       if (headerInput) headerInput.value = '';
-      
-      // Update previews with new account data
-      avatarPreview = updatedAccount.avatar;
-      headerPreview = updatedAccount.header;
       avatarFileInfo = '';
       headerFileInfo = '';
     } catch (err) {
       console.error('Failed to update profile:', err);
-      
-      // Provide more specific error messages
+
       if (err instanceof Error) {
         if (err.message.includes('413') || err.message.includes('Entity Too Large')) {
           error = 'Images are too large. They will be automatically resized, but if the error persists, try smaller images.';
@@ -254,22 +279,20 @@
     <!-- Header image -->
     <div>
       <label class="block text-sm font-medium mb-2">Header Image</label>
-      <div class="relative h-32 bg-gray-200 dark:bg-gray-800 rounded overflow-hidden">
+      <div class="relative group h-32 bg-gray-200 dark:bg-gray-800 rounded overflow-hidden">
         {#if headerPreview}
           <img src={headerPreview} alt="Header preview" class="w-full h-full object-cover" />
         {/if}
-        <div class="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 hover:opacity-100 transition-opacity">
-          <label for="header-upload" class="cursor-pointer px-4 py-2 bg-white dark:bg-gray-800 rounded-full text-sm font-medium">
-            Change Header
-          </label>
-          <input
-            id="header-upload"
-            type="file"
-            accept="image/*"
-            class="hidden"
-            onchange={handleHeaderChange}
-            multiple={false}
-          />
+        <input
+          id="header-upload"
+          type="file"
+          accept="image/*"
+          class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
+          onchange={handleHeaderChange}
+          bind:this={headerInputEl}
+        />
+        <div class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/40 opacity-0 transition-opacity group-hover:opacity-100">
+          <span class="px-4 py-2 rounded-full bg-white dark:bg-gray-800 text-sm font-medium">Change Header</span>
         </div>
       </div>
       {#if headerFileInfo}
@@ -281,26 +304,26 @@
     <div>
       <label class="block text-sm font-medium mb-2">Avatar</label>
       <div class="flex items-center gap-4">
-        <div class="relative">
+        <div class="relative group">
           <img 
             src={avatarPreview} 
             alt="Avatar preview" 
             class="w-20 h-20 rounded-full object-cover"
           />
-          <label for="avatar-upload" class="absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 hover:opacity-100 transition-opacity cursor-pointer">
-            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
-            </svg>
-          </label>
           <input
             id="avatar-upload"
             type="file"
             accept="image/*"
-            class="hidden"
+            class="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
             onchange={handleAvatarChange}
-            multiple={false}
+            bind:this={avatarInputEl}
           />
+          <div class="pointer-events-none absolute inset-0 flex items-center justify-center bg-black/50 rounded-full opacity-0 group-hover:opacity-100 transition-opacity">
+            <svg class="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+            </svg>
+          </div>
         </div>
       </div>
       {#if avatarFileInfo}

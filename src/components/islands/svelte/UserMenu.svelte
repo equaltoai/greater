@@ -1,21 +1,13 @@
 <script lang="ts">
-  import { GCAvatar, GCMenu } from '@/lib/components';
-  import { authStore } from '@/lib/stores/auth.svelte';
-  import { getClient } from '@/lib/api/client';
   import { onMount } from 'svelte';
-  import type { Account } from '@/types/mastodon';
+  import { GCAvatar } from '@/lib/components';
+  import { authStore } from '@/lib/stores/auth.svelte';
   
   let isOpen = $state(false);
-  let currentUser = $state<Account | null>(null);
+  let menuRef: HTMLDivElement;
   
-  onMount(async () => {
-    try {
-      const client = getClient();
-      currentUser = await client.verifyCredentials();
-    } catch (error) {
-      console.error('Failed to load user data:', error);
-    }
-  });
+  // Use currentUser from authStore directly (already loaded and managed there)
+  const currentUser = $derived(authStore.currentUser);
   
   // Toggle menu
   function toggleMenu() {
@@ -36,79 +28,97 @@
     }
   }
   
-  const menuItems = $derived(() => [
-    {
-      label: 'View Profile',
-      href: `/@${currentUser?.username || authStore.currentUser?.username}`,
-    },
-    {
-      label: 'Settings',
-      href: '/settings',
-    },
-    { divider: true },
-    {
-      label: 'Log out',
-      onClick: handleLogout,
-      variant: 'danger' as const,
+  // Close menu when clicking outside
+  onMount(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef && !menuRef.contains(event.target as Node) && isOpen) {
+        isOpen = false;
+      }
     }
-  ]);
+    
+    document.addEventListener('click', handleClickOutside);
+    return () => document.removeEventListener('click', handleClickOutside);
+  });
 </script>
 
-{#if authStore.currentUser}
-  <GCMenu bind:open={isOpen} items={menuItems} align="end">
-    {#snippet trigger()}
-      <button
-        type="button"
-        onclick={toggleMenu}
-        class="flex items-center space-x-2 p-2 rounded-lg hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-        aria-label="User menu"
-        aria-expanded={isOpen}
+{#if currentUser}
+  <div class="relative" bind:this={menuRef}>
+    <button
+      type="button"
+      onclick={toggleMenu}
+      class="flex items-center space-x-2 p-2 rounded-lg hover:bg-surface-hover transition-colors"
+      aria-label="User menu"
+      aria-expanded={isOpen}
+    >
+      <GCAvatar
+        src={currentUser.avatar}
+        alt={currentUser.display_name || currentUser.username}
+        size="sm"
+        fallback={(currentUser.display_name || currentUser.username || '').charAt(0).toUpperCase()}
+      />
+      
+      <!-- Username (hidden on mobile) -->
+      <span class="hidden sm:block text-sm font-medium text-text">
+        {currentUser.display_name || currentUser.acct || currentUser.username}
+      </span>
+      
+      <!-- Dropdown arrow -->
+      <svg
+        class="w-4 h-4 text-text-muted transition-transform"
+        class:rotate-180={isOpen}
+        fill="none"
+        stroke="currentColor"
+        viewBox="0 0 24 24"
       >
-        <GCAvatar
-          src={currentUser?.avatar}
-          alt={currentUser?.display_name || currentUser?.username || authStore.currentUser.display_name || authStore.currentUser.username}
-          size="sm"
-          fallback={(currentUser?.display_name || currentUser?.username || authStore.currentUser.display_name || authStore.currentUser.username).charAt(0).toUpperCase()}
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M19 9l-7 7-7-7"
         />
+      </svg>
+    </button>
+    
+    {#if isOpen}
+      <div class="absolute right-0 mt-2 w-56 bg-surface border border-border rounded-lg shadow-lg z-50">
+        <div class="px-4 py-3 border-b border-border">
+          <p class="text-sm font-medium text-text">
+            {currentUser.display_name || currentUser.username}
+          </p>
+          <p class="text-sm text-text-muted">
+            @{currentUser.acct || currentUser.username}
+          </p>
+        </div>
         
-        <!-- Username (hidden on mobile) -->
-        <span class="hidden sm:block text-sm font-medium text-gray-900 dark:text-gray-100">
-          {currentUser?.display_name || currentUser?.username || authStore.currentUser.display_name || authStore.currentUser.username}
-        </span>
-        
-        <!-- Dropdown arrow -->
-        <svg
-          class="w-4 h-4 text-gray-500 transition-transform"
-          class:rotate-180={isOpen}
-          fill="none"
-          stroke="currentColor"
-          viewBox="0 0 24 24"
-        >
-          <path
-            stroke-linecap="round"
-            stroke-linejoin="round"
-            stroke-width="2"
-            d="M19 9l-7 7-7-7"
-          />
-        </svg>
-      </button>
-    {/snippet}
-    {#snippet header()}
-      <div class="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-        <p class="text-sm font-medium text-gray-900 dark:text-gray-100">
-          {currentUser?.display_name || currentUser?.username || authStore.currentUser.display_name || authStore.currentUser.username}
-        </p>
-        <p class="text-sm text-gray-500 dark:text-gray-400">
-          @{currentUser?.username || authStore.currentUser.username}
-        </p>
+        <div class="py-1">
+          <a
+            href="/@{currentUser.acct || currentUser.username}"
+            class="block px-4 py-2 text-sm text-text hover:bg-surface-hover"
+          >
+            View Profile
+          </a>
+          <a
+            href="/settings"
+            class="block px-4 py-2 text-sm text-text hover:bg-surface-hover"
+          >
+            Settings
+          </a>
+          <div class="border-t border-border my-1"></div>
+          <button
+            onclick={handleLogout}
+            class="block w-full text-left px-4 py-2 text-sm text-error hover:bg-surface-hover"
+          >
+            Log out
+          </button>
+        </div>
       </div>
-    {/snippet}
-  </GCMenu>
+    {/if}
+  </div>
 {:else}
   <!-- Show login button if not authenticated -->
   <a
     href="/auth/login"
-    class="inline-flex items-center px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium rounded-lg transition-colors"
+    class="inline-flex items-center px-4 py-2 bg-primary hover:bg-primary-dark text-white text-sm font-medium rounded-lg transition-colors"
   >
     Log in
   </a>

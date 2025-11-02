@@ -1,5 +1,5 @@
 <script lang="ts">
-  import { getClient } from '../../../lib/api/client';
+  import { getGraphQLAdapter } from '../../../lib/api/graphql-client';
   import { timelineStore } from '../../../lib/stores/timeline.svelte';
   import type { Status } from '../../../types/mastodon';
 
@@ -29,12 +29,68 @@
     error = '';
 
     try {
-      const client = getClient();
-      const status = await client.createStatus({
-        status: text,
-        in_reply_to_id: replyTo.id,
-        visibility: replyTo.visibility || 'public'
+      const adapter = await getGraphQLAdapter();
+      const response = await adapter.createNote({
+        content: text,
+        inReplyTo: replyTo.id,
+        visibility: (replyTo.visibility || 'public').toUpperCase() as 'PUBLIC' | 'UNLISTED' | 'FOLLOWERS' | 'DIRECT'
       });
+
+      // Map GraphQL response to Status
+      const status: Status = {
+        id: response.id,
+        created_at: response.published,
+        content: response.content || '',
+        visibility: response.visibility?.toLowerCase() || 'public',
+        sensitive: response.sensitive || false,
+        spoiler_text: response.summary || '',
+        uri: response.id,
+        url: response.url || response.id,
+        in_reply_to_id: replyTo.id,
+        in_reply_to_account_id: replyTo.account.id,
+        account: {
+          id: response.attributedTo?.id || '',
+          username: response.attributedTo?.preferredUsername || '',
+          acct: response.attributedTo?.webfinger || '',
+          display_name: response.attributedTo?.name || '',
+          avatar: response.attributedTo?.icon?.url || '',
+          avatar_static: response.attributedTo?.icon?.url || '',
+          url: response.attributedTo?.url || '',
+          // ... other required fields
+          locked: false,
+          bot: false,
+          discoverable: true,
+          group: false,
+          created_at: new Date().toISOString(),
+          note: '',
+          header: '',
+          header_static: '',
+          followers_count: 0,
+          following_count: 0,
+          statuses_count: 0,
+          last_status_at: null,
+          emojis: [],
+          fields: []
+        },
+        replies_count: 0,
+        reblogs_count: 0,
+        favourites_count: 0,
+        favourited: false,
+        reblogged: false,
+        bookmarked: false,
+        media_attachments: [],
+        mentions: [],
+        tags: [],
+        emojis: [],
+        card: null,
+        poll: null,
+        application: null,
+        language: null,
+        pinned: false,
+        reblog: null,
+        muted: false,
+        edited_at: null
+      };
 
       // Clear the text
       text = `@${replyTo.account.acct} `;

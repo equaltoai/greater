@@ -304,8 +304,15 @@ export function stripHtmlSafe(html: string): string {
     });
   }
   
-  // Fallback to regex for immediate use
-  return normalized.replace(/<[^>]*>/g, '');
+  // Fallback to regex for immediate use and repeat until no tags remain
+  const tagPattern = /<[^>]*>/g;
+  let fallback = normalized;
+  let previous: string;
+  do {
+    previous = fallback;
+    fallback = fallback.replace(tagPattern, '');
+  } while (fallback !== previous);
+  return fallback;
 }
 
 /**

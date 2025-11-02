@@ -1,10 +1,105 @@
 /**
  * Account resolution and caching service
  * Handles different account identifier formats and resolves them to Mastodon account objects
+ * Migrated to GraphQL
  */
 
 import type { Account } from '@/types/mastodon';
-import { getClient } from './client';
+import { getGraphQLAdapter } from './graphql-client';
+
+export type GraphQLActor = {
+  id: string;
+  preferredUsername?: string | null;
+  username?: string | null;
+  domain?: string | null;
+  acct?: string | null;
+  webfinger?: string | null;
+  name?: string | null;
+  displayName?: string | null;
+  manuallyApprovesFollowers?: boolean | null;
+  type?: string | null;
+  discoverable?: boolean | null;
+  published?: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  summary?: string | null;
+  url?: string | null;
+  avatar?: string | null;
+  header?: string | null;
+  icon?: { url?: string | null } | null;
+  image?: { url?: string | null } | null;
+  followers?: { totalCount?: number | null } | number | null;
+  following?: { totalCount?: number | null } | number | null;
+  outbox?: { totalCount?: number | null } | number | null;
+  statusesCount?: number | null;
+  locked?: boolean | null;
+  bot?: boolean | null;
+  trustScore?: number | null;
+  attachment?: Array<{ type?: string | null; name: string; value: string }> | null;
+  fields?: Array<{ name?: string | null; value?: string | null; verifiedAt?: string | null }> | null;
+};
+
+/**
+ * Map GraphQL actor to Mastodon Account format
+ */
+export function mapGraphQLActorToAccount(actor: GraphQLActor): Account {
+  const attachmentFields = (actor.attachment ?? []).filter(
+    (attachment) => attachment.type === 'PropertyValue'
+  );
+
+  const normalizedFields =
+    Array.isArray(actor.fields) && actor.fields.length > 0
+      ? actor.fields.map((field) => ({
+          name: field.name ?? '',
+          value: field.value ?? '',
+          verified_at: field.verifiedAt ?? null,
+        }))
+      : attachmentFields.map((attachment) => ({
+          name: attachment.name ?? '',
+          value: attachment.value ?? '',
+          verified_at: null,
+        }));
+
+  const avatarUrl = actor.icon?.url ?? actor.avatar ?? '';
+  const headerUrl = actor.image?.url ?? actor.header ?? '';
+
+  const acctHandle =
+    actor.webfinger ??
+    actor.acct ??
+    (actor.domain && actor.username ? `${actor.username}@${actor.domain}` : undefined) ??
+    actor.preferredUsername ??
+    actor.username ??
+    actor.id;
+
+  const statusesCount =
+    typeof actor.statusesCount === 'number'
+      ? actor.statusesCount
+      : resolveCount(actor.outbox);
+
+  return {
+    id: actor.id,
+    username: actor.preferredUsername ?? actor.username ?? actor.id,
+    acct: acctHandle,
+    display_name: actor.name ?? actor.displayName ?? actor.preferredUsername ?? actor.username ?? '',
+    locked: actor.manuallyApprovesFollowers ?? actor.locked ?? false,
+    bot: actor.type === 'Service' || actor.bot === true,
+    discoverable: actor.discoverable ?? true,
+    group: actor.type === 'Group',
+    created_at: actor.published ?? actor.createdAt ?? new Date().toISOString(),
+    note: actor.summary ?? '',
+    url: actor.url ?? actor.id,
+    avatar: avatarUrl,
+    avatar_static: avatarUrl,
+    header: headerUrl,
+    header_static: headerUrl,
+    followers_count: resolveCount(actor.followers),
+    following_count: resolveCount(actor.following),
+    statuses_count: statusesCount,
+    last_status_at: null,
+    emojis: [],
+    fields: normalizedFields,
+  };
+}
 
 export class AccountService {
   private accountCache = new Map<string, Account>();
@@ -51,18 +146,22 @@ export class AccountService {
 
   /**
    * Get account by numeric ID
+   * Migrated to GraphQL
    */
   private async getAccountById(id: string): Promise<Account> {
-    const client = getClient();
-    return client.getAccount(id);
+    const adapter = await getGraphQLAdapter();
+    const actor = await adapter.getActorById(id);
+    return mapGraphQLActorToAccount(toGraphQLActor(actor));
   }
 
   /**
    * Lookup account by username or webfinger address
+   * Migrated to GraphQL
    */
   private async lookupAccount(acct: string): Promise<Account> {
-    const client = getClient();
-    return client.lookupAccount(acct);
+    const adapter = await getGraphQLAdapter();
+    const actor = await adapter.getActorByUsername(acct);
+    return mapGraphQLActorToAccount(toGraphQLActor(actor));
   }
 
   /**
@@ -100,21 +199,21 @@ export class AccountService {
 
   /**
    * Search for account by URL or query
+   * Migrated to GraphQL
    */
   private async searchAccount(query: string): Promise<Account> {
-    const client = getClient();
-    const results = await client.search({
-      q: query,
-      type: 'accounts',
-      limit: 1,
-      resolve: true
+    const adapter = await getGraphQLAdapter();
+    const results = await adapter.search({
+      query: query,
+      type: 'ACCOUNT',
+      first: 1
     });
     
     if (!results.accounts || results.accounts.length === 0) {
       throw new Error('Account not found');
     }
     
-    return results.accounts[0];
+    return mapGraphQLActorToAccount(toGraphQLActor(results.accounts[0]));
   }
 
   /**
@@ -166,35 +265,136 @@ export function getAccountService(): AccountService {
   return accountService;
 }
 
+function filterGraphQLActors(value: unknown): GraphQLActor[] {
+  if (!Array.isArray(value)) {
+    return [];
+  }
+
+  return value
+    .filter((actor) => typeof actor === 'object' && actor !== null && 'id' in actor)
+    .map((actor) => toGraphQLActor(actor));
+}
+
+function resolveCount(value: GraphQLActor['followers']): number {
+  if (typeof value === 'number') {
+    return value;
+  }
+  return value?.totalCount ?? 0;
+}
+
+function toGraphQLActor(actor: unknown): GraphQLActor {
+  if (typeof actor !== 'object' || actor === null || !('id' in actor)) {
+    throw new Error('Invalid actor payload received from GraphQL adapter');
+  }
+
+  return actor as GraphQLActor;
+}
+
 /**
  * Helper function to resolve account and get statuses
+ * Migrated to GraphQL
  */
-export async function getAccountStatuses(identifier: string, params?: Record<string, unknown>) {
+export async function getAccountStatuses(identifier: string, params?: { limit?: number; after?: string }) {
   const service = getAccountService();
   const account = await service.resolveAccount(identifier);
   
-  const client = getClient();
-  return client.getAccountStatuses(account.id, params);
+  const adapter = await getGraphQLAdapter();
+  
+  try {
+    // Use the new fetchActorTimeline method from greater-components 1.0.21+
+    const response = await adapter.fetchActorTimeline(account.id, {
+      first: params?.limit || 20,
+      after: params?.after,
+    });
+    
+    // Map GraphQL response to Status objects
+    const statuses = (response.edges || [])
+      .filter((edge: any) => edge?.node)
+      .map((edge: any) => mapGraphQLToStatus(edge.node));
+    
+    return statuses;
+  } catch (error) {
+    console.error('[getAccountStatuses] Failed to fetch timeline:', error);
+    throw error;
+  }
+}
+
+// Helper to map GraphQL object to Status
+function mapGraphQLToStatus(node: any): any {
+  const obj = node.object || node;
+  
+  return {
+    id: obj.id,
+    uri: obj.id,
+    url: obj.id,
+    created_at: obj.published || obj.createdAt || new Date().toISOString(),
+    account: mapGraphQLActorToAccount(obj.attributedTo || obj.actor || {}),
+    content: obj.content || '',
+    visibility: (obj.visibility?.toLowerCase() || 'public'),
+    sensitive: obj.sensitive ?? false,
+    spoiler_text: obj.summary ?? obj.spoilerText ?? '',
+    media_attachments: (obj.attachments || []).map((a: any) => ({
+      id: a.id,
+      type: a.type?.toLowerCase() || 'unknown',
+      url: a.url,
+      preview_url: a.preview || a.url,
+      description: a.description || null,
+      blurhash: a.blurhash || null,
+    })),
+    mentions: [],
+    tags: [],
+    emojis: [],
+    reblogs_count: obj.shares?.totalCount || obj.sharesCount || 0,
+    favourites_count: obj.likes?.totalCount || obj.likesCount || 0,
+    replies_count: obj.replies?.totalCount || obj.repliesCount || 0,
+    reblogged: obj.userInteractions?.shared || false,
+    favourited: obj.userInteractions?.liked || false,
+    bookmarked: obj.userInteractions?.bookmarked || false,
+    pinned: false,
+    reblog: obj.shareOf ? mapGraphQLToStatus(obj.shareOf) : null,
+    in_reply_to_id: obj.inReplyTo?.id || null,
+    in_reply_to_account_id: null,
+    application: null,
+    language: obj.language || null,
+    muted: false,
+    poll: null,
+    card: null,
+    edited_at: obj.updated || null,
+  };
 }
 
 /**
  * Helper function to resolve account and get followers
+ * Migrated to GraphQL
  */
-export async function getAccountFollowers(identifier: string, params?: Record<string, unknown>) {
+export async function getAccountFollowers(identifier: string, params?: { limit?: number; after?: string }) {
   const service = getAccountService();
   const account = await service.resolveAccount(identifier);
   
-  const client = getClient();
-  return client.getAccountFollowers(account.id, params);
+  const adapter = await getGraphQLAdapter();
+  
+  // Use the adapter's followers query (returns ActorListPage)
+  const response = await adapter.getFollowers(account.id, params?.limit || 40);
+  
+  // Map GraphQL actors to accounts
+  const actors = filterGraphQLActors(response.actors);
+  return actors.map(mapGraphQLActorToAccount);
 }
 
 /**
  * Helper function to resolve account and get following
+ * Migrated to GraphQL
  */
-export async function getAccountFollowing(identifier: string, params?: Record<string, unknown>) {
+export async function getAccountFollowing(identifier: string, params?: { limit?: number; after?: string }) {
   const service = getAccountService();
   const account = await service.resolveAccount(identifier);
   
-  const client = getClient();
-  return client.getAccountFollowing(account.id, params);
+  const adapter = await getGraphQLAdapter();
+  
+  // Use the adapter's following query (returns ActorListPage)
+  const response = await adapter.getFollowing(account.id, params?.limit || 40);
+  
+  // Map GraphQL actors to accounts
+  const actors = filterGraphQLActors(response.actors);
+  return actors.map(mapGraphQLActorToAccount);
 }

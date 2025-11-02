@@ -381,8 +381,22 @@ class AuthStore {
       logDebug('[Auth] Fresh user data from API:', freshUserData);
       logDebug('[Auth] Avatar URL from API:', freshUserData.avatar);
       
+      // Handle Lesser API response format: {user: {...}, actor: {...}}
+      // Use the 'user' property if it exists, otherwise use the root object
+      const accountData = freshUserData.user || freshUserData;
+      
+      // Ensure acct field exists (for Lesser API compatibility)
+      // If acct is missing, use username as fallback
+      if (!accountData.acct && accountData.username) {
+        accountData.acct = accountData.username;
+      }
+      
+      logDebug('[Auth] Account data to use:', accountData);
+      logDebug('[Auth] Account username:', accountData.username);
+      logDebug('[Auth] Account acct:', accountData.acct);
+      
       // Update the account
-      this.updateAccount(freshUserData);
+      this.updateAccount(accountData);
       
       logDebug('[Auth] Current user after update:', this.currentUser);
       logDebug('[Auth] Avatar after update:', this.currentUser?.avatar);
@@ -404,7 +418,19 @@ async function verifyCredentials(instance: string, token: string): Promise<Masto
     throw new AuthError('Failed to verify credentials', 'VERIFY_FAILED', instance);
   }
   
-  return response.json();
+  const data = await response.json();
+  
+  // Handle Lesser API response format: {user: {...}, actor: {...}}
+  // Use the 'user' property if it exists, otherwise use the root object
+  const accountData = data.user || data;
+  
+  // Ensure acct field exists (for Lesser API compatibility)
+  // If acct is missing, use username as fallback
+  if (!accountData.acct && accountData.username) {
+    accountData.acct = accountData.username;
+  }
+  
+  return accountData;
 }
 
 // Create singleton instance

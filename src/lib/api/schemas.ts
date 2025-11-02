@@ -4,6 +4,16 @@
  */
 
 import { z } from 'zod';
+import type {
+  Application,
+  CustomEmoji,
+  FilterResult,
+  MediaAttachment,
+  Mention,
+  PreviewCard,
+  Status as MastodonStatus,
+  Tag,
+} from '@/types/mastodon';
 
 // Base schemas
 // More lenient datetime schema that accepts various ISO 8601 formats
@@ -20,6 +30,19 @@ export const AccountFieldSchema = z.object({
   value: z.string(),
   verified_at: z.string().nullable().optional()
 });
+
+const ApplicationSchema: z.ZodType<Application> = z.object({
+  name: z.string(),
+  website: z.string().nullable()
+});
+
+const FilterResultSchema: z.ZodType<FilterResult> = z.custom<FilterResult>();
+const MediaAttachmentSchema: z.ZodType<MediaAttachment> = z.custom<MediaAttachment>();
+const MentionSchema: z.ZodType<Mention> = z.custom<Mention>();
+const TagSchema: z.ZodType<Tag> = z.custom<Tag>();
+const EmojiSchema: z.ZodType<CustomEmoji> = z.custom<CustomEmoji>();
+const PreviewCardSchema: z.ZodType<PreviewCard | null> = z.custom<PreviewCard | null>();
+const PollSchema: z.ZodType<MastodonStatus['poll']> = z.custom<MastodonStatus['poll']>();
 
 // Lesser-specific trust indicators
 export const TrustIndicatorsSchema = z.object({
@@ -59,30 +82,18 @@ export const AccountSchema = z.object({
   following_count: z.number().int().min(0),
   statuses_count: z.number().int().min(0),
   last_status_at: z.union([DateStringSchema, z.literal('')]).nullable(),
-  emojis: z.array(z.any()),
+  emojis: z.array(z.unknown()),
   fields: z.array(AccountFieldSchema),
   hide_collections: z.boolean().optional(),
   noindex: z.boolean().optional(),
   indexable: z.boolean().optional(),
-  roles: z.array(z.any()).optional(),
+  roles: z.array(z.unknown()).optional(),
   // Lesser-specific fields
   trust_indicators: TrustIndicatorsSchema,
   cost_transparency: CostTransparencySchema
 }).passthrough(); // Allow additional fields from the API
 
 // Media attachment schemas
-export const MediaAttachmentSchema = z.object({
-  id: z.string(),
-  type: z.enum(['image', 'video', 'gifv', 'audio', 'unknown']),
-  url: URLSchema,
-  preview_url: URLSchema.nullable(),
-  remote_url: URLSchema.nullable(),
-  text_url: URLSchema.nullable(),
-  meta: z.any().nullable(),
-  description: z.string().nullable(),
-  blurhash: z.string().nullable()
-});
-
 // Lesser-specific community notes
 export const CommunityNoteSchema = z.object({
   id: z.string(),
@@ -103,7 +114,7 @@ export const AIAnalysisSchema = z.object({
 }).optional();
 
 // Status schemas
-export const StatusSchema = z.object({
+export const StatusSchema: z.ZodType<MastodonStatus> = z.lazy(() => z.object({
   id: z.string(),
   created_at: DateStringSchema,
   in_reply_to_id: z.string().nullable(),
@@ -117,47 +128,28 @@ export const StatusSchema = z.object({
   replies_count: z.number().int().min(0),
   reblogs_count: z.number().int().min(0),
   favourites_count: z.number().int().min(0),
-  edited_at: DateStringSchema.nullable().optional(),
+  edited_at: DateStringSchema.nullable(),
   content: z.string(),
-  reblog: z.lazy(() => StatusSchema).nullable(),
-  application: z.any().nullable(),
+  reblog: StatusSchema.nullable(),
+  application: ApplicationSchema.nullable().optional(),
   account: AccountSchema,
   media_attachments: z.array(MediaAttachmentSchema),
-  mentions: z.array(z.any()),
-  tags: z.array(z.any()),
-  emojis: z.array(z.any()),
-  card: z.object({
-    url: z.string(),
-    title: z.string(),
-    description: z.string(),
-    type: z.string(),
-    author_name: z.string().optional(),
-    author_url: z.string().optional(),
-    provider_name: z.string().optional(),
-    provider_url: z.string().optional(),
-    html: z.string().optional(),
-    width: z.number().optional(),
-    height: z.number().optional(),
-    image: z.string().nullable().optional(),
-    image_description: z.string().optional(),
-    embed_url: z.string().optional(),
-    blurhash: z.string().nullable().optional(),
-    language: z.string().optional(),
-    published_at: z.string().nullable().optional(),
-    authors: z.array(z.any()).optional()
-  }).nullable().optional(),
-  poll: z.any().nullable(),
+  mentions: z.array(MentionSchema),
+  tags: z.array(TagSchema),
+  emojis: z.array(EmojiSchema),
+  card: PreviewCardSchema.default(null),
+  poll: PollSchema.default(null),
   favourited: z.boolean().nullable(),
   reblogged: z.boolean().nullable(),
   muted: z.boolean().nullable(),
   bookmarked: z.boolean().nullable(),
   pinned: z.boolean().optional(),
-  filtered: z.array(z.any()).nullable().optional(),
+  filtered: FilterResultSchema.array().nullable().optional(),
   // Lesser-specific fields
   delivery_cost: z.number().optional(),
   community_notes: z.array(CommunityNoteSchema).optional(),
   ai_analysis: AIAnalysisSchema
-});
+}));
 
 // Timeline response
 export const TimelineResponseSchema = z.array(StatusSchema);
@@ -193,7 +185,7 @@ export const InstanceSchema = z.object({
   registrations: z.boolean(),
   approval_required: z.boolean(),
   invites_enabled: z.boolean(),
-  configuration: z.any(),
+  configuration: z.unknown(),
   urls: z.object({
     streaming_api: z.string(),
     status: z.string().optional()
@@ -229,7 +221,7 @@ export const NotificationSchema = z.object({
   created_at: DateStringSchema,
   account: AccountSchema,
   status: StatusSchema.optional(),
-  report: z.any().optional()
+  report: z.unknown().optional()
 });
 
 // Search schemas

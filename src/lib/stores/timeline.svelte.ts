@@ -631,7 +631,14 @@ class TimelineStore {
       return;
     }
     
-    const adapter = await getGraphQLAdapter();
+    // Don't connect if not authenticated
+    if (!authStore.isAuthenticated || !authStore.currentInstance) {
+      logDebug('[Timeline Stream] Cannot connect - not authenticated');
+      return;
+    }
+    
+    try {
+      const adapter = await getGraphQLAdapter(authStore.currentInstance);
     
     // Determine timeline type for subscription
     let timelineType: 'HOME' | 'PUBLIC' | 'LOCAL' | 'DIRECT' | 'HASHTAG' | 'LIST' = 'HOME';
@@ -664,27 +671,20 @@ class TimelineStore {
     }).subscribe({
       next: (result: any) => {
         try {
-          const update = result.data?.timelineUpdate;
+          const update = result.data?.timelineUpdates;
           if (!update) return;
-          
-          switch (update.type) {
-            case 'NEW_OBJECT':
-              if (update.object) {
-                const status = mapGraphQLToStatus(update.object);
-                this.prependStatus(type, status);
-              }
-              break;
-            case 'DELETE':
-              if (update.deletedObjectId) {
-                this.removeStatus(update.deletedObjectId);
-              }
-              break;
-            case 'UPDATE':
-              if (update.object) {
-                const status = mapGraphQLToStatus(update.object);
-                this.updateStatus(status.id, status);
-              }
-              break;
+
+          const status = mapGraphQLToStatus(update);
+          const timelineState = this.timelines[type];
+
+          if (!timelineState) return;
+
+          const existing = timelineState.statuses.some(current => current.id === status.id);
+
+          if (existing) {
+            this.updateStatus(status.id, status);
+          } else {
+            this.prependStatus(type, status);
           }
         } catch (error) {
           console.error('[Timeline Stream] Failed to process update:', error);
@@ -705,6 +705,10 @@ class TimelineStore {
     });
     
     this.timelines[type] = { ...this.timelines[type], stream: subscription };
+    } catch (error) {
+      console.error('[Timeline Stream] Failed to connect stream:', error);
+      // Don't retry if no auth token
+    }
   }
 
   disconnectStream(type: string): void {

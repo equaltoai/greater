@@ -4,12 +4,14 @@
 [![CI](https://github.com/aron23/greater/workflows/CI/badge.svg)](https://github.com/aron23/greater/actions)
 [![Deploy](https://github.com/aron23/greater/workflows/Deploy/badge.svg)](https://github.com/aron23/greater/actions)
 
-Greater is a modern, high-performance web client for Mastodon-compatible instances (including Lesser). Built with Astro and deployed on Cloudflare's edge network, it offers a lightning-fast, customizable, and privacy-focused alternative to existing ActivityPub clients.
+Greater is a modern, high-performance web client for Mastodon-compatible instances (including Lesser). Built with Astro, Svelte 5, and powered by GraphQL, it's deployed on Cloudflare's edge network for lightning-fast performance globally.
+
+**Tech Stack:** Astro + Svelte 5 + GraphQL (Lesser adapter) + @equaltoai/greater-components + Cloudflare Workers
 
 ## ✨ Features
 
 - 🚀 **Lightning Fast**: Sub-second load times globally with edge computing
-- 🎨 **Beautiful UI**: Modern, accessible design with light/dark themes
+- 🎨 **Beautiful UI**: Modern, accessible design with light/dark themes from @equaltoai/greater-components
 - 📱 **Mobile First**: Responsive design that works perfectly on all devices
 - 🔒 **Privacy Focused**: No tracking, no analytics without explicit consent
 - 🌐 **Multi-Instance**: Connect to multiple Mastodon instances simultaneously
@@ -17,6 +19,10 @@ Greater is a modern, high-performance web client for Mastodon-compatible instanc
 - 🌍 **International**: Support for 20+ languages
 - 📱 **PWA Ready**: Install as a native app on any platform
 - 🔌 **Mastodon Compatible**: Works with any Mastodon v3.0+ instance
+- ⚡ **GraphQL-First**: Powered by Lesser GraphQL API for efficient data fetching
+- 🧩 **Component Library**: Built with @equaltoai/greater-components primitives
+- 🧵 **Threaded Conversations**: Full thread context with ancestors and descendants
+- 🏷️ **Hashtag Browsing**: Dedicated hashtag timelines with pagination
 
 ## 🚀 Quick Start
 
@@ -48,8 +54,9 @@ Visit `http://localhost:4321` to see your local instance.
 ### Prerequisites
 
 - Node.js >= 20.0.0
-- pnpm >= 9.0.0
+- pnpm >= 9.0.0 (required - this project uses pnpm workspaces)
 - Git >= 2.30.0
+- Access to a Lesser GraphQL endpoint (or Mastodon REST API fallback)
 
 ### Setup
 
@@ -57,14 +64,29 @@ Visit `http://localhost:4321` to see your local instance.
 # Install dependencies
 pnpm install
 
+# Configure environment
+cp env.example .env
+# Edit .env with your Lesser GraphQL endpoints:
+# LESSER_GRAPHQL_HTTP_ENDPOINT=https://your-instance/graphql
+# LESSER_GRAPHQL_WS_ENDPOINT=wss://your-instance/graphql
+
 # Run development server
-pnpm run dev
+pnpm run dev         # Standard dev server
+pnpm run dev:cf      # Dev server with Cloudflare bindings
 
 # Run tests
-pnpm test
+pnpm test            # Unit tests (Vitest)
+pnpm test:e2e        # E2E tests (Playwright)
+pnpm test:coverage   # Coverage report
+
+# Type checking and linting
+pnpm typecheck       # TypeScript validation
+pnpm lint            # ESLint + Prettier
+pnpm format          # Auto-format code
 
 # Build for production
-pnpm run build
+pnpm run build       # Cloudflare Workers build
+pnpm run preview     # Preview production build
 ```
 
 ### Project Structure
@@ -72,15 +94,52 @@ pnpm run build
 ```
 greater/
 ├── src/
-│   ├── components/     # UI components
-│   ├── layouts/        # Page layouts
-│   ├── pages/          # Route pages
-│   ├── lib/            # Business logic
-│   └── types/          # TypeScript types
-├── public/             # Static assets
-├── functions/          # Cloudflare Workers
-└── tests/              # Test files
+│   ├── components/       # UI components (Svelte 5)
+│   │   ├── islands/      # Client-side interactive components
+│   │   └── core/         # Server-rendered components
+│   ├── layouts/          # Page layouts
+│   ├── pages/            # Route pages (Astro)
+│   ├── lib/
+│   │   ├── api/          # GraphQL client & adapters
+│   │   ├── stores/       # Svelte stores (state management)
+│   │   ├── components/   # Greater Components wrappers
+│   │   └── mappers/      # GraphQL-to-Mastodon data mapping
+│   └── types/            # TypeScript types
+├── public/               # Static assets
+├── functions/            # Cloudflare Workers (auth, middleware)
+├── infrastructure/       # Pulumi deployment configs
+└── tests/
+    ├── unit/             # Vitest unit tests
+    └── e2e/              # Playwright E2E tests
 ```
+
+### Technology Stack
+
+**Frontend:**
+- **Framework**: Astro 5 (SSR/SSG)
+- **UI Library**: Svelte 5 (with runes)
+- **Component Library**: @equaltoai/greater-components
+- **Styling**: Tailwind CSS
+- **State**: Svelte stores + nanostores
+
+**Backend/API:**
+- **API Protocol**: GraphQL (Lesser adapter)
+- **GraphQL Client**: Apollo Client (via @equaltoai/greater-components)
+- **Fallback**: Mastodon REST API (legacy support)
+- **Auth**: OAuth 2.0 (via Cloudflare Workers)
+
+**Infrastructure:**
+- **Hosting**: Cloudflare Workers (serverless)
+- **CDN**: Cloudflare CDN
+- **Build**: Vite + Astro build pipeline
+- **Deployment**: Pulumi (infrastructure as code)
+
+**Development:**
+- **Package Manager**: pnpm (workspaces)
+- **Testing**: Vitest (unit) + Playwright (E2E)
+- **Type Checking**: TypeScript 5.3+
+- **Linting**: ESLint + Prettier
+- **Git Hooks**: Husky + lint-staged
 
 ## 📚 Documentation
 

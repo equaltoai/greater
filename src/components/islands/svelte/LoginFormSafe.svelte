@@ -1,7 +1,7 @@
 <script lang="ts">
   import { onMount } from 'svelte';
   
-  let instance = $state('');
+  let instance = $state('dev.lesser.host');
   let isValidating = $state(false);
   let isValid = $state(false);
   let error = $state('');
@@ -29,6 +29,9 @@
       console.log('[LoginForm] Already authenticated, redirecting to home');
       window.location.href = '/home';
     }
+    
+    // Validate the default instance
+    validateInstanceDebounced();
   });
   
   // Validate instance URL as user types
@@ -85,11 +88,11 @@
   
   // Popular instances for quick selection
   const popularInstances = [
+    'dev.lesser.host',
     'mastodon.social',
     'mastodon.world',
     'fosstodon.org',
-    'mstdn.social',
-    'mas.to'
+    'mstdn.social'
   ];
   
   function selectInstance(selected: string) {
@@ -112,7 +115,7 @@
         type="text"
         bind:value={instance}
         oninput={validateInstanceDebounced}
-        placeholder="mastodon.social"
+        placeholder="dev.lesser.host"
         class="block w-full pl-20 pr-10 py-3 border border-border rounded-md bg-background text-text placeholder-text-muted focus:ring-2 focus:ring-primary focus:border-primary transition-colors"
         autocomplete="off"
         autocapitalize="off"

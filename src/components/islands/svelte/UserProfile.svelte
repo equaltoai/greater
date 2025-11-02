@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getClient } from '../../../lib/api/client';
+  import { getGraphQLAdapter } from '../../../lib/api/graphql-client';
   import { authStore } from '../../../lib/stores/auth.svelte';
   import { sanitizeUserContent } from '../../../lib/utils/sanitize';
   import type { Account, Relationship } from '../../../types/mastodon';
@@ -48,7 +48,6 @@
     error = '';
     
     try {
-      const client = getClient();
       const accountService = getAccountService();
       
       // Build the identifier based on what we have
@@ -59,15 +58,30 @@
         identifier = username;
       }
       
-      // Resolve the account
+      // Resolve the account (uses GraphQL now)
       account = await accountService.resolveAccount(identifier);
       
       // Get relationship if logged in and not own profile
       if (authStore.currentUser && account.id !== authStore.currentUser.id) {
-        // Use username for Lesser compatibility
-        const identifier = account.username || account.id;
-        const relationships = await client.getRelationships([identifier]);
-        relationship = relationships[0];
+        const adapter = await getGraphQLAdapter();
+        const graphqlRelationship = await adapter.getRelationship(account.id);
+        
+        // Map GraphQL relationship to Mastodon format
+        relationship = {
+          id: account.id,
+          following: graphqlRelationship.following || false,
+          followed_by: graphqlRelationship.followedBy || false,
+          blocking: graphqlRelationship.blocking || false,
+          blocked_by: graphqlRelationship.blockedBy || false,
+          muting: graphqlRelationship.muting || false,
+          muting_notifications: graphqlRelationship.mutingNotifications || false,
+          requested: graphqlRelationship.requested || false,
+          domain_blocking: false,
+          showing_reblogs: true,
+          endorsed: false,
+          notifying: false,
+          note: ''
+        };
       }
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load profile';
@@ -82,16 +96,32 @@
     
     isInteracting = true;
     try {
-      const client = getClient(authStore.currentInstance || undefined);
-      
-      // Use username instead of ID for Lesser compatibility
-      const identifier = account.username || account.id;
+      const adapter = await getGraphQLAdapter();
+      const identifier = account.id;
       
       if (relationship?.following) {
-        relationship = await client.unfollowAccount(identifier);
+        await adapter.unfollowActor(identifier);
       } else {
-        relationship = await client.followAccount(identifier);
+        await adapter.followActor(identifier);
       }
+      
+      // Fetch updated relationship
+      const graphqlRelationship = await adapter.getRelationship(identifier);
+      relationship = {
+        id: identifier,
+        following: graphqlRelationship.following || false,
+        followed_by: graphqlRelationship.followedBy || false,
+        blocking: graphqlRelationship.blocking || false,
+        blocked_by: graphqlRelationship.blockedBy || false,
+        muting: graphqlRelationship.muting || false,
+        muting_notifications: graphqlRelationship.mutingNotifications || false,
+        requested: graphqlRelationship.requested || false,
+        domain_blocking: false,
+        showing_reblogs: true,
+        endorsed: false,
+        notifying: false,
+        note: ''
+      };
     } catch (err) {
       console.error('Follow/unfollow failed:', err);
       alert('Failed to update follow status');

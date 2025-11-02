@@ -1,5 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { GCSelect, GCSwitch, GCButton } from '@/lib/components';
   import { 
     timelinePrefs$, 
     composePrefs$, 
@@ -22,30 +23,10 @@
   let saveSuccess = false;
   
   onMount(async () => {
-    // Load server preferences from Mastodon
-    try {
-      const client = authStore.getClient();
-      if (client) {
-        serverPrefs = await client.getPreferences();
-        
-        // Merge server preferences with local ones if this is first load
-        if (serverPrefs && !localStorage.getItem('prefs-synced')) {
-          composePrefs.defaultVisibility = serverPrefs['posting:default:visibility'];
-          composePrefs.defaultSensitive = serverPrefs['posting:default:sensitive'];
-          composePrefs.defaultLanguage = serverPrefs['posting:default:language'];
-          
-          // Save merged preferences
-          composePrefs$.set(composePrefs);
-          localStorage.setItem('prefs-synced', 'true');
-        }
-      }
-    } catch (e) {
-      // Server preferences are optional - many instances don't support this endpoint
-      // or the user might not have permission. This is fine, we'll just use local preferences.
-      console.log('Server preferences not available, using local preferences only');
-    } finally {
-      loading = false;
-    }
+    // Note: Server preferences sync via GraphQL not yet implemented
+    // Using local preferences only for now
+    console.log('PreferencesSettings: Using local preferences (server sync needs GraphQL implementation)');
+    loading = false;
   });
   
   function savePreferences() {

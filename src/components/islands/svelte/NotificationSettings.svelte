@@ -1,214 +1,191 @@
 <script lang="ts">
   import { onMount } from 'svelte';
+  import { getGraphQLAdapter } from '@/lib/api/graphql-client';
+  import { GCCheckbox, GCSwitch, GCButton } from '@/lib/components';
   import { notificationPrefs$, type NotificationPreferences } from '@/lib/stores/preferences';
-  import { authStore } from '@/lib/stores/auth.svelte';
-  import type { PushSubscription as MastodonPushSubscription } from '@/types/mastodon';
-  
-  // Get current preferences
+  import type { PushSubscription as GraphQLPushSubscription } from '@equaltoai/greater-components/adapters/graphql/generated/types.js';
+
   let prefs: NotificationPreferences = $notificationPrefs$;
-  
-  // Push notification state
+
   let pushSupported = false;
-  let pushSubscription: MastodonPushSubscription | null = null;
-  let pushPermission = 'default';
+  let pushSubscription: GraphQLPushSubscription | null = null;
+  let pushPermission: NotificationPermission = 'default';
   let loadingPush = false;
-  
-  // UI state
+
   let saveSuccess = false;
   let saveError = '';
-  
+
   onMount(async () => {
-    // Check if push notifications are supported
-    pushSupported = 'serviceWorker' in navigator && 'PushManager' in window;
-    
+    pushSupported = typeof window !== 'undefined' && 'serviceWorker' in navigator && 'PushManager' in window;
+
     if (pushSupported) {
       pushPermission = Notification.permission;
-      
-      // Check for existing push subscription
+
       try {
-        const client = authStore.getClient();
-        if (client) {
-          // Try to get existing push subscription from server
-          const response = await fetch('/api/v1/push/subscription', {
-            headers: {
-              'Authorization': `Bearer ${authStore.state.currentUser?.accessToken}`
-            }
-          }).catch(() => null);
-          
-          if (response?.ok) {
-            pushSubscription = await response.json();
-          }
-        }
-      } catch (e) {
-        console.error('Failed to check push subscription:', e);
+        const adapter = await getGraphQLAdapter();
+        pushSubscription = (await adapter.getPushSubscription()) ?? null;
+        prefs.desktop = pushSubscription !== null && pushPermission === 'granted';
+      } catch (error) {
+        console.error('Failed to check push subscription:', error);
       }
     }
   });
-  
+
   async function requestNotificationPermission() {
     if (!pushSupported) return;
-    
+
     const permission = await Notification.requestPermission();
     pushPermission = permission;
     prefs.desktop = permission === 'granted';
-    
+
     if (permission === 'granted') {
       await enablePushNotifications();
     }
   }
-  
+
   async function enablePushNotifications() {
     if (!pushSupported || pushPermission !== 'granted') return;
-    
+
     loadingPush = true;
+    saveError = '';
+
     try {
-      const client = authStore.getClient();
-      if (!client) throw new Error('Not authenticated');
-      
-      // Register service worker if not already registered
+      const adapter = await getGraphQLAdapter();
       const registration = await navigator.serviceWorker.ready;
-      
-      // Subscribe to push notifications
-      const subscription = await registration.pushManager.subscribe({
+
+      const browserSubscription = await registration.pushManager.subscribe({
         userVisibleOnly: true,
         applicationServerKey: urlBase64ToUint8Array(
-          // This is a placeholder VAPID public key - in production, this should come from your server
           'BKd0F0Y0B_VnfPt4cP7BLlZZwM1DGk5LwI5fEDx6uB2A0PMqVFmUwi9dBNVq4K5WZLCddL7TqxqZ9niPRmZyD6A'
-        )
+        ),
       });
-      
-      // Send subscription to server
-      const response = await fetch('/api/v1/push/subscription', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authStore.state.currentUser?.accessToken}`
-        },
-        body: JSON.stringify({
-          subscription: {
-            endpoint: subscription.endpoint,
-            keys: {
-              p256dh: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('p256dh')!))),
-              auth: btoa(String.fromCharCode(...new Uint8Array(subscription.getKey('auth')!)))
-            }
-          },
-          data: {
-            alerts: {
-              follow: !prefs.filterFollows,
-              reblog: !prefs.filterBoosts,
-              favourite: !prefs.filterFavorites,
-              mention: !prefs.filterMentions,
-              poll: !prefs.filterPolls
-            }
-          }
-        })
+
+      const keys = extractSubscriptionKeys(browserSubscription);
+      const alerts = buildAlertPreferences();
+
+      const registered = await adapter.registerPushSubscription({
+        endpoint: browserSubscription.endpoint,
+        keys,
+        alerts,
       });
-      
-      if (response.ok) {
-        pushSubscription = await response.json();
-      }
-    } catch (e) {
-      console.error('Failed to enable push notifications:', e);
+
+      pushSubscription = registered ?? null;
+      prefs.desktop = pushSubscription !== null;
+    } catch (error) {
+      console.error('Failed to enable push notifications:', error);
       saveError = 'Failed to enable push notifications';
     } finally {
       loadingPush = false;
     }
   }
-  
+
   async function disablePushNotifications() {
     if (!pushSupported || !pushSubscription) return;
-    
+
     loadingPush = true;
+    saveError = '';
+
     try {
-      const client = authStore.getClient();
-      if (!client) throw new Error('Not authenticated');
-      
-      // Unsubscribe from push
+      const adapter = await getGraphQLAdapter();
+
       const registration = await navigator.serviceWorker.ready;
-      const subscription = await registration.pushManager.getSubscription();
-      if (subscription) {
-        await subscription.unsubscribe();
+      const browserSubscription = await registration.pushManager.getSubscription();
+      if (browserSubscription) {
+        await browserSubscription.unsubscribe();
       }
-      
-      // Remove from server
-      await fetch('/api/v1/push/subscription', {
-        method: 'DELETE',
-        headers: {
-          'Authorization': `Bearer ${authStore.state.currentUser?.accessToken}`
-        }
-      });
-      
+
+      await adapter.deletePushSubscription();
+
       pushSubscription = null;
       prefs.desktop = false;
-    } catch (e) {
-      console.error('Failed to disable push notifications:', e);
+    } catch (error) {
+      console.error('Failed to disable push notifications:', error);
       saveError = 'Failed to disable push notifications';
     } finally {
       loadingPush = false;
     }
   }
-  
-  function savePreferences() {
-    // Save to local storage
+
+  async function savePreferences() {
     notificationPrefs$.set(prefs);
-    
-    // Update push subscription if needed
+
     if (pushSubscription) {
-      updatePushAlerts();
+      await updatePushAlerts();
     }
-    
-    // Show success message
+
     saveSuccess = true;
-    setTimeout(() => saveSuccess = false, 3000);
+    setTimeout(() => {
+      saveSuccess = false;
+    }, 3000);
   }
-  
+
   async function updatePushAlerts() {
     try {
-      await fetch('/api/v1/push/subscription', {
-        method: 'PUT',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${authStore.state.currentUser?.accessToken}`
-        },
-        body: JSON.stringify({
-          data: {
-            alerts: {
-              follow: !prefs.filterFollows,
-              reblog: !prefs.filterBoosts,
-              favourite: !prefs.filterFavorites,
-              mention: !prefs.filterMentions,
-              poll: !prefs.filterPolls
-            }
-          }
-        })
+      const adapter = await getGraphQLAdapter();
+      const updated = await adapter.updatePushSubscription({
+        alerts: buildAlertPreferences(),
       });
-    } catch (e) {
-      console.error('Failed to update push alerts:', e);
+
+      pushSubscription = updated ?? pushSubscription;
+    } catch (error) {
+      console.error('Failed to update push alerts:', error);
+      saveError = 'Failed to update push notifications';
     }
   }
-  
+
+  function buildAlertPreferences() {
+    return {
+      follow: !prefs.filterFollows,
+      reblog: !prefs.filterBoosts,
+      favourite: !prefs.filterFavorites,
+      mention: !prefs.filterMentions,
+      poll: !prefs.filterPolls,
+    };
+  }
+
+  function extractSubscriptionKeys(subscription: PushSubscription) {
+    const p256dh = subscription.getKey('p256dh');
+    const auth = subscription.getKey('auth');
+
+    if (!p256dh || !auth) {
+      throw new Error('Incomplete push subscription keys');
+    }
+
+    return {
+      p256dh: arrayBufferToBase64(p256dh),
+      auth: arrayBufferToBase64(auth),
+    };
+  }
+
+  function arrayBufferToBase64(buffer: ArrayBuffer) {
+    const bytes = new Uint8Array(buffer);
+    let binary = '';
+    for (const byte of bytes) {
+      binary += String.fromCharCode(byte);
+    }
+    return btoa(binary);
+  }
+
   function urlBase64ToUint8Array(base64String: string) {
-    const padding = '='.repeat((4 - base64String.length % 4) % 4);
-    const base64 = (base64String + padding)
-      .replace(/\-/g, '+')
-      .replace(/_/g, '/');
-    
+    const padding = '='.repeat((4 - (base64String.length % 4)) % 4);
+    const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/');
+
     const rawData = window.atob(base64);
     const outputArray = new Uint8Array(rawData.length);
-    
+
     for (let i = 0; i < rawData.length; ++i) {
       outputArray[i] = rawData.charCodeAt(i);
     }
     return outputArray;
   }
-  
+
   function testNotification() {
     if ('Notification' in window && Notification.permission === 'granted') {
       new Notification('Test Notification', {
         body: 'This is a test notification from Greater',
         icon: '/icon-192.png',
         badge: '/icon-72.png',
-        tag: 'test'
+        tag: 'test',
       });
     }
   }

@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount, onDestroy } from 'svelte';
-  import { getClient } from '@/lib/api/client';
+  import { fetchHashtagTimeline } from '@/lib/api/graphql-client';
   import type { Status } from '@/types/mastodon';
   import StatusCard from './StatusCard.svelte';
   import TimelineSkeleton from './TimelineSkeleton.svelte';
@@ -20,6 +20,7 @@
   let isLoadingMore = $state(false);
   let error = $state<string | null>(null);
   let hasMore = $state(true);
+  let endCursor = $state<string | null>(null);
   
   let scrollElement: HTMLDivElement;
   let observerElement: HTMLDivElement;
@@ -40,18 +41,77 @@
   const virtualItems = $derived(virtualizer?.getVirtualItems() || []);
   const totalSize = $derived(virtualizer?.getTotalSize() || 0);
   
+  // Map GraphQL object to Status
+  function mapGraphQLToStatus(obj: any): Status {
+    return {
+      id: obj.id,
+      created_at: obj.published,
+      content: obj.content || '',
+      visibility: obj.visibility?.toLowerCase() || 'public',
+      sensitive: obj.sensitive || false,
+      spoiler_text: obj.summary || '',
+      uri: obj.id,
+      url: obj.url || obj.id,
+      replies_count: obj.replies?.totalCount || 0,
+      reblogs_count: obj.shares?.totalCount || 0,
+      favourites_count: obj.likes?.totalCount || 0,
+      favourited: obj.userInteractions?.liked || false,
+      reblogged: obj.userInteractions?.shared || false,
+      bookmarked: obj.userInteractions?.bookmarked || false,
+      account: {
+        id: obj.attributedTo?.id || obj.author?.id || '',
+        username: obj.attributedTo?.preferredUsername || obj.author?.preferredUsername || '',
+        acct: obj.attributedTo?.webfinger || obj.author?.webfinger || '',
+        display_name: obj.attributedTo?.name || obj.author?.name || '',
+        avatar: obj.attributedTo?.icon?.url || obj.author?.icon?.url || '',
+        avatar_static: obj.attributedTo?.icon?.url || obj.author?.icon?.url || '',
+        url: obj.attributedTo?.url || obj.author?.url || '',
+        locked: false,
+        bot: false,
+        discoverable: true,
+        group: false,
+        created_at: new Date().toISOString(),
+        note: '',
+        header: '',
+        header_static: '',
+        followers_count: 0,
+        following_count: 0,
+        statuses_count: 0,
+        last_status_at: null,
+        emojis: [],
+        fields: []
+      },
+      media_attachments: [],
+      mentions: [],
+      tags: [],
+      emojis: [],
+      card: null,
+      poll: null,
+      application: null,
+      language: null,
+      pinned: false,
+      in_reply_to_id: obj.inReplyTo?.id || null,
+      in_reply_to_account_id: null,
+      reblog: null,
+      muted: false,
+      edited_at: null
+    };
+  }
+
   // Load initial timeline
   async function loadTimeline() {
-    const client = getClient();
-    if (!client) return;
-    
     isLoading = true;
     error = null;
     
     try {
-      const results = await client.getTagTimeline(hashtag, { limit: 20 });
-      statuses = results;
-      hasMore = results.length === 20;
+      const response = await fetchHashtagTimeline(hashtag, { first: 20 });
+      
+      // Map GraphQL objects to statuses
+      statuses = response.edges.map((edge: any) => mapGraphQLToStatus(edge.node));
+      
+      // Update pagination
+      endCursor = response.pageInfo.endCursor;
+      hasMore = response.pageInfo.hasNextPage;
     } catch (e) {
       error = e instanceof Error ? e.message : 'Failed to load timeline';
     } finally {
@@ -61,23 +121,23 @@
   
   // Load more statuses
   async function loadMore() {
-    const client = getClient();
-    if (!client || isLoadingMore || !hasMore || statuses.length === 0) return;
+    if (isLoadingMore || !hasMore || !endCursor) return;
     
     isLoadingMore = true;
     
     try {
-      const lastStatus = statuses[statuses.length - 1];
-      const results = await client.getTagTimeline(hashtag, {
-        max_id: lastStatus.id,
-        limit: 20
+      const response = await fetchHashtagTimeline(hashtag, {
+        first: 20,
+        after: endCursor
       });
       
-      if (results.length === 0) {
-        hasMore = false;
-      } else {
-        statuses = [...statuses, ...results];
-      }
+      // Append new statuses
+      const newStatuses = response.edges.map((edge: any) => mapGraphQLToStatus(edge.node));
+      statuses = [...statuses, ...newStatuses];
+      
+      // Update pagination
+      endCursor = response.pageInfo.endCursor;
+      hasMore = response.pageInfo.hasNextPage;
     } catch (e) {
       console.error('Failed to load more:', e);
     } finally {

@@ -222,20 +222,21 @@ export const uploadMedia = async (
       warnings: response.warnings,
     });
     
-    // Map GraphQL media to MediaAttachment
-    const attachment: MediaAttachment = mapGraphQLMediaToAttachment(response.media, response.warnings);
+    // Map GraphQL media to MediaAttachment (convert readonly warnings to mutable)
+    const warnings = response.warnings ? Array.from(response.warnings) : null;
+    const attachment: MediaAttachment = mapGraphQLMediaToAttachment(response.media, warnings);
     
     composeMedia$.set([...composeMedia$.get(), attachment]);
     uploadProgress$.set(100);
     
     // Show warnings if any
-    if (response.warnings?.length) {
-      console.warn('[Compose] Upload warnings:', response.warnings);
+    if (warnings?.length) {
+      console.warn('[Compose] Upload warnings:', warnings);
     }
 
     const warningsMap = { ...composeMediaWarnings$.get() };
-    if (response.warnings?.length) {
-      warningsMap[attachment.id] = response.warnings;
+    if (warnings?.length) {
+      warningsMap[attachment.id] = warnings;
     } else {
       delete warningsMap[attachment.id];
     }

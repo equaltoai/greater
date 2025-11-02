@@ -1,10 +1,14 @@
 /**
  * Optimistic updates for better UX
  * Updates UI immediately while API calls happen in background
+ * 
+ * NOTE: This module is now deprecated. The timeline store handles
+ * optimistic updates directly using GraphQL mutations.
+ * Kept for backward compatibility with components not yet migrated.
  */
 
 import { timelineStore } from './timeline.svelte';
-import { getClient } from '@/lib/api/client';
+import { getGraphQLAdapter } from '@/lib/api/graphql-client';
 import type { Status } from '@/types/mastodon';
 import type { TimelineData } from './timeline.svelte';
 
@@ -21,6 +25,7 @@ const pendingUpdates = new Map<string, OptimisticUpdate>();
 
 /**
  * Optimistically toggle favorite status
+ * Migrated to GraphQL
  */
 export async function toggleFavorite(status: Status): Promise<void> {
   const updateId = crypto.randomUUID();
@@ -43,15 +48,20 @@ export async function toggleFavorite(status: Status): Promise<void> {
   });
   
   try {
-    const client = getClient();
-    const updatedStatus = newState
-      ? await client.favouriteStatus(status.id)
-      : await client.unfavouriteStatus(status.id);
+    const adapter = await getGraphQLAdapter();
+    const response = newState
+      ? await adapter.likeObject(status.id)
+      : await adapter.unlikeObject(status.id);
     
     // Update with server response
+    // Response might be boolean or object - use type assertion
+    const responseObj = typeof response === 'object' ? (response as any) : null;
+    const liked = responseObj?.userInteractions?.liked ?? newState;
+    const likesCount = responseObj?.likes?.totalCount ?? status.favourites_count;
+    
     timelineStore.updateStatus(status.id, {
-      favourited: updatedStatus.favourited,
-      favourites_count: updatedStatus.favourites_count
+      favourited: liked,
+      favourites_count: likesCount
     });
     
     // Remove from pending
@@ -70,6 +80,7 @@ export async function toggleFavorite(status: Status): Promise<void> {
 
 /**
  * Optimistically toggle reblog status
+ * Migrated to GraphQL
  */
 export async function toggleReblog(status: Status): Promise<void> {
   const updateId = crypto.randomUUID();
@@ -91,15 +102,20 @@ export async function toggleReblog(status: Status): Promise<void> {
   });
   
   try {
-    const client = getClient();
-    const updatedStatus = newState
-      ? await client.reblogStatus(status.id)
-      : await client.unreblogStatus(status.id);
+    const adapter = await getGraphQLAdapter();
+    const response = newState
+      ? await adapter.shareObject(status.id)
+      : await adapter.unshareObject(status.id);
     
     // Update with server response
+    // Response might be boolean or object - use type assertion
+    const responseObj = typeof response === 'object' ? (response as any) : null;
+    const shared = responseObj?.userInteractions?.shared ?? newState;
+    const sharesCount = responseObj?.shares?.totalCount ?? status.reblogs_count;
+    
     timelineStore.updateStatus(status.id, {
-      reblogged: updatedStatus.reblogged,
-      reblogs_count: updatedStatus.reblogs_count
+      reblogged: shared,
+      reblogs_count: sharesCount
     });
     
     pendingUpdates.delete(updateId);
@@ -117,6 +133,7 @@ export async function toggleReblog(status: Status): Promise<void> {
 
 /**
  * Optimistically toggle bookmark status
+ * Migrated to GraphQL
  */
 export async function toggleBookmark(status: Status): Promise<void> {
   const updateId = crypto.randomUUID();
@@ -137,14 +154,18 @@ export async function toggleBookmark(status: Status): Promise<void> {
   });
   
   try {
-    const client = getClient();
-    const updatedStatus = newState
-      ? await client.bookmarkStatus(status.id)
-      : await client.unbookmarkStatus(status.id);
+    const adapter = await getGraphQLAdapter();
+    const response = newState
+      ? await adapter.bookmarkObject(status.id)
+      : await adapter.unbookmarkObject(status.id);
     
     // Update with server response
+    // Response might be boolean or object - use type assertion
+    const responseObj = typeof response === 'object' ? (response as any) : null;
+    const bookmarked = responseObj?.userInteractions?.bookmarked ?? newState;
+    
     timelineStore.updateStatus(status.id, {
-      bookmarked: updatedStatus.bookmarked
+      bookmarked: bookmarked
     });
     
     pendingUpdates.delete(updateId);
@@ -161,6 +182,7 @@ export async function toggleBookmark(status: Status): Promise<void> {
 
 /**
  * Delete status with optimistic removal
+ * Migrated to GraphQL
  */
 export async function deleteStatus(statusId: string): Promise<void> {
   const status = findStatus(statusId);
@@ -171,8 +193,8 @@ export async function deleteStatus(statusId: string): Promise<void> {
   timelineStore.removeStatus(statusId);
   
   try {
-    const client = getClient();
-    await client.deleteStatus(statusId);
+    const adapter = await getGraphQLAdapter();
+    await adapter.deleteObject(statusId);
   } catch (error) {
     // Re-add the status on error
     // This is more complex as we need to maintain order

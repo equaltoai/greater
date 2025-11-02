@@ -1,6 +1,6 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getClient } from '../../../lib/api/client';
+  import { getGraphQLAdapter, fetchThreadContext } from '../../../lib/api/graphql-client';
   import StatusCard from './StatusCard.svelte';
   import StatusSkeleton from './StatusSkeleton.svelte';
   import ErrorState from './ErrorState.svelte';
@@ -18,28 +18,89 @@
     await loadThread();
   });
 
+  // Map GraphQL object to Status
+  function mapGraphQLToStatus(obj: any): Status {
+    return {
+      id: obj.id,
+      created_at: obj.published,
+      content: obj.content || '',
+      visibility: obj.visibility?.toLowerCase() || 'public',
+      sensitive: obj.sensitive || false,
+      spoiler_text: obj.summary || '',
+      uri: obj.id,
+      url: obj.url || obj.id,
+      in_reply_to_id: obj.inReplyTo?.id || null,
+      in_reply_to_account_id: null,
+      replies_count: obj.replies?.totalCount || 0,
+      reblogs_count: obj.shares?.totalCount || 0,
+      favourites_count: obj.likes?.totalCount || 0,
+      favourited: obj.userInteractions?.liked || false,
+      reblogged: obj.userInteractions?.shared || false,
+      bookmarked: obj.userInteractions?.bookmarked || false,
+      account: {
+        id: obj.attributedTo?.id || obj.author?.id || '',
+        username: obj.attributedTo?.preferredUsername || obj.author?.preferredUsername || '',
+        acct: obj.attributedTo?.webfinger || obj.author?.webfinger || '',
+        display_name: obj.attributedTo?.name || obj.author?.name || '',
+        avatar: obj.attributedTo?.icon?.url || obj.author?.icon?.url || '',
+        avatar_static: obj.attributedTo?.icon?.url || obj.author?.icon?.url || '',
+        url: obj.attributedTo?.url || obj.author?.url || '',
+        locked: false,
+        bot: false,
+        discoverable: true,
+        group: false,
+        created_at: new Date().toISOString(),
+        note: '',
+        header: '',
+        header_static: '',
+        followers_count: 0,
+        following_count: 0,
+        statuses_count: 0,
+        last_status_at: null,
+        emojis: [],
+        fields: []
+      },
+      media_attachments: [],
+      mentions: [],
+      tags: [],
+      emojis: [],
+      card: null,
+      poll: null,
+      application: null,
+      language: null,
+      pinned: false,
+      reblog: null,
+      muted: false,
+      edited_at: null
+    };
+  }
+
   async function loadThread() {
     loading = true;
     error = '';
     
     try {
-      const client = getClient();
+      const adapter = await getGraphQLAdapter();
       
-      // Load status and context in parallel
-      const [statusResult, contextResult] = await Promise.all([
-        client.getStatus(statusId),
-        client.getStatusContext(statusId)
+      // Load status and thread context in parallel
+      const [statusObj, threadContextData] = await Promise.all([
+        adapter.getObjectById(statusId),
+        fetchThreadContext(statusId)
       ]);
       
-      status = statusResult;
-      context = contextResult;
+      status = mapGraphQLToStatus(statusObj);
+      
+      // Map ancestors and descendants from GraphQL
+      context = {
+        ancestors: threadContextData.ancestors.map(mapGraphQLToStatus),
+        descendants: threadContextData.descendants.map(mapGraphQLToStatus)
+      };
       
       console.log('[StatusThread] Loaded thread:', {
         statusId,
         status: status?.id,
-        ancestors: context?.ancestors?.length || 0,
-        descendants: context?.descendants?.length || 0,
-        descendantIds: context?.descendants?.map(d => ({id: d.id, replyTo: d.in_reply_to_id}))
+        ancestors: context.ancestors.length,
+        descendants: context.descendants.length
       });
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load thread';

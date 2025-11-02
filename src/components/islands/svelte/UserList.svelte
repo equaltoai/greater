@@ -1,18 +1,25 @@
 <script lang="ts">
   import { onMount } from 'svelte';
-  import { getClient } from '../../../lib/api/client';
+  import { getGraphQLAdapter } from '../../../lib/api/graphql-client';
+  import {
+    getAccountService,
+    mapGraphQLActorToAccount,
+    type GraphQLActor
+  } from '../../../lib/api/account-service';
   import { authStore } from '../../../lib/stores/auth.svelte';
   import type { Account, Relationship } from '../../../types/mastodon';
   import UserCard from './UserCard.svelte';
-  
+
   interface Props {
     username: string;
     domain?: string | null;
     listType: 'followers' | 'following';
   }
-  
+
+  const PAGE_SIZE = 40;
+
   let { username, domain, listType }: Props = $props();
-  
+
   let users = $state<Account[]>([]);
   let relationships = $state<Map<string, Relationship>>(new Map());
   let loading = $state(true);
@@ -20,81 +27,22 @@
   let hasMore = $state(true);
   let loadingMore = $state(false);
   let account: Account | null = null;
-  let nextMaxId: string | null = null;
-  
+  let nextCursor: string | null = null;
+
   onMount(async () => {
     await loadUsers();
   });
-  
+
   async function loadUsers() {
     loading = true;
     error = '';
-    
-    
+
     try {
-      const client = getClient();
-      
-      // First find the account (same logic as UserProfile)
-      if (!domain && authStore.currentUser && authStore.currentUser.username === username) {
-        account = authStore.currentUser;
-      } else {
-        let searchAcct = username;
-        
-        if (!domain && authStore.currentInstance) {
-          searchAcct = `@${username}`;
-        } else if (domain) {
-          searchAcct = `@${username}@${domain}`;
-        }
-        
-        const searchResults = await client.search({ 
-          q: searchAcct, 
-          type: 'accounts', 
-          limit: 5, 
-          resolve: true 
-        });
-        
-        let foundAccount = searchResults.accounts.find(acc => {
-          if (domain) {
-            return acc.acct === `${username}@${domain}` || acc.username === username;
-          } else {
-            return acc.username === username && !acc.acct.includes('@');
-          }
-        });
-        
-        if (!foundAccount && searchResults.accounts.length > 0) {
-          foundAccount = searchResults.accounts[0];
-        }
-        
-        if (!foundAccount) {
-          throw new Error('User not found');
-        }
-        
-        account = foundAccount;
-      }
-      
-      // Then load their followers/following
-      // Use username for Lesser compatibility
-      const identifier = account.username || account.id;
-      let result;
-      if (listType === 'followers') {
-        result = await client.getAccountFollowers(identifier, { limit: 40 });
-      } else {
-        result = await client.getAccountFollowing(identifier, { limit: 40 });
-      }
-      
-      users = result;
-      hasMore = result.length === 40;
-      
-      // Extract next max_id from Link header if available
-      // This would need to be added to the API client to return pagination info
-      
-      // Get relationships for all users if logged in
-      if (authStore.currentUser && users.length > 0) {
-        // Use usernames for Lesser compatibility
-        const identifiers = users.map(u => u.username || u.id);
-        const rels = await client.getRelationships(identifiers);
-        relationships = new Map(rels.map(r => [r.id, r]));
-      }
+      const accountService = getAccountService();
+      const identifier = domain ? `${username}@${domain}` : username;
+      account = await accountService.resolveAccount(identifier);
+
+      await loadPage();
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to load users';
       console.error('Failed to load users:', err);
@@ -102,51 +50,124 @@
       loading = false;
     }
   }
-  
+
+  async function loadPage(cursor?: string) {
+    if (!account) {
+      return;
+    }
+
+    const adapter = await getGraphQLAdapter();
+    const handle = account.acct ?? account.username;
+
+    const page =
+      listType === 'followers'
+        ? await adapter.getFollowers(handle, PAGE_SIZE, cursor)
+        : await adapter.getFollowing(handle, PAGE_SIZE, cursor);
+
+    const mappedUsers = page.actors.map(convertActorToAccount);
+
+    if (cursor) {
+      users = [...users, ...mappedUsers];
+    } else {
+      users = mappedUsers;
+    }
+
+    hasMore = Boolean(page.nextCursor);
+    nextCursor = page.nextCursor ?? null;
+
+    await hydrateRelationships(mappedUsers);
+  }
+
+  function convertActorToAccount(actor: any): Account {
+    const graphActor: GraphQLActor = {
+      id: actor.id,
+      username: actor.username,
+      preferredUsername: actor.username,
+      domain: actor.domain ?? null,
+      displayName: actor.displayName ?? actor.username,
+      name: actor.displayName ?? actor.username,
+      manuallyApprovesFollowers: actor.locked ?? null,
+      locked: actor.locked ?? null,
+      bot: actor.bot ?? null,
+      type: actor.bot ? 'Service' : 'Person',
+      discoverable: actor.discoverable ?? null,
+      published: actor.createdAt ?? null,
+      createdAt: actor.createdAt ?? null,
+      updatedAt: actor.updatedAt ?? null,
+      summary: actor.summary ?? '',
+      url: actor.url ?? undefined,
+      avatar: actor.avatar ?? null,
+      header: actor.header ?? null,
+      followers: actor.followers ?? null,
+      following: actor.following ?? null,
+      statusesCount: actor.statusesCount ?? null,
+      attachment: Array.isArray(actor.fields)
+        ? actor.fields.map((field: any) => ({
+            type: 'PropertyValue',
+            name: field.name ?? '',
+            value: field.value ?? '',
+          }))
+        : undefined,
+      fields: Array.isArray(actor.fields)
+        ? actor.fields.map((field: any) => ({
+            name: field.name ?? '',
+            value: field.value ?? '',
+            verifiedAt: field.verifiedAt ?? null,
+          }))
+        : undefined,
+    };
+
+    return mapGraphQLActorToAccount(graphActor);
+  }
+
+  async function hydrateRelationships(newUsers: Account[]) {
+    if (!authStore.currentUser || newUsers.length === 0) {
+      return;
+    }
+
+    const adapter = await getGraphQLAdapter();
+    const rels = await adapter.getRelationships(newUsers.map((user) => user.id));
+
+    rels.forEach((rel: any) => {
+      relationships.set(rel.id, {
+        id: rel.id,
+        following: rel.following || false,
+        followed_by: rel.followedBy || false,
+        blocking: rel.blocking || false,
+        blocked_by: rel.blockedBy || false,
+        muting: rel.muting || false,
+        muting_notifications: rel.mutingNotifications || false,
+        requested: rel.requested || false,
+        domain_blocking: false,
+        showing_reblogs: true,
+        endorsed: false,
+        notifying: false,
+        note: '',
+      });
+    });
+
+    relationships = new Map(relationships);
+  }
+
   async function loadMore() {
-    if (!hasMore || loadingMore || !account) return;
-    
+    if (!hasMore || loadingMore || !nextCursor || !account) {
+      return;
+    }
+
     loadingMore = true;
-    
+
     try {
-      const client = getClient();
-      
-      // Use username for Lesser compatibility
-      const identifier = account.username || account.id;
-      let moreUsers;
-      if (listType === 'followers') {
-        moreUsers = await client.getAccountFollowers(identifier, {
-          max_id: users[users.length - 1].id,
-          limit: 40
-        });
-      } else {
-        moreUsers = await client.getAccountFollowing(identifier, {
-          max_id: users[users.length - 1].id,
-          limit: 40
-        });
-      }
-      
-      // Get relationships for new users
-      if (authStore.currentUser && moreUsers.length > 0) {
-        // Use usernames for Lesser compatibility
-        const identifiers = moreUsers.map(u => u.username || u.id);
-        const rels = await client.getRelationships(identifiers);
-        rels.forEach(r => relationships.set(r.id, r));
-        relationships = relationships; // Trigger reactivity
-      }
-      
-      users = [...users, ...moreUsers];
-      hasMore = moreUsers.length === 40;
+      await loadPage(nextCursor);
     } catch (err) {
       console.error('Failed to load more users:', err);
     } finally {
       loadingMore = false;
     }
   }
-  
+
   async function handleRelationshipUpdate(userId: string, newRelationship: Relationship) {
     relationships.set(userId, newRelationship);
-    relationships = relationships; // Trigger reactivity
+    relationships = new Map(relationships);
   }
 </script>
 

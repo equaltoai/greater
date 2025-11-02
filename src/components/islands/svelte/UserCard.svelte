@@ -2,7 +2,7 @@
   import type { Account, Relationship } from '@/types/mastodon';
   import type { Account as LesserAccount } from '@/lib/api/schemas';
   import { GCAvatar } from '@/lib/components';
-  import { getClient } from '@/lib/api/client';
+  import { getGraphQLAdapter } from '@/lib/api/graphql-client';
   import { authStore } from '@/lib/stores/auth.svelte';
   import { stripHtmlSafe } from '@/lib/utils/sanitize';
   
@@ -32,20 +32,40 @@
   });
   
   async function toggleFollow() {
-    const client = getClient(authStore.currentInstance || undefined);
-    if (!client || isOwnProfile) return;
+    if (isOwnProfile) return;
     
     isFollowingLoading = true;
     
     try {
-      // Use username for Lesser compatibility
-      const identifier = user.username || user.id;
-      let newRelationship: Relationship;
+      const adapter = await getGraphQLAdapter();
+      const identifier = user.id;
+      
       if (isFollowing) {
-        newRelationship = await client.unfollowAccount(identifier);
+        await adapter.unfollowActor(identifier);
       } else {
-        newRelationship = await client.followAccount(identifier);
+        await adapter.followActor(identifier);
       }
+      
+      // Toggle the state optimistically
+      isFollowing = !isFollowing;
+      
+      // Fetch updated relationship to confirm
+      const graphqlRelationship = await adapter.getRelationship(identifier);
+      const newRelationship: Relationship = {
+        id: identifier,
+        following: graphqlRelationship.following || false,
+        followed_by: graphqlRelationship.followedBy || false,
+        blocking: graphqlRelationship.blocking || false,
+        blocked_by: graphqlRelationship.blockedBy || false,
+        muting: graphqlRelationship.muting || false,
+        muting_notifications: graphqlRelationship.mutingNotifications || false,
+        requested: graphqlRelationship.requested || false,
+        domain_blocking: false,
+        showing_reblogs: true,
+        endorsed: false,
+        notifying: false,
+        note: ''
+      };
       
       isFollowing = newRelationship.following;
       
@@ -55,6 +75,8 @@
       }
     } catch (error) {
       console.error('Failed to toggle follow:', error);
+      // Revert optimistic update on error
+      isFollowing = !isFollowing;
     } finally {
       isFollowingLoading = false;
     }

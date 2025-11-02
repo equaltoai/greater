@@ -27,15 +27,24 @@ export default defineConfig({
         '@/stores': '/src/lib/stores',
         '@/types': '/src/types',
         '@/utils': '/src/lib/utils',
-        '@apollo/client/core': '@apollo/client/core/index.js',
-        '@apollo/client/link/subscriptions': '@apollo/client/link/subscriptions/index.js',
       },
     },
     optimizeDeps: {
+      include: [
+        '@apollo/client',
+        '@apollo/client/link/subscriptions',
+        '@apollo/client/link/error',
+        '@apollo/client/link/retry',
+        '@apollo/client/utilities',
+      ],
       exclude: ['@nanostores/persistent'],
     },
     ssr: {
-      noExternal: ['@graphql-typed-document-node/core'],
+      noExternal: [
+        '@graphql-typed-document-node/core',
+        '@apollo/client',
+        '@equaltoai/greater-components'
+      ],
     },
     build: {
       rollupOptions: {
@@ -46,7 +55,7 @@ export default defineConfig({
             'ui': ['focus-trap', 'tippy.js'],
           },
         },
-        external: [/^@apollo\/client\/.*/, 'graphql-ws', 'graphql'],
+        external: ['graphql-ws', 'graphql'],
         plugins: [
           process.env.ANALYZE && visualizer({
             open: true,

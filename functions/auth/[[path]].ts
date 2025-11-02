@@ -219,19 +219,13 @@ async function handleGetToken(request: Request, env: Env): Promise<Response> {
       }
     }
     
-    // return new Response(JSON.stringify({ error: 'Token not found' }), {
-    //   status: 404,
-    //   headers: { 'Content-Type': 'application/json' }
-    // });
-
-    return new Response(JSON.stringify({ 
-      token: {
-        access_token: "debug-token",
-        token_type: "Bearer",
-        scope: "read write follow push",
-        created_at: Date.now()
-      }
-    }));
+    console.error('[get-token] Token not found for instance:', normalizedInstance);
+    console.error('[get-token] SessionId:', sessionId);
+    
+    return new Response(JSON.stringify({ error: 'Token not found' }), {
+      status: 404,
+      headers: { 'Content-Type': 'application/json' }
+    });
   } catch {
     return new Response(JSON.stringify({ error: 'Failed to retrieve token' }), {
       status: 500,

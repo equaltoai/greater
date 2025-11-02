@@ -1,8 +1,53 @@
 import type { List, Account } from '@/types/mastodon';
-import { getClient } from '@/lib/api/client';
+import { getGraphQLAdapter } from '@/lib/api/graphql-client';
 
 interface ListMember extends Account {
   addedAt?: string;
+}
+
+/**
+ * Map GraphQL list response to Mastodon List format
+ */
+function mapGraphQLToList(graphqlList: any): List {
+  return {
+    id: graphqlList.id || graphqlList.listId,
+    title: graphqlList.title || graphqlList.name,
+    replies_policy: graphqlList.repliesPolicy?.toLowerCase() || 'list',
+    // Note: exclusive field not in Mastodon List type, omitting
+  };
+}
+
+/**
+ * Map GraphQL actor to Mastodon Account format for list members
+ */
+function mapGraphQLToAccount(actor: any): Account {
+  return {
+    id: actor.id,
+    username: actor.preferredUsername || actor.username,
+    acct: actor.webfinger || actor.acct || actor.preferredUsername,
+    display_name: actor.name || actor.displayName || actor.preferredUsername,
+    locked: actor.manuallyApprovesFollowers || false,
+    bot: actor.type === 'Service',
+    discoverable: actor.discoverable || true,
+    group: actor.type === 'Group',
+    created_at: actor.published || actor.createdAt || new Date().toISOString(),
+    note: actor.summary || '',
+    url: actor.url || actor.id,
+    avatar: actor.icon?.url || '',
+    avatar_static: actor.icon?.url || '',
+    header: actor.image?.url || '',
+    header_static: actor.image?.url || '',
+    followers_count: actor.followers?.totalCount || 0,
+    following_count: actor.following?.totalCount || 0,
+    statuses_count: actor.outbox?.totalCount || 0,
+    last_status_at: null,
+    emojis: [],
+    fields: actor.attachment?.filter((a: any) => a.type === 'PropertyValue').map((a: any) => ({
+      name: a.name,
+      value: a.value,
+      verified_at: null
+    })) || [],
+  };
 }
 
 // Lists state management with Svelte 5 runes
@@ -50,9 +95,10 @@ class ListsStore {
     this.isLoading = true;
     this.error = null;
     try {
-      const client = getClient();
-      const lists = await client.getLists();
-      this.lists = lists;
+      const adapter = await getGraphQLAdapter();
+      const graphqlLists = await adapter.getLists();
+      this.lists = graphqlLists.map(mapGraphQLToList);
+      this.persist();
       this.isLoading = false;
     } catch (error) {
       this.error = error instanceof Error ? error.message : 'Failed to fetch lists';
@@ -64,9 +110,15 @@ class ListsStore {
     this.isLoading = true;
     this.error = null;
     try {
-      const client = getClient();
-      const newList = await client.createList(title, { replies_policy: repliesPolicy });
+      const adapter = await getGraphQLAdapter();
+      const graphqlList = await adapter.createList({
+        title,
+        repliesPolicy: repliesPolicy.toUpperCase() as 'FOLLOWED' | 'LIST' | 'NONE',
+        exclusive: false
+      });
+      const newList = mapGraphQLToList(graphqlList);
       this.lists = [...this.lists, newList];
+      this.persist();
       this.isLoading = false;
       return newList;
     } catch (error) {
@@ -80,9 +132,15 @@ class ListsStore {
     this.isLoading = true;
     this.error = null;
     try {
-      const client = getClient();
-      const updated = await client.updateList(id, title, repliesPolicy ? { replies_policy: repliesPolicy } : undefined);
+      const adapter = await getGraphQLAdapter();
+      const updateInput: any = { title };
+      if (repliesPolicy) {
+        updateInput.repliesPolicy = repliesPolicy.toUpperCase();
+      }
+      const graphqlList = await adapter.updateList(id, updateInput);
+      const updated = mapGraphQLToList(graphqlList);
       this.lists = this.lists.map(list => list.id === id ? updated : list);
+      this.persist();
       this.isLoading = false;
     } catch (error) {
       this.error = error instanceof Error ? error.message : 'Failed to update list';
@@ -95,10 +153,11 @@ class ListsStore {
     this.isLoading = true;
     this.error = null;
     try {
-      const client = getClient();
-      await client.deleteList(id);
+      const adapter = await getGraphQLAdapter();
+      await adapter.deleteList(id);
       this.lists = this.lists.filter(list => list.id !== id);
       delete this.listMembers[id];
+      this.persist();
       this.isLoading = false;
     } catch (error) {
       this.error = error instanceof Error ? error.message : 'Failed to delete list';
@@ -111,9 +170,10 @@ class ListsStore {
     this.isLoading = true;
     this.error = null;
     try {
-      const client = getClient();
-      const members = await client.getListAccounts(listId, { limit: 80 });
-      this.listMembers[listId] = members;
+      const adapter = await getGraphQLAdapter();
+      const graphqlMembers = await adapter.getListAccounts(listId);
+      this.listMembers[listId] = graphqlMembers.map(mapGraphQLToAccount);
+      this.persist();
       this.isLoading = false;
     } catch (error) {
       this.error = error instanceof Error ? error.message : 'Failed to fetch list members';
@@ -125,8 +185,8 @@ class ListsStore {
     this.isLoading = true;
     this.error = null;
     try {
-      const client = getClient();
-      await client.addAccountsToList(listId, accountIds);
+      const adapter = await getGraphQLAdapter();
+      await adapter.addAccountsToList(listId, accountIds);
       
       // Fetch updated member list
       await this.fetchListMembers(listId);
@@ -141,8 +201,8 @@ class ListsStore {
     this.isLoading = true;
     this.error = null;
     try {
-      const client = getClient();
-      await client.removeAccountsFromList(listId, accountIds);
+      const adapter = await getGraphQLAdapter();
+      await adapter.removeAccountsFromList(listId, accountIds);
       
       // Update local state immediately
       if (this.listMembers[listId]) {
@@ -150,6 +210,7 @@ class ListsStore {
           member => !accountIds.includes(member.id)
         );
       }
+      this.persist();
       this.isLoading = false;
     } catch (error) {
       this.error = error instanceof Error ? error.message : 'Failed to remove accounts from list';
