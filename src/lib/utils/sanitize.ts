@@ -1,3 +1,5 @@
+import DOMPurifyModule from 'isomorphic-dompurify';
+
 /**
  * HTML sanitization utilities for preventing XSS attacks
  */
@@ -29,246 +31,39 @@ const MASTODON_CONFIG = {
   FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur']
 };
 
-/**
- * Basic HTML escaping for server-side rendering
- */
-export function escapeHtml(text: string): string {
-  if (!text) return '';
-  
-  return text
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#x27;');
-}
+const URI_SAFE_PATTERN = /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|xxx):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i;
 
-/**
- * Simple server-side HTML sanitizer
- * Allows safe HTML tags while removing dangerous ones
- */
-function serverSanitizeHtml(html: string): string {
-  if (!html) return '';
-  
-  // First, normalize the HTML to handle already-escaped content
-  let normalized = html
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&amp;/g, '&');
-  
-  // Remove script tags and their content
-  normalized = normalized.replace(/<script\b[^<]*(?:(?!<\/script>)<[^<]*)*<\/script>/gi, '');
-  
-  // Remove style tags and their content
-  normalized = normalized.replace(/<style\b[^<]*(?:(?!<\/style>)<[^<]*)*<\/style>/gi, '');
-  
-  // Remove dangerous event handlers
-  normalized = normalized.replace(/\s*on\w+\s*=\s*["'][^"']*["']/gi, '');
-  normalized = normalized.replace(/\s*on\w+\s*=\s*[^\s>]*/gi, '');
-  
-  // Remove javascript: URLs
-  normalized = normalized.replace(/href\s*=\s*["']?\s*javascript:[^"'>]*/gi, 'href="#"');
-  
-  // Build allowed tags regex
-  const allowedTags = MASTODON_CONFIG.ALLOWED_TAGS.join('|');
-  const tagRegex = new RegExp(`<\\/?(?:${allowedTags})(?:\\s[^>]*)?>`, 'gi');
-  
-  // Extract all allowed tags
-  const allowedMatches = normalized.match(tagRegex) || [];
-  
-  // Replace all tags with placeholders
-  let sanitized = normalized;
-  const placeholders: string[] = [];
-  
-  allowedMatches.forEach((tag, index) => {
-    const placeholder = `__SAFE_TAG_${index}__`;
-    placeholders.push(tag);
-    sanitized = sanitized.replace(tag, placeholder);
-  });
-  
-  // Remove all remaining HTML tags (dangerous ones)
-  sanitized = sanitized.replace(/<[^>]+>/g, '');
-  
-  // Restore allowed tags
-  placeholders.forEach((tag, index) => {
-    const placeholder = `__SAFE_TAG_${index}__`;
-    
-    // For anchor tags, ensure they have safe attributes
-    if (tag.toLowerCase().startsWith('<a ')) {
-      tag = tag.replace(/target\s*=\s*["'][^"']*["']/gi, '');
-      tag = tag.replace(/rel\s*=\s*["'][^"']*["']/gi, '');
-      tag = tag.replace(/>/, ' target="_blank" rel="noopener noreferrer ugc">');
-    }
-    
-    sanitized = sanitized.replace(placeholder, tag);
-  });
-  
-  // Escape any remaining HTML entities properly
-  sanitized = sanitized
-    .replace(/&(?!(amp|lt|gt|quot|#x27|#\d+);)/g, '&amp;');
-  
-  return sanitized;
-}
+type DomPurifyInstance = typeof DOMPurifyModule;
 
-/**
- * Sanitize HTML content from Mastodon posts
- */
-// Cache for DOMPurify instance
-let dompurifyCache: any = null;
-let dompurifyPromise: Promise<any> | null = null;
+const HTML_ESCAPE_MAP: Record<string, string> = {
+  '&': '&amp;',
+  '<': '&lt;',
+  '>': '&gt;',
+  '"': '&quot;',
+  "'": '&#x27;'
+};
 
-// Initialize DOMPurify loading on client side
-if (typeof window !== 'undefined') {
-  // Start loading DOMPurify immediately on client side
-  dompurifyPromise = import('isomorphic-dompurify').then(module => {
-    dompurifyCache = module.default;
-    return dompurifyCache;
-  }).catch((error) => {
-    console.warn('Failed to load DOMPurify:', error);
-    dompurifyCache = false;
-    return false;
-  });
-}
+const HTML_ESCAPE_PATTERN = /[&<>"']/g;
 
-export function sanitizeMastodonHtml(html: string): string {
-  if (!html) return '';
-  
-  // For SSR, use our custom server-side sanitizer
-  if (typeof window === 'undefined') {
-    return serverSanitizeHtml(html);
-  }
-  
-  // If DOMPurify is already loaded, use it
-  if (dompurifyCache) {
-    return sanitizeWithDOMPurify(dompurifyCache, html);
-  }
-  
-  // If we haven't started loading DOMPurify yet, start the process
-  if (!dompurifyPromise) {
-    dompurifyPromise = import('isomorphic-dompurify').then(module => {
-      dompurifyCache = module.default;
-      return dompurifyCache;
-    }).catch(() => {
-      dompurifyCache = false; // Mark as unavailable
-      return false;
-    });
-  }
-  
-  // For the first call, fall back to server sanitizer
-  return serverSanitizeHtml(html);
-}
+const HTML_DECODE_MAP: Record<string, string> = {
+  amp: '&',
+  lt: '<',
+  gt: '>',
+  quot: '"',
+  '#x27': "'",
+  '#39': "'"
+};
 
-function sanitizeWithDOMPurify(DOMPurify: any, html: string): string {
-  try {
-    // Configure DOMPurify
-    const clean = DOMPurify.sanitize(html, {
-      ...MASTODON_CONFIG,
-      // Add target="_blank" and rel="noopener noreferrer" to all links
-      ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|cid|xmpp|xxx):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i
-    });
-    
-    // Additional processing for Mastodon-specific elements
-    const div = document.createElement('div');
-    div.innerHTML = clean;
-    
-    // Process all links
-    div.querySelectorAll('a').forEach(link => {
-      link.setAttribute('target', '_blank');
-      link.setAttribute('rel', 'noopener noreferrer ugc');
-      
-      // Add class for external links
-      const href = link.getAttribute('href');
-      if (href && !href.startsWith('/') && !href.startsWith('#')) {
-        link.classList.add('external-link');
-      }
-    });
-    
-    // Process mentions
-    div.querySelectorAll('.mention').forEach(mention => {
-      mention.setAttribute('rel', 'noopener noreferrer ugc');
-    });
-    
-    return div.innerHTML;
-  } catch (error) {
-    // Fallback to server-side sanitizer if DOMPurify fails
-    console.warn('DOMPurify error, falling back to server sanitizer:', error);
-    return serverSanitizeHtml(html);
-  }
-}
+const HTML_DECODE_PATTERN = /&(?:amp|lt|gt|quot|#x27|#39);/gi;
 
-/**
- * Sanitize user-generated content for display names, bios, etc.
- */
-export function sanitizeUserContent(html: string): string {
-  if (!html) return '';
-  
-  // For SSR, use server sanitizer with limited tags
-  if (typeof window === 'undefined') {
-    // Create a simple version that only allows basic formatting
-    const basicHtml = html
-      .replace(/&lt;/g, '<')
-      .replace(/&gt;/g, '>')
-      .replace(/&quot;/g, '"')
-      .replace(/&#x27;/g, "'")
-      .replace(/&amp;/g, '&');
-    
-    // Only allow very basic tags
-    const basicAllowedTags = ['p', 'br', 'a', 'strong', 'em', 'b', 'i'];
-    const basicTagRegex = new RegExp(`<\\/?(?:${basicAllowedTags.join('|')})(?:\\s[^>]*)?>`, 'gi');
-    
-    const matches = basicHtml.match(basicTagRegex) || [];
-    let sanitized = basicHtml;
-    
-    // Replace allowed tags with placeholders
-    const placeholders: string[] = [];
-    matches.forEach((tag, index) => {
-      const placeholder = `__BASIC_TAG_${index}__`;
-      placeholders.push(tag);
-      sanitized = sanitized.replace(tag, placeholder);
-    });
-    
-    // Remove all other tags
-    sanitized = sanitized.replace(/<[^>]+>/g, '');
-    
-    // Restore allowed tags
-    placeholders.forEach((tag, index) => {
-      sanitized = sanitized.replace(`__BASIC_TAG_${index}__`, tag);
-    });
-    
-    return sanitized;
-  }
-  
-  // If DOMPurify is available, use it
-  if (dompurifyCache) {
-    return dompurifyCache.sanitize(html, {
-      ALLOWED_TAGS: ['p', 'br', 'a', 'strong', 'em', 'b', 'i'],
-      ALLOWED_ATTR: ['href', 'rel', 'target'],
-      ADD_ATTR: ['target', 'rel'],
-      ALLOW_DATA_ATTR: false
-    });
-  }
-  
-  // Start loading DOMPurify if not already started
-  if (!dompurifyPromise) {
-    dompurifyPromise = import('isomorphic-dompurify').then(module => {
-      dompurifyCache = module.default;
-      return dompurifyCache;
-    }).catch(() => {
-      dompurifyCache = false;
-      return false;
-    });
-  }
-  
-  // Fallback to simple HTML escaping
-  return escapeHtml(html);
-}
-
-/**
- * Strip all HTML tags from content (safe alternative to innerHTML)
- */
 const TAG_STRIP_PATTERN = /<[^>]*>/g;
+
+function decodeHtmlEntities(text: string): string {
+  return text.replace(HTML_DECODE_PATTERN, match => {
+    const key = match.slice(1, -1).toLowerCase();
+    return HTML_DECODE_MAP[key] ?? match;
+  });
+}
 
 function stripTagsIteratively(value: string): string {
   let current = value;
@@ -280,43 +75,171 @@ function stripTagsIteratively(value: string): string {
   return current;
 }
 
+/**
+ * Basic HTML escaping for server-side rendering
+ */
+export function escapeHtml(text: string): string {
+  if (!text) return '';
+  return text.replace(HTML_ESCAPE_PATTERN, char => HTML_ESCAPE_MAP[char]);
+}
+
+/**
+ * Sanitize HTML content from Mastodon posts
+ */
+// Cache for DOMPurify instance
+let dompurifyCache: DomPurifyInstance | false | null =
+  typeof window === 'undefined' ? DOMPurifyModule : null;
+let dompurifyPromise: Promise<DomPurifyInstance | false> | null =
+  typeof window === 'undefined' ? Promise.resolve(DOMPurifyModule) : null;
+
+// Initialize DOMPurify loading on client side
+if (typeof window !== 'undefined') {
+  // Start loading DOMPurify immediately on client side
+  ensureDomPurifyLoading();
+}
+
+function ensureDomPurifyLoading(): void {
+  if (typeof window === 'undefined') {
+    return;
+  }
+  
+  if (dompurifyPromise) {
+    return;
+  }
+  
+  dompurifyPromise = import('isomorphic-dompurify').then(module => {
+    dompurifyCache = module.default;
+    return dompurifyCache;
+  }).catch((error) => {
+    console.warn('Failed to load DOMPurify:', error);
+    dompurifyCache = false;
+    return false;
+  });
+}
+
+function getPurifierInstance(): DomPurifyInstance {
+  return dompurifyCache && dompurifyCache !== false ? dompurifyCache : DOMPurifyModule;
+}
+
+function sanitizeWithInstance(
+  instance: DomPurifyInstance,
+  html: string,
+  config: Record<string, unknown>
+): string {
+  const normalized = decodeHtmlEntities(html);
+  return instance.sanitize(normalized, {
+    ...config,
+    KEEP_CONTENT: true
+  });
+}
+
+function enhanceMastodonMarkup(markup: string): string {
+  if (typeof document === 'undefined') {
+    return markup;
+  }
+  
+  const div = document.createElement('div');
+  div.innerHTML = markup;
+  
+  div.querySelectorAll('a').forEach(link => {
+    link.setAttribute('target', '_blank');
+    link.setAttribute('rel', 'noopener noreferrer ugc');
+    
+    const href = link.getAttribute('href');
+    if (href && !href.startsWith('/') && !href.startsWith('#')) {
+      link.classList.add('external-link');
+    }
+  });
+  
+  div.querySelectorAll('.mention').forEach(mention => {
+    mention.setAttribute('rel', 'noopener noreferrer ugc');
+  });
+  
+  return div.innerHTML;
+}
+
+function enforceSafeLinks(markup: string): string {
+  if (typeof document === 'undefined') {
+    return markup;
+  }
+  
+  const div = document.createElement('div');
+  div.innerHTML = markup;
+  
+  div.querySelectorAll('a').forEach(link => {
+    link.setAttribute('target', '_blank');
+    link.setAttribute('rel', 'noopener noreferrer ugc');
+  });
+  
+  return div.innerHTML;
+}
+
+export function sanitizeMastodonHtml(html: string): string {
+  if (!html) return '';
+  const config = {
+    ...MASTODON_CONFIG,
+    ALLOWED_URI_REGEXP: URI_SAFE_PATTERN
+  };
+  
+  if (typeof window === 'undefined') {
+    return sanitizeWithInstance(getPurifierInstance(), html, config);
+  }
+  
+  if (dompurifyCache && dompurifyCache !== false) {
+    const clean = sanitizeWithInstance(dompurifyCache, html, config);
+    return enhanceMastodonMarkup(clean);
+  }
+  
+  ensureDomPurifyLoading();
+  return stripTagsIteratively(decodeHtmlEntities(html));
+}
+
+/**
+ * Sanitize user-generated content for display names, bios, etc.
+ */
+export function sanitizeUserContent(html: string): string {
+  if (!html) return '';
+  const config = {
+    ALLOWED_TAGS: ['p', 'br', 'a', 'strong', 'em', 'b', 'i'],
+    ALLOWED_ATTR: ['href', 'rel', 'target'],
+    ADD_ATTR: ['target', 'rel'],
+    ALLOW_DATA_ATTR: false
+  };
+  
+  if (typeof window === 'undefined') {
+    return sanitizeWithInstance(getPurifierInstance(), html, config);
+  }
+  
+  if (dompurifyCache && dompurifyCache !== false) {
+    const clean = sanitizeWithInstance(dompurifyCache, html, config);
+    return enforceSafeLinks(clean);
+  }
+  
+  ensureDomPurifyLoading();
+  return stripTagsIteratively(decodeHtmlEntities(html));
+}
+
+/**
+ * Strip all HTML tags from content (safe alternative to innerHTML)
+ */
 export function stripHtmlSafe(html: string): string {
   if (!html) return '';
   
-  // First normalize any HTML entities
-  let normalized = html
-    .replace(/&lt;/g, '<')
-    .replace(/&gt;/g, '>')
-    .replace(/&quot;/g, '"')
-    .replace(/&#x27;/g, "'")
-    .replace(/&amp;/g, '&');
+  const normalized = decodeHtmlEntities(html);
+  const instance =
+    dompurifyCache && dompurifyCache !== false
+      ? dompurifyCache
+      : (typeof window === 'undefined' ? DOMPurifyModule : null);
   
-  // For SSR, use regex
-  if (typeof window === 'undefined') {
-    return stripTagsIteratively(normalized);
-  }
-  
-  // If DOMPurify is available, use it
-  if (dompurifyCache) {
-    return dompurifyCache.sanitize(normalized, { 
+  if (instance) {
+    return instance.sanitize(normalized, {
       ALLOWED_TAGS: [],
       ALLOWED_ATTR: [],
       KEEP_CONTENT: true
     });
   }
   
-  // Start loading DOMPurify if not already started
-  if (!dompurifyPromise) {
-    dompurifyPromise = import('isomorphic-dompurify').then(module => {
-      dompurifyCache = module.default;
-      return dompurifyCache;
-    }).catch(() => {
-      dompurifyCache = false;
-      return false;
-    });
-  }
-  
-  // Fallback to regex for immediate use and repeat until no tags remain
+  ensureDomPurifyLoading();
   return stripTagsIteratively(normalized);
 }
 

@@ -8,6 +8,7 @@ import type { Notification, NotificationType, Status, Account } from '@/types/ma
 import { getGraphQLAdapter } from '@/lib/api/graphql-client';
 import { logDebug } from '@/lib/utils/logger';
 import { mapGraphQLMediaToAttachment } from '@/lib/mappers/media';
+import { stripHtmlSafe } from '@/lib/utils/sanitize';
 import { authStore } from './auth.svelte';
 
 // Subscription type from Apollo Client (provided via greater-components)
@@ -336,15 +337,15 @@ function showBrowserNotification(notification: Notification) {
   switch (notification.type) {
     case 'mention':
       title = `${notification.account.display_name || notification.account.username} mentioned you`;
-      body = notification.status?.content.replace(/<[^>]*>/g, '') || '';
+      body = notification.status?.content ? stripHtmlSafe(notification.status.content) : '';
       break;
     case 'reblog':
       title = `${notification.account.display_name || notification.account.username} boosted your post`;
-      body = notification.status?.content.replace(/<[^>]*>/g, '') || '';
+      body = notification.status?.content ? stripHtmlSafe(notification.status.content) : '';
       break;
     case 'favourite':
       title = `${notification.account.display_name || notification.account.username} favorited your post`;
-      body = notification.status?.content.replace(/<[^>]*>/g, '') || '';
+      body = notification.status?.content ? stripHtmlSafe(notification.status.content) : '';
       break;
     case 'follow':
       title = `${notification.account.display_name || notification.account.username} followed you`;
@@ -356,11 +357,11 @@ function showBrowserNotification(notification: Notification) {
       break;
     case 'poll':
       title = 'A poll you voted in has ended';
-      body = notification.status?.content.replace(/<[^>]*>/g, '') || '';
+      body = notification.status?.content ? stripHtmlSafe(notification.status.content) : '';
       break;
     case 'update':
       title = 'A post you interacted with was edited';
-      body = notification.status?.content.replace(/<[^>]*>/g, '') || '';
+      body = notification.status?.content ? stripHtmlSafe(notification.status.content) : '';
       break;
   }
   

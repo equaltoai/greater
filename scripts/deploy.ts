@@ -6,6 +6,20 @@ import path from 'path';
 const environment = process.env.PULUMI_STACK || 'dev';
 const isProd = environment === 'prod';
 
+const escapeForTemplateLiteral = (value: string): string =>
+  value.replace(/[`$\\]/g, (char) => {
+    switch (char) {
+      case '`':
+        return '\\`';
+      case '$':
+        return '\\$';
+      case '\\':
+        return '\\\\';
+      default:
+        return char;
+    }
+  });
+
 console.log(`🚀 Deploying Greater Client to ${environment}...`);
 
 try {
@@ -17,6 +31,7 @@ try {
   console.log('🔧 Preparing worker script...');
   const workerPath = path.join(process.cwd(), 'dist', '_worker.js');
   const workerContent = readFileSync(workerPath, 'utf-8');
+  const escapedWorkerContent = escapeForTemplateLiteral(workerContent);
   
   // Update the Pulumi infrastructure with the actual worker content
   const infraPath = path.join(process.cwd(), 'infrastructure', 'index.ts');
@@ -25,7 +40,7 @@ try {
   // Replace the placeholder worker content
   infraContent = infraContent.replace(
     /content: pulumi\.interpolate`[\s\S]*?`/,
-    `content: pulumi.interpolate\`${workerContent.replace(/`/g, '\\`').replace(/\$/g, '\\$')}\``
+    `content: pulumi.interpolate\`${escapedWorkerContent}\``
   );
   
   writeFileSync(infraPath, infraContent);
