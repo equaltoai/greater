@@ -3,6 +3,7 @@
  */
 
 import type { Status, Account, Notification, TimelineParams } from '@/types/mastodon';
+import { stripHtmlSafe } from '@/lib/utils/sanitize';
 
 /**
  * Timeline utilities
@@ -170,8 +171,7 @@ export function getOptimizedImageUrl(
  * Content utilities
  */
 export function stripHtml(html: string): string {
-  // Simple regex-based approach that works in both SSR and client
-  return html.replace(/<[^>]*>/g, '');
+  return stripHtmlSafe(html);
 }
 
 export function getPlainTextContent(status: Status): string {
