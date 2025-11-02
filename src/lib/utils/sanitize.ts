@@ -268,6 +268,18 @@ export function sanitizeUserContent(html: string): string {
 /**
  * Strip all HTML tags from content (safe alternative to innerHTML)
  */
+const TAG_STRIP_PATTERN = /<[^>]*>/g;
+
+function stripTagsIteratively(value: string): string {
+  let current = value;
+  let previous: string;
+  do {
+    previous = current;
+    current = current.replace(TAG_STRIP_PATTERN, '');
+  } while (current !== previous);
+  return current;
+}
+
 export function stripHtmlSafe(html: string): string {
   if (!html) return '';
   
@@ -281,7 +293,7 @@ export function stripHtmlSafe(html: string): string {
   
   // For SSR, use regex
   if (typeof window === 'undefined') {
-    return normalized.replace(/<[^>]*>/g, '');
+    return stripTagsIteratively(normalized);
   }
   
   // If DOMPurify is available, use it
@@ -305,14 +317,7 @@ export function stripHtmlSafe(html: string): string {
   }
   
   // Fallback to regex for immediate use and repeat until no tags remain
-  const tagPattern = /<[^>]*>/g;
-  let fallback = normalized;
-  let previous: string;
-  do {
-    previous = fallback;
-    fallback = fallback.replace(tagPattern, '');
-  } while (fallback !== previous);
-  return fallback;
+  return stripTagsIteratively(normalized);
 }
 
 /**
