@@ -4,8 +4,16 @@
  * Migrated to GraphQL
  */
 
-import type { Account } from '@/types/mastodon';
+import type {
+  Account,
+  AttachmentType,
+  MediaAttachment,
+  Status,
+  StatusVisibility,
+} from '@/types/mastodon';
 import { getGraphQLAdapter } from './graphql-client';
+
+type GraphQLCountValue = { totalCount?: number | null } | number | null;
 
 export type GraphQLActor = {
   id: string;
@@ -28,15 +36,64 @@ export type GraphQLActor = {
   header?: string | null;
   icon?: { url?: string | null } | null;
   image?: { url?: string | null } | null;
-  followers?: { totalCount?: number | null } | number | null;
-  following?: { totalCount?: number | null } | number | null;
-  outbox?: { totalCount?: number | null } | number | null;
+  followers?: GraphQLCountValue | null;
+  following?: GraphQLCountValue | null;
+  outbox?: GraphQLCountValue | null;
   statusesCount?: number | null;
   locked?: boolean | null;
   bot?: boolean | null;
   trustScore?: number | null;
   attachment?: Array<{ type?: string | null; name: string; value: string }> | null;
   fields?: Array<{ name?: string | null; value?: string | null; verifiedAt?: string | null }> | null;
+};
+
+type GraphQLStatusAttachment = {
+  id: string;
+  type?: string | null;
+  url: string;
+  preview?: string | null;
+  description?: string | null;
+  blurhash?: string | null;
+  remoteUrl?: string | null;
+};
+
+type GraphQLStatusNode = {
+  id: string;
+  object?: GraphQLStatusNode | null;
+  published?: string | null;
+  createdAt?: string | null;
+  url?: string | null;
+  attributedTo?: (GraphQLActor | { id: string }) | null;
+  actor?: (GraphQLActor | { id: string }) | null;
+  content?: string | null;
+  visibility?: string | null;
+  sensitive?: boolean | null;
+  summary?: string | null;
+  spoilerText?: string | null;
+  attachments?: GraphQLStatusAttachment[] | null;
+  shares?: GraphQLCountValue | null;
+  sharesCount?: number | null;
+  likes?: GraphQLCountValue | null;
+  likesCount?: number | null;
+  replies?: GraphQLCountValue | null;
+  repliesCount?: number | null;
+  userInteractions?: {
+    shared?: boolean | null;
+    liked?: boolean | null;
+    bookmarked?: boolean | null;
+  } | null;
+  shareOf?: GraphQLStatusNode | null;
+  inReplyTo?: { id?: string | null } | null;
+  language?: string | null;
+  updated?: string | null;
+};
+
+type GraphQLTimelineEdge = {
+  node: GraphQLStatusNode | null;
+};
+
+type GraphQLTimelineResponse = {
+  edges?: Array<GraphQLTimelineEdge | null> | null;
 };
 
 /**
@@ -275,7 +332,7 @@ function filterGraphQLActors(value: unknown): GraphQLActor[] {
     .map((actor) => toGraphQLActor(actor));
 }
 
-function resolveCount(value: GraphQLActor['followers']): number {
+function resolveCount(value: GraphQLCountValue | null | undefined): number {
   if (typeof value === 'number') {
     return value;
   }
@@ -294,7 +351,10 @@ function toGraphQLActor(actor: unknown): GraphQLActor {
  * Helper function to resolve account and get statuses
  * Migrated to GraphQL
  */
-export async function getAccountStatuses(identifier: string, params?: { limit?: number; after?: string }) {
+export async function getAccountStatuses(
+  identifier: string,
+  params?: { limit?: number; after?: string }
+): Promise<Status[]> {
   const service = getAccountService();
   const account = await service.resolveAccount(identifier);
   
@@ -302,16 +362,15 @@ export async function getAccountStatuses(identifier: string, params?: { limit?: 
   
   try {
     // Use the new fetchActorTimeline method from greater-components 1.0.21+
-    const response = await adapter.fetchActorTimeline(account.id, {
-      first: params?.limit || 20,
+    const response = (await adapter.fetchActorTimeline(account.id, {
+      first: params?.limit ?? 20,
       after: params?.after,
-    });
-    
-    // Map GraphQL response to Status objects
-    const statuses = (response.edges || [])
-      .filter((edge: any) => edge?.node)
-      .map((edge: any) => mapGraphQLToStatus(edge.node));
-    
+    })) as GraphQLTimelineResponse;
+
+    const statuses = (response.edges ?? []).flatMap((edge) =>
+      edge?.node ? [mapGraphQLToStatus(edge.node)] : []
+    );
+
     return statuses;
   } catch (error) {
     console.error('[getAccountStatuses] Failed to fetch timeline:', error);
@@ -320,47 +379,84 @@ export async function getAccountStatuses(identifier: string, params?: { limit?: 
 }
 
 // Helper to map GraphQL object to Status
-function mapGraphQLToStatus(node: any): any {
-  const obj = node.object || node;
-  
+function mapGraphQLToStatus(node: GraphQLStatusNode): Status {
+  const obj = node.object ?? node;
+  const actor = resolveStatusActor(obj);
+  const mediaAttachments = (obj.attachments ?? []).map(mapGraphQLAttachmentToMedia);
+
   return {
     id: obj.id,
     uri: obj.id,
-    url: obj.id,
-    created_at: obj.published || obj.createdAt || new Date().toISOString(),
-    account: mapGraphQLActorToAccount(obj.attributedTo || obj.actor || {}),
-    content: obj.content || '',
-    visibility: (obj.visibility?.toLowerCase() || 'public'),
+    url: obj.url ?? obj.id,
+    created_at: obj.published ?? obj.createdAt ?? new Date().toISOString(),
+    account: mapGraphQLActorToAccount(actor),
+    content: obj.content ?? '',
+    visibility: normalizeStatusVisibility(obj.visibility),
     sensitive: obj.sensitive ?? false,
     spoiler_text: obj.summary ?? obj.spoilerText ?? '',
-    media_attachments: (obj.attachments || []).map((a: any) => ({
-      id: a.id,
-      type: a.type?.toLowerCase() || 'unknown',
-      url: a.url,
-      preview_url: a.preview || a.url,
-      description: a.description || null,
-      blurhash: a.blurhash || null,
-    })),
+    media_attachments: mediaAttachments,
     mentions: [],
     tags: [],
     emojis: [],
-    reblogs_count: obj.shares?.totalCount || obj.sharesCount || 0,
-    favourites_count: obj.likes?.totalCount || obj.likesCount || 0,
-    replies_count: obj.replies?.totalCount || obj.repliesCount || 0,
-    reblogged: obj.userInteractions?.shared || false,
-    favourited: obj.userInteractions?.liked || false,
-    bookmarked: obj.userInteractions?.bookmarked || false,
+    reblogs_count: resolveCount(obj.shares ?? obj.sharesCount ?? null),
+    favourites_count: resolveCount(obj.likes ?? obj.likesCount ?? null),
+    replies_count: resolveCount(obj.replies ?? obj.repliesCount ?? null),
+    reblogged: obj.userInteractions?.shared ?? false,
+    favourited: obj.userInteractions?.liked ?? false,
+    bookmarked: obj.userInteractions?.bookmarked ?? false,
     pinned: false,
     reblog: obj.shareOf ? mapGraphQLToStatus(obj.shareOf) : null,
-    in_reply_to_id: obj.inReplyTo?.id || null,
+    in_reply_to_id: obj.inReplyTo?.id ?? null,
     in_reply_to_account_id: null,
     application: null,
-    language: obj.language || null,
+    language: obj.language ?? null,
     muted: false,
     poll: null,
     card: null,
-    edited_at: obj.updated || null,
+    edited_at: obj.updated ?? null,
   };
+}
+
+function resolveStatusActor(node: GraphQLStatusNode): GraphQLActor {
+  const actorCandidate = node.attributedTo ?? node.actor;
+  if (actorCandidate) {
+    return toGraphQLActor(actorCandidate);
+  }
+
+  return { id: node.id };
+}
+
+function mapGraphQLAttachmentToMedia(attachment: GraphQLStatusAttachment): MediaAttachment {
+  return {
+    id: attachment.id,
+    type: normalizeAttachmentType(attachment.type),
+    url: attachment.url,
+    preview_url: attachment.preview ?? attachment.url,
+    remote_url: attachment.remoteUrl ?? null,
+    description: attachment.description ?? null,
+    blurhash: attachment.blurhash ?? null,
+  };
+}
+
+function normalizeStatusVisibility(value?: string | null): StatusVisibility {
+  const normalized = (value ?? 'public').toLowerCase();
+  if (
+    normalized === 'public' ||
+    normalized === 'unlisted' ||
+    normalized === 'private' ||
+    normalized === 'direct'
+  ) {
+    return normalized;
+  }
+  return 'public';
+}
+
+function normalizeAttachmentType(value?: string | null): AttachmentType {
+  const normalized = (value ?? '').toLowerCase();
+  if (normalized === 'image' || normalized === 'gifv' || normalized === 'video' || normalized === 'audio') {
+    return normalized;
+  }
+  return 'unknown';
 }
 
 /**
