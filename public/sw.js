@@ -9,6 +9,13 @@ const CACHE_NAMES = {
   api: `greater-api-${CACHE_VERSION}`
 };
 
+const DEV_HOSTS = new Set(['localhost', '127.0.0.1']);
+const isLocalDev = DEV_HOSTS.has(self.location.hostname);
+
+if (isLocalDev) {
+  console.info('[Greater SW] Localhost detected; bypassing offline caching for dev.');
+}
+
 // Assets to cache on install
 const STATIC_ASSETS = [
   '/',
@@ -19,6 +26,11 @@ const STATIC_ASSETS = [
 
 // Install event - cache static assets
 self.addEventListener('install', (event) => {
+  if (isLocalDev) {
+    event.waitUntil(self.skipWaiting());
+    return;
+  }
+
   event.waitUntil(
     caches.open(CACHE_NAMES.static).then((cache) => {
       return cache.addAll(STATIC_ASSETS);
@@ -30,6 +42,11 @@ self.addEventListener('install', (event) => {
 
 // Activate event - clean up old caches
 self.addEventListener('activate', (event) => {
+  if (isLocalDev) {
+    event.waitUntil(self.clients.claim());
+    return;
+  }
+
   event.waitUntil(
     caches.keys().then((cacheNames) => {
       return Promise.all(
@@ -47,6 +64,10 @@ self.addEventListener('activate', (event) => {
 
 // Fetch event - network first, fallback to cache
 self.addEventListener('fetch', (event) => {
+  if (isLocalDev) {
+    return;
+  }
+
   const { request } = event;
   const url = new URL(request.url);
 
@@ -139,12 +160,20 @@ async function networkFirstStrategy(request, cacheName) {
 
 // Background sync for offline posts
 self.addEventListener('sync', (event) => {
+  if (isLocalDev) {
+    return;
+  }
+
   if (event.tag === 'sync-posts') {
     event.waitUntil(syncOfflinePosts());
   }
 });
 
 async function syncOfflinePosts() {
+  if (isLocalDev) {
+    return;
+  }
+
   const db = await openDB();
   const tx = db.transaction('offline-posts', 'readonly');
   const posts = await tx.objectStore('offline-posts').getAll();

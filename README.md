@@ -107,7 +107,7 @@ greater/
 │   └── types/            # TypeScript types
 ├── public/               # Static assets
 ├── functions/            # Cloudflare Workers (auth, middleware)
-├── infrastructure/       # Pulumi deployment configs
+├── scripts/              # Deployment utilities (Cloudflare Pages)
 └── tests/
     ├── unit/             # Vitest unit tests
     └── e2e/              # Playwright E2E tests
@@ -129,10 +129,10 @@ greater/
 - **Auth**: OAuth 2.0 (via Cloudflare Workers)
 
 **Infrastructure:**
-- **Hosting**: Cloudflare Workers (serverless)
+- **Hosting**: Cloudflare Pages (Workers runtime)
 - **CDN**: Cloudflare CDN
 - **Build**: Vite + Astro build pipeline
-- **Deployment**: Pulumi (infrastructure as code)
+- **Deployment**: Wrangler CLI + shell scripts
 
 **Development:**
 - **Package Manager**: pnpm (workspaces)

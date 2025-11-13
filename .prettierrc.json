@@ -12,20 +12,13 @@
   "arrowParens": "always",
   "endOfLine": "lf",
   "singleAttributePerLine": false,
-  "plugins": ["prettier-plugin-astro", "prettier-plugin-svelte", "prettier-plugin-tailwindcss"],
+  "plugins": ["prettier-plugin-svelte"],
   "overrides": [
-    {
-      "files": "*.astro",
-      "options": {
-        "parser": "astro"
-      }
-    },
     {
       "files": "*.svelte",
       "options": {
         "parser": "svelte"
       }
     }
-  ],
-  "tailwindConfig": "./tailwind.config.js"
+  ]
 }

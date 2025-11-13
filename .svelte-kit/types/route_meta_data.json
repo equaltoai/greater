@@ -1,0 +1,21 @@
+{
+	"/": [
+		"src/routes/+layout.ts",
+		"src/routes/+layout.ts"
+	],
+	"/auth/callback": [
+		"src/routes/+layout.ts"
+	],
+	"/auth/login": [
+		"src/routes/+layout.ts"
+	],
+	"/federated": [
+		"src/routes/+layout.ts"
+	],
+	"/home": [
+		"src/routes/+layout.ts"
+	],
+	"/local": [
+		"src/routes/+layout.ts"
+	]
+}

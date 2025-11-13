@@ -1,4 +1,4 @@
-import { logDebug } from '@/lib/utils/logger';
+import { logDebug } from '$lib/utils/logger';
 
 // Minimal store for testing
 class TestStore {

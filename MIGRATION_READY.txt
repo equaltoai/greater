@@ -1,0 +1,25 @@
+# Greater Components Integration - Ready for Testing
+
+## Created Bridge Components (following GC guidance)
+
+✅ src/lib/gc.ts - Centralized GC imports
+✅ src/lib/components/islands/svelte/TimelineGC.svelte - Timeline with manual store management
+✅ src/lib/components/islands/svelte/ComposeBoxGC.svelte - Compose with token provider pattern
+✅ src/lib/components/islands/svelte/StatusCardGC.svelte - Status with action handlers
+✅ src/lib/components/islands/svelte/NotificationsGC.svelte - Notifications feed
+
+## Integration Patterns Applied
+
+- Token Provider: Async function returning fresh tokens per request
+- Manual Store Management: Bridge existing stores to GC components via items prop
+- Action Handlers: Full event handling for favorites, boosts, replies, etc.
+- Callbacks: Wire store actions to GC component events
+
+## Ready to Test
+
+Replace in src/routes/+page.svelte:
+- Timeline → TimelineGC
+- ComposeBox → ComposeBoxGC  
+- StatusCard → StatusCardGC
+
+All patterns follow GC migration docs recommendations.

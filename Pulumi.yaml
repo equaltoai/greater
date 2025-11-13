@@ -1,7 +1,0 @@
-name: greater-client
-runtime:
-  name: nodejs
-  options:
-    typescript: true
-description: Infrastructure for Greater Mastodon client on Cloudflare
-main: infrastructure/index.ts

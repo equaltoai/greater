@@ -5,11 +5,12 @@
 
 import { atom, computed } from 'nanostores';
 import { persistentAtom } from '@nanostores/persistent';
-import type { CreateStatusParams, MediaAttachment, CreatePollParams, Status } from '@/types/mastodon';
-import { getGraphQLAdapter, uploadMediaAsset } from '@/lib/api/graphql-client';
-import type { MediaCategory } from '@/lib/api/graphql-client';
-import { inferMediaCategoryFromFile, mapGraphQLMediaToAttachment } from '@/lib/mappers/media';
-import { logDebug } from '@/lib/utils/logger';
+import type { CreateStatusParams, MediaAttachment, CreatePollParams, Status } from '$lib/types/mastodon';
+import { getGraphQLAdapter, uploadMediaAsset } from '$lib/api/graphql-client';
+import type { MediaCategory } from '$lib/api/graphql-client';
+import { inferMediaCategoryFromFile, mapGraphQLMediaToAttachment } from '$lib/mappers/media';
+import { logDebug } from '$lib/utils/logger';
+import { resolveBookmarkedFlag, resolveFavouritedFlag, resolvePinnedFlag, resolveRebloggedFlag } from '$lib/utils/interactions';
 
 const MAX_DESCRIPTION_LENGTH = 1500;
 const MAX_SPOILER_LENGTH = 200;
@@ -281,20 +282,20 @@ function mapVisibilityToGraphQL(visibility: 'public' | 'unlisted' | 'private' | 
  */
 function mapGraphQLToStatus(obj: any): Status {
   const attachments = (obj.attachments || []).map((a: any) => mapGraphQLMediaToAttachment(a));
+  const actor = obj.actor || obj.attributedTo || obj.author;
+
+  if (!actor) {
+    throw new Error('[Compose] Missing actor data in createNote response');
+  }
+
+  const account = mapGraphQLActorToAccount(actor);
 
   return {
     id: obj.id,
     uri: obj.id,
     url: obj.id,
     created_at: obj.published || obj.createdAt || new Date().toISOString(),
-    account: {
-      id: obj.attributedTo?.id || obj.author?.id || 'unknown',
-      username: obj.attributedTo?.preferredUsername || obj.author?.preferredUsername || 'unknown',
-      acct: obj.attributedTo?.webfinger || obj.author?.webfinger || 'unknown',
-      display_name: obj.attributedTo?.name || obj.author?.name || 'Unknown',
-      avatar: obj.attributedTo?.icon?.url || obj.author?.icon?.url || '',
-      header: obj.attributedTo?.image?.url || obj.author?.image?.url || '',
-    } as any,
+    account,
     content: obj.content || '',
     visibility: (obj.visibility?.toLowerCase() || 'public') as any,
     sensitive: obj.sensitive ?? false,
@@ -306,9 +307,9 @@ function mapGraphQLToStatus(obj: any): Status {
     reblogs_count: obj.shares?.totalCount || obj.sharesCount || 0,
     favourites_count: obj.likes?.totalCount || obj.likesCount || 0,
     replies_count: obj.replies?.totalCount || obj.repliesCount || 0,
-    reblogged: obj.userInteractions?.shared || false,
-    favourited: obj.userInteractions?.liked || false,
-    bookmarked: obj.userInteractions?.bookmarked || false,
+    reblogged: resolveRebloggedFlag(obj),
+    favourited: resolveFavouritedFlag(obj),
+    bookmarked: resolveBookmarkedFlag(obj),
     reblog: null,
     in_reply_to_id: obj.inReplyTo?.id || null,
     in_reply_to_account_id: null,
@@ -318,6 +319,56 @@ function mapGraphQLToStatus(obj: any): Status {
     poll: null,
     card: null,
     edited_at: obj.updated || null,
+  };
+}
+
+function mapGraphQLActorToAccount(actor: any) {
+  if (!actor) {
+    throw new Error('[Compose] Cannot map account without actor data');
+  }
+
+  let derivedHost: string | undefined;
+  if (actor.id) {
+    try {
+      derivedHost = new URL(actor.id).hostname;
+    } catch {
+      derivedHost = undefined;
+    }
+  }
+
+  const acct =
+    actor.domain && actor.username
+      ? `${actor.username}@${actor.domain}`
+      : actor.username && derivedHost
+        ? `${actor.username}@${derivedHost}`
+        : actor.username || derivedHost || '';
+
+  return {
+    id: actor.id,
+    username: actor.username || actor.preferredUsername || '',
+    acct,
+    display_name: actor.displayName || actor.name || actor.username || '',
+    url: actor.id,
+    note: actor.summary || '',
+    avatar: actor.avatar || actor.icon?.url || '',
+    avatar_static: actor.avatar || actor.icon?.url || '',
+    header: actor.header || actor.image?.url || '',
+    header_static: actor.header || actor.image?.url || '',
+    locked: actor.locked ?? actor.manuallyApprovesFollowers ?? false,
+    bot: actor.bot ?? actor.type === 'Service',
+    created_at: actor.createdAt || actor.published || new Date().toISOString(),
+    followers_count: actor.followers ?? actor.followers_count ?? 0,
+    following_count: actor.following ?? actor.following_count ?? 0,
+    statuses_count: actor.statusesCount ?? actor.outbox?.totalCount ?? 0,
+    last_status_at: null,
+    emojis: [],
+    fields: (actor.fields || actor.attachment || [])
+      .filter(Boolean)
+      .map((field: any) => ({
+        name: field.name || '',
+        value: field.value || '',
+        verified_at: field.verified_at || null,
+      })),
   };
 }
 
@@ -373,7 +424,7 @@ export const createPost = async (): Promise<Status | null> => {
     }
     
     if (composeReplyTo$.get()) {
-      variables.inReplyTo = composeReplyTo$.get();
+      variables.inReplyToId = composeReplyTo$.get();
     }
     
     if (composeMedia$.get().length > 0) {

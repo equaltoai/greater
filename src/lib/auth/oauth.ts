@@ -3,7 +3,7 @@
  * Implements PKCE (Proof Key for Code Exchange) for enhanced security
  */
 
-import type { OAuthApp, OAuthToken, AuthorizeParams, TokenExchangeParams } from '@/types/auth';
+import type { OAuthApp, OAuthToken, AuthorizeParams, TokenExchangeParams } from '$lib/types/auth';
 import { secureAuthClient } from './secure-client';
 import { logDebug } from '../utils/logger';
 

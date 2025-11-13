@@ -3,8 +3,8 @@
  * (e.g., lesser.host)
  */
 
-import { secureAuthClient } from '@/lib/auth/secure-client';
-import { logDebug } from '@/lib/utils/logger';
+import { secureAuthClient } from '$lib/auth/secure-client';
+import { logDebug } from '$lib/utils/logger';
 
 export interface WebSocketStreamOptions {
   instance: string;

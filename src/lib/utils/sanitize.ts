@@ -98,6 +98,12 @@ if (typeof window !== 'undefined') {
   ensureDomPurifyLoading();
 }
 
+function isDomPurifyInstance(
+  value: DomPurifyInstance | false | null
+): value is DomPurifyInstance {
+  return value !== null && value !== false;
+}
+
 function ensureDomPurifyLoading(): void {
   if (typeof window === 'undefined') {
     return;
@@ -107,18 +113,12 @@ function ensureDomPurifyLoading(): void {
     return;
   }
   
-  dompurifyPromise = import('isomorphic-dompurify').then(module => {
-    dompurifyCache = module.default;
-    return dompurifyCache;
-  }).catch((error) => {
-    console.warn('Failed to load DOMPurify:', error);
-    dompurifyCache = false;
-    return false;
-  });
+  dompurifyCache = DOMPurifyModule;
+  dompurifyPromise = Promise.resolve(DOMPurifyModule);
 }
 
 function getPurifierInstance(): DomPurifyInstance {
-  return dompurifyCache && dompurifyCache !== false ? dompurifyCache : DOMPurifyModule;
+  return isDomPurifyInstance(dompurifyCache) ? dompurifyCache : DOMPurifyModule;
 }
 
 function sanitizeWithInstance(
@@ -185,7 +185,7 @@ export function sanitizeMastodonHtml(html: string): string {
     return sanitizeWithInstance(getPurifierInstance(), html, config);
   }
   
-  if (dompurifyCache && dompurifyCache !== false) {
+  if (isDomPurifyInstance(dompurifyCache)) {
     const clean = sanitizeWithInstance(dompurifyCache, html, config);
     return enhanceMastodonMarkup(clean);
   }
@@ -210,7 +210,7 @@ export function sanitizeUserContent(html: string): string {
     return sanitizeWithInstance(getPurifierInstance(), html, config);
   }
   
-  if (dompurifyCache && dompurifyCache !== false) {
+  if (isDomPurifyInstance(dompurifyCache)) {
     const clean = sanitizeWithInstance(dompurifyCache, html, config);
     return enforceSafeLinks(clean);
   }
@@ -226,10 +226,9 @@ export function stripHtmlSafe(html: string): string {
   if (!html) return '';
   
   const normalized = decodeHtmlEntities(html);
-  const instance =
-    dompurifyCache && dompurifyCache !== false
-      ? dompurifyCache
-      : (typeof window === 'undefined' ? DOMPurifyModule : null);
+  const instance = isDomPurifyInstance(dompurifyCache)
+    ? dompurifyCache
+    : (typeof window === 'undefined' ? DOMPurifyModule : null);
   
   if (instance) {
     return instance.sanitize(normalized, {

@@ -23,9 +23,9 @@ import type {
   Filter,
   MediaAttachment,
   Markers
-} from '@/types/mastodon';
+} from '$lib/types/mastodon';
 import type { SearchParams } from './schemas';
-import { secureAuthClient } from '@/lib/auth/secure-client';
+import { secureAuthClient } from '$lib/auth/secure-client';
 import { globalRateLimiter } from './rate-limiter';
 import {
   validateResponse,
@@ -37,7 +37,7 @@ import {
   PreferencesSchema
 } from './schemas';
 import { WebSocketStream } from './websocket-stream';
-import { logDebug } from '@/lib/utils/logger';
+import { logDebug } from '$lib/utils/logger';
 
 export class APIError extends Error {
   constructor(

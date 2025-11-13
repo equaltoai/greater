@@ -1,26 +1,50 @@
-/// <reference types="astro/client" />
+/// <reference types="@sveltejs/kit" />
+/// <reference types="vite/client" />
 
-interface KVNamespace {
-  get(key: string): Promise<string | null>
-  put(
-    key: string,
-    value: string,
-    options?: { expiration?: number; expirationTtl?: number }
-  ): Promise<void>
-  delete(key: string): Promise<void>
+// Vite environment variables
+interface ImportMetaEnv {
+	readonly VITE_GRAPHQL_ENDPOINT?: string;
+	readonly VITE_GRAPHQL_WS_ENDPOINT?: string;
+	readonly VITE_DEFAULT_INSTANCE?: string;
+	readonly VITE_OAUTH_REDIRECT_URI?: string;
+	readonly VITE_API_BASE_URL?: string;
+	readonly DEV?: boolean;
+	readonly PROD?: boolean;
+	readonly SSR?: boolean;
+	readonly MODE: string;
 }
 
-declare namespace App {
-  interface Locals {
-    runtime: {
-      env: {
-        SESSIONS: KVNamespace
-        AUTH_TOKENS?: KVNamespace
-        OAUTH_APPS?: KVNamespace
-        SESSION_SECRETS?: KVNamespace
-        [key: string]: unknown
-      }
-    }
-  }
+interface ImportMeta {
+	readonly env: ImportMetaEnv;
 }
 
+// Ambient module declarations
+declare module '*.svg' {
+	const content: string;
+	export default content;
+}
+
+declare module '*.png' {
+	const content: string;
+	export default content;
+}
+
+declare module '*.jpg' {
+	const content: string;
+	export default content;
+}
+
+declare module '*.jpeg' {
+	const content: string;
+	export default content;
+}
+
+declare module '*.gif' {
+	const content: string;
+	export default content;
+}
+
+declare module '*.webp' {
+	const content: string;
+	export default content;
+}

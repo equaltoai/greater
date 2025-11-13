@@ -13,7 +13,7 @@ import type {
   PreviewCard,
   Status as MastodonStatus,
   Tag,
-} from '@/types/mastodon';
+} from '$lib/types/mastodon';
 
 // Base schemas
 // More lenient datetime schema that accepts various ISO 8601 formats

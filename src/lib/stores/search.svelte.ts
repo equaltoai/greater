@@ -3,10 +3,12 @@
  * Handles account, status, and hashtag search
  */
 
-import type { Account, Status, Tag } from '@/types/mastodon';
-import { getGraphQLAdapter } from '@/lib/api/graphql-client';
-import { mapGraphQLMediaToAttachment } from '@/lib/mappers/media';
-import { logDebug } from '@/lib/utils/logger';
+import type { Account, Status, Tag } from '$lib/types/mastodon';
+import { getGraphQLAdapter } from '$lib/api/graphql-client';
+import { mapGraphQLMediaToAttachment } from '$lib/mappers/media';
+import { logDebug } from '$lib/utils/logger';
+import { mapGraphQLActorToAccount } from '$lib/api/account-service';
+import { resolveBookmarkedFlag, resolveFavouritedFlag, resolvePinnedFlag, resolveRebloggedFlag } from '$lib/utils/interactions';
 
 export interface SearchResults {
   accounts: Account[];
@@ -17,52 +19,6 @@ export interface SearchResults {
 const MAX_HISTORY_ITEMS = 10;
 
 /**
- * Map GraphQL Actor to Mastodon Account
- */
-function mapGraphQLToAccount(actor: any): Account {
-  if (!actor) {
-    return {
-      id: 'unknown',
-      username: 'unknown',
-      acct: 'unknown',
-      display_name: 'Unknown',
-      avatar: '',
-      header: '',
-    } as Account;
-  }
-
-  return {
-    id: actor.id,
-    username: actor.preferredUsername || actor.username,
-    acct: actor.webfinger || `${actor.preferredUsername}@${new URL(actor.id).hostname}`,
-    display_name: actor.name || actor.preferredUsername,
-    locked: actor.manuallyApprovesFollowers || false,
-    bot: actor.type === 'Service',
-    created_at: actor.published || new Date().toISOString(),
-    note: actor.summary || '',
-    url: actor.url || actor.id,
-    avatar: actor.icon?.url || '',
-    avatar_static: actor.icon?.url || '',
-    header: actor.image?.url || '',
-    header_static: actor.image?.url || '',
-    followers_count: actor.followers?.totalCount || 0,
-    following_count: actor.following?.totalCount || 0,
-    statuses_count: actor.outbox?.totalCount || 0,
-    last_status_at: null,
-    emojis: [],
-    fields: (actor.attachment || [])
-      .filter((a: any) => a.type === 'PropertyValue')
-      .map((a: any) => ({
-        name: a.name,
-        value: a.value,
-        verified_at: null,
-      })),
-    discoverable: true,
-    group: false,
-  } as Account;
-}
-
-/**
  * Map GraphQL Object to Mastodon Status
  */
 function mapGraphQLToStatus(obj: any): Status {
@@ -71,7 +27,7 @@ function mapGraphQLToStatus(obj: any): Status {
     uri: obj.id,
     url: obj.id,
     created_at: obj.published || obj.createdAt || new Date().toISOString(),
-    account: mapGraphQLToAccount(obj.attributedTo || obj.author),
+    account: mapGraphQLActorToAccount((obj.actor || obj.attributedTo || obj.author) ?? { id: obj.id }),
     content: obj.content || '',
     visibility: (obj.visibility?.toLowerCase() || 'public') as any,
     sensitive: obj.sensitive ?? false,
@@ -83,10 +39,10 @@ function mapGraphQLToStatus(obj: any): Status {
     reblogs_count: obj.shares?.totalCount || obj.sharesCount || 0,
     favourites_count: obj.likes?.totalCount || obj.likesCount || 0,
     replies_count: obj.replies?.totalCount || obj.repliesCount || 0,
-    reblogged: obj.userInteractions?.shared || false,
-    favourited: obj.userInteractions?.liked || false,
-    bookmarked: obj.userInteractions?.bookmarked || false,
-    pinned: obj.userInteractions?.pinned || false,
+    reblogged: resolveRebloggedFlag(obj),
+    favourited: resolveFavouritedFlag(obj),
+    bookmarked: resolveBookmarkedFlag(obj),
+    pinned: resolvePinnedFlag(obj),
     reblog: obj.shareOf ? mapGraphQLToStatus(obj.shareOf) : null,
     in_reply_to_id: obj.inReplyTo?.id || null,
     in_reply_to_account_id: null,
@@ -202,7 +158,7 @@ class SearchStore {
       });
       
       this.results = {
-        accounts: (response.accounts || []).map(mapGraphQLToAccount),
+        accounts: (response.accounts || []).map(actor => mapGraphQLActorToAccount(actor ?? { id: 'unknown' })),
         statuses: (response.statuses || []).map(mapGraphQLToStatus),
         hashtags: (response.hashtags || []).map(mapGraphQLToHashtag),
       };

@@ -1,3 +1,0 @@
-config:
-  greater-client:domain: greater.website
-  greater-client:environment: production

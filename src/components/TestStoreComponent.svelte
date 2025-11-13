@@ -1,5 +1,5 @@
 <script>
-  import { testStore } from '@/lib/stores/test-store.svelte';
+  import { testStore } from '$lib/lib/stores/test-store.svelte';
 </script>
 
 <div>

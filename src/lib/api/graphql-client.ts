@@ -14,9 +14,9 @@ import {
   type UploadMediaPayload,
   type MediaCategory,
 } from '@equaltoai/greater-components/adapters';
-import { secureAuthClient } from '@/lib/auth/secure-client';
-import { authStore } from '@/lib/stores/auth.svelte';
-import { logDebug } from '@/lib/utils/logger';
+import { secureAuthClient } from '$lib/auth/secure-client';
+import { authStore } from '$lib/stores/auth.svelte';
+import { logDebug } from '$lib/utils/logger';
 import { ensureGraphQLWebSocketCompatibility } from './graphql-ws-patch';
 
 type GraphQLEndpoints = { http: string; ws: string };

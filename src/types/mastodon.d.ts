@@ -38,6 +38,10 @@ export interface Status {
   emojis: CustomEmoji[];
   card: PreviewCard | null;
   poll: Poll | null;
+  quote_id?: string | null;
+  quote_url?: string | null;
+  quote_context?: StatusQuoteContext | null;
+  quoted_status?: Status | null;
 }
 
 export type StatusVisibility = 'public' | 'unlisted' | 'private' | 'direct';
@@ -169,6 +173,14 @@ export interface FilterKeyword {
 export interface FilterStatus {
   id: string;
   status_id: string;
+}
+
+export interface StatusQuoteContext {
+  quote_allowed: boolean;
+  quote_type: string | null;
+  withdrawn: boolean;
+  original_author: Account | null;
+  original_note_id: string | null;
 }
 
 export interface FilterResult {

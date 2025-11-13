@@ -1,5 +1,5 @@
-import type { List, Account } from '@/types/mastodon';
-import { getGraphQLAdapter } from '@/lib/api/graphql-client';
+import type { List, Account } from '$lib/types/mastodon';
+import { getGraphQLAdapter } from '$lib/api/graphql-client';
 
 interface ListMember extends Account {
   addedAt?: string;

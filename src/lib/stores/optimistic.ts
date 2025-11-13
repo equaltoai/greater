@@ -8,8 +8,8 @@
  */
 
 import { timelineStore } from './timeline.svelte';
-import { getGraphQLAdapter } from '@/lib/api/graphql-client';
-import type { Status } from '@/types/mastodon';
+import { getGraphQLAdapter } from '$lib/api/graphql-client';
+import type { Status } from '$lib/types/mastodon';
 import type { TimelineData } from './timeline.svelte';
 
 interface OptimisticUpdate {

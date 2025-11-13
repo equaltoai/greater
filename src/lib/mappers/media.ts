@@ -1,4 +1,4 @@
-import type { AttachmentType, MediaAttachment } from '@/types/mastodon';
+import type { AttachmentType, MediaAttachment } from '$lib/types/mastodon';
 import type { MediaCategory } from '@equaltoai/greater-components/adapters';
 
 type GraphQLMediaNode = {

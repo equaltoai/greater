@@ -1,7 +1,9 @@
 import { defineConfig } from 'vitest/config';
+import { svelte } from '@sveltejs/vite-plugin-svelte';
 import path from 'path';
 
 export default defineConfig({
+  plugins: [svelte()],
   test: {
     globals: true,
     environment: 'jsdom',
@@ -23,7 +25,7 @@ export default defineConfig({
       exclude: [
         'node_modules/',
         'dist/',
-        '.astro/',
+        '.vite/',
         '**/*.d.ts',
         '**/*.config.*',
         '**/mockData.ts',
@@ -43,16 +45,15 @@ export default defineConfig({
     exclude: [
       '**/node_modules/**',
       '**/dist/**',
-      '**/.astro/**',
+      '**/.vite/**',
       '**/tests/e2e/**',
     ],
-    watchExclude: ['**/node_modules/**', '**/dist/**', '**/.astro/**'],
+    watchExclude: ['**/node_modules/**', '**/dist/**', '**/.vite/**'],
   },
   resolve: {
     alias: {
       '@': path.resolve(__dirname, './src'),
       '@/components': path.resolve(__dirname, './src/components'),
-      '@/layouts': path.resolve(__dirname, './src/layouts'),
       '@/lib': path.resolve(__dirname, './src/lib'),
       '@/stores': path.resolve(__dirname, './src/lib/stores'),
       '@/types': path.resolve(__dirname, './src/types'),

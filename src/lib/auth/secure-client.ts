@@ -1,8 +1,10 @@
 /**
- * Secure authentication client that uses Cloudflare Workers for token storage
+ * Secure authentication client
+ * MIGRATED: Now uses browser-local encrypted storage instead of Cloudflare KV
  */
 
-import type { OAuthToken, OAuthApp } from '@/types/auth';
+import type { OAuthToken, OAuthApp } from '$lib/types/auth';
+import * as browserStorage from './browser-storage';
 
 export class SecureAuthClient {
   private static instance: SecureAuthClient;
@@ -19,46 +21,30 @@ export class SecureAuthClient {
   }
 
   /**
-   * Store OAuth app credentials securely in Cloudflare Worker
+   * Store OAuth app credentials in browser storage
    */
   async storeApp(instance: string, app: OAuthApp): Promise<void> {
-    const response = await fetch('/auth/register-app', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ instance, app }),
-      credentials: 'include', // Important for cookies
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to store app credentials');
-    }
+    await browserStorage.storeApp(instance, app);
+  }
+  
+  /**
+   * Get OAuth app credentials from browser storage
+   */
+  async getApp(instance: string): Promise<OAuthApp | null> {
+    return await browserStorage.getApp(instance);
   }
 
   /**
-   * Store OAuth token securely in Cloudflare Worker
+   * Store OAuth token in browser storage
    */
   async storeToken(instance: string, token: OAuthToken): Promise<void> {
-    const response = await fetch('/auth/store-token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ instance, token }),
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to store token');
-    }
-
+    await browserStorage.storeToken(instance, token);
     // Clear cache for this instance
     this.tokenCache.delete(instance);
   }
 
   /**
-   * Get OAuth token from Cloudflare Worker
+   * Get OAuth token from browser storage (with caching)
    */
   async getToken(instance: string): Promise<OAuthToken | null> {
     // Check cache first
@@ -67,30 +53,15 @@ export class SecureAuthClient {
       return cached.token;
     }
 
-    const response = await fetch('/auth/get-token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ instance }),
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      if (response.status === 404) {
-        return null;
-      }
-      throw new Error('Failed to get token');
+    const token = await browserStorage.getToken(instance);
+    
+    if (token) {
+      // Cache the token
+      this.tokenCache.set(instance, {
+        token,
+        expires: Date.now() + this.CACHE_TTL
+      });
     }
-
-    const data = await response.json();
-    const token = data.token as OAuthToken;
-
-    // Cache the token
-    this.tokenCache.set(instance, {
-      token,
-      expires: Date.now() + this.CACHE_TTL,
-    });
 
     return token;
   }
@@ -99,44 +70,26 @@ export class SecureAuthClient {
    * Revoke OAuth token
    */
   async revokeToken(instance: string): Promise<void> {
-    const response = await fetch('/auth/revoke-token', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify({ instance }),
-      credentials: 'include',
-    });
-
-    if (!response.ok) {
-      throw new Error('Failed to revoke token');
-    }
-
-    // Clear cache
+    await browserStorage.revokeToken(instance);
     this.tokenCache.delete(instance);
   }
 
   /**
-   * Clear all cached tokens
+   * Check if session exists for instance
    */
-  clearCache(): void {
-    this.tokenCache.clear();
+  async checkSession(instance: string): Promise<boolean> {
+    const token = await this.getToken(instance);
+    return token !== null;
   }
-
+  
   /**
-   * Check if user has valid session
+   * Clear all auth data
    */
-  async hasValidSession(): Promise<boolean> {
-    try {
-      const response = await fetch('/auth/check-session', {
-        method: 'GET',
-        credentials: 'include',
-      });
-      return response.ok;
-    } catch {
-      return false;
-    }
+  clearAll(): void {
+    browserStorage.clearAllStorage();
+    this.tokenCache.clear();
   }
 }
 
+// Export singleton instance
 export const secureAuthClient = SecureAuthClient.getInstance();

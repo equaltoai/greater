@@ -1,6 +1,5 @@
 import js from '@eslint/js';
 import tseslint from 'typescript-eslint';
-import astro from 'eslint-plugin-astro';
 import svelte from 'eslint-plugin-svelte';
 import prettier from 'eslint-config-prettier';
 import globals from 'globals';
@@ -12,25 +11,15 @@ export default [
   {
     ignores: [
       'dist/**',
-      '.astro/**',
+      '.vite/**',
       'node_modules/**',
       'coverage/**',
-      '.cloudflare/**',
       'public/**',
       '*.min.js',
       'tests/**',
-      'deploy.ts',
-      'astro.config.mjs',
       'scripts/**',
-      'infra/**',
-      'infrastructure/**',
       'notes/**',
-      'migration-examples/**',
-      'src/pages/**',
-      'src/lib/stores/**',
-      'src/lib/utils/**',
-      'src/types/**',
-      'src/components/**'
+      'migration-examples/**'
     ]
   },
   {
@@ -62,8 +51,6 @@ export default [
       '@typescript-eslint/no-non-null-assertion': 'warn'
     }
   },
-  // Astro files
-  ...astro.configs['flat/recommended'],
   // Svelte files
   ...svelte.configs['flat/recommended'],
   {

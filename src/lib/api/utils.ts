@@ -2,8 +2,8 @@
  * Utility functions for common API operations
  */
 
-import type { Status, Account, Notification, TimelineParams } from '@/types/mastodon';
-import { stripHtmlSafe } from '@/lib/utils/sanitize';
+import type { Status, Account, Notification, TimelineParams } from '$lib/types/mastodon';
+import { stripHtmlSafe } from '$lib/utils/sanitize';
 
 /**
  * Timeline utilities

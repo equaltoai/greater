@@ -1,5 +1,0 @@
-config:
-  greater-client:environment: production
-  greater-client:accountId: f32d4379a27d6dd9fe076cc3cf0dae44
-  cloudflare:apiToken:
-    secure: AAABALUk05himvSbFIqMLfOEkOmr6tcbqqxOwpNR0m6qDF4KQZ8DAlhLbvSBlntvlPrfPfYLFX+G5EPmHiz72gVE+9URZT/9

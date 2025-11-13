@@ -1,5 +1,5 @@
 {
-  "extends": "astro/tsconfigs/strict",
+  "extends": "./.svelte-kit/tsconfig.json",
   "compilerOptions": {
     "target": "ES2022",
     "module": "ES2022",
@@ -20,26 +20,16 @@
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
-    "incremental": true,
-    "baseUrl": ".",
-    "paths": {
-      "@/*": ["src/*"],
-      "@/components/*": ["src/components/*"],
-      "@/layouts/*": ["src/layouts/*"],
-      "@/lib/*": ["src/lib/*"],
-      "@/stores/*": ["src/lib/stores/*"],
-      "@/types/*": ["src/types/*"],
-      "@/utils/*": ["src/lib/utils/*"]
-    },
-    "types": ["vite/client", "astro/client"]
+    "incremental": true
   },
   "include": [
     "src/**/*.ts",
     "src/**/*.tsx",
-    "src/**/*.astro",
     "src/**/*.svelte",
     "src/**/*.js",
-    "src/**/*.jsx"
+    "src/**/*.jsx",
+    ".svelte-kit/ambient.d.ts",
+    ".svelte-kit/types/**/$types.d.ts"
   ],
-  "exclude": ["node_modules", "dist", ".astro"]
+  "exclude": ["node_modules", "dist", ".svelte-kit"]
 }

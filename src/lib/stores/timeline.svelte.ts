@@ -3,11 +3,13 @@
  * Handles home, local, and federated timelines using Lesser GraphQL API
  */
 
-import type { Status, TimelineParams } from '@/types/mastodon';
-import { getGraphQLAdapter } from '@/lib/api/graphql-client';
-import { mapGraphQLMediaToAttachment } from '@/lib/mappers/media';
-import { logDebug } from '@/lib/utils/logger';
+import type { Status, TimelineParams } from '$lib/types/mastodon';
+import { getGraphQLAdapter } from '$lib/api/graphql-client';
+import { mapGraphQLMediaToAttachment } from '$lib/mappers/media';
+import { logDebug } from '$lib/utils/logger';
+import { resolveBookmarkedFlag, resolveFavouritedFlag, resolvePinnedFlag, resolveRebloggedFlag } from '$lib/utils/interactions';
 import { authStore } from './auth.svelte';
+import { mapGraphQLActorToAccount } from '$lib/api/account-service';
 
 // Subscription type from Apollo Client (provided via greater-components)
 type Subscription = {
@@ -54,13 +56,14 @@ const initialTimelineData: TimelineData = {
 function mapGraphQLToStatus(node: any): Status {
   // Extract the object from the GraphQL structure
   const obj = node.object || node;
+  const quoteContext = normalizeQuoteContext(obj);
   
   return {
     id: obj.id,
     uri: obj.id,
     url: obj.id,
     created_at: obj.published || obj.createdAt || new Date().toISOString(),
-    account: mapGraphQLToAccount(obj.attributedTo || obj.author),
+    account: mapGraphQLToAccount(obj.actor || obj.attributedTo || obj.author),
     content: obj.content || '',
     visibility: (obj.visibility?.toLowerCase() || 'public') as any,
     sensitive: obj.sensitive ?? false,
@@ -72,10 +75,10 @@ function mapGraphQLToStatus(node: any): Status {
     reblogs_count: obj.shares?.totalCount || obj.sharesCount || 0,
     favourites_count: obj.likes?.totalCount || obj.likesCount || 0,
     replies_count: obj.replies?.totalCount || obj.repliesCount || 0,
-    reblogged: obj.userInteractions?.shared || false,
-    favourited: obj.userInteractions?.liked || false,
-    bookmarked: obj.userInteractions?.bookmarked || false,
-    pinned: obj.userInteractions?.pinned || false,
+    reblogged: resolveRebloggedFlag(obj),
+    favourited: resolveFavouritedFlag(obj),
+    bookmarked: resolveBookmarkedFlag(obj),
+    pinned: resolvePinnedFlag(obj),
     reblog: obj.shareOf ? mapGraphQLToStatus(obj.shareOf) : null,
     in_reply_to_id: obj.inReplyTo?.id || null,
     in_reply_to_account_id: null,
@@ -85,6 +88,9 @@ function mapGraphQLToStatus(node: any): Status {
     poll: obj.poll ? mapGraphQLToPoll(obj.poll) : null,
     card: null,
     edited_at: obj.updated || null,
+    quote_id: quoteContext?.original_note_id || obj.quoteUrl || null,
+    quote_url: obj.quoteUrl || null,
+    quote_context: quoteContext,
   };
 }
 
@@ -100,32 +106,50 @@ function mapGraphQLToAccount(actor: any): any {
     };
   }
 
+  try {
+    return mapGraphQLActorToAccount(actor);
+  } catch (error) {
+    console.warn('[Timeline Store] Failed to map actor, falling back to minimal data.', error);
+    return {
+      id: actor.id || 'unknown',
+      username: actor.username || actor.preferredUsername || 'unknown',
+      acct: actor.webfinger || actor.username || 'unknown',
+      display_name: actor.displayName || actor.name || actor.username || 'Unknown',
+      avatar: actor.avatar || actor.icon?.url || '',
+      header: actor.header || actor.image?.url || '',
+    };
+  }
+}
+
+function deriveHostFromId(id?: string) {
+  if (!id) return undefined;
+  try {
+    return new URL(id).hostname;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeQuoteContext(obj: any) {
+  if (!obj.quoteContext && !obj.quoteUrl) {
+    return null;
+  }
+
+  const ctx = obj.quoteContext;
+  if (!ctx) {
+    return null;
+  }
+
+  const originalAuthor = ctx.originalAuthor
+    ? mapGraphQLToAccount(ctx.originalAuthor)
+    : null;
+
   return {
-    id: actor.id,
-    username: actor.preferredUsername || actor.username,
-    acct: actor.webfinger || `${actor.preferredUsername}@${new URL(actor.id).hostname}`,
-    display_name: actor.name || actor.preferredUsername,
-    locked: actor.manuallyApprovesFollowers || false,
-    bot: actor.type === 'Service',
-    created_at: actor.published || new Date().toISOString(),
-    note: actor.summary || '',
-    url: actor.url || actor.id,
-    avatar: actor.icon?.url || '',
-    avatar_static: actor.icon?.url || '',
-    header: actor.image?.url || '',
-    header_static: actor.image?.url || '',
-    followers_count: actor.followers?.totalCount || 0,
-    following_count: actor.following?.totalCount || 0,
-    statuses_count: actor.outbox?.totalCount || 0,
-    last_status_at: null,
-    emojis: [],
-    fields: (actor.attachment || [])
-      .filter((a: any) => a.type === 'PropertyValue')
-      .map((a: any) => ({
-        name: a.name,
-        value: a.value,
-        verified_at: null,
-      })),
+    quote_allowed: ctx.quoteAllowed ?? false,
+    quote_type: ctx.quoteType || null,
+    withdrawn: ctx.withdrawn ?? false,
+    original_author: originalAuthor,
+    original_note_id: ctx.originalNote?.id || obj.quoteUrl || null,
   };
 }
 
@@ -134,11 +158,15 @@ function mapGraphQLToMedia(attachment: any) {
 }
 
 function mapGraphQLToMention(mention: any): any {
+  const username = mention.username || mention.name?.replace('@', '') || '';
+  const domain = mention.domain || deriveHostFromId(mention.url || mention.href);
+  const acct = domain ? `${username}@${domain}` : username;
+
   return {
-    id: mention.href || mention.id,
-    username: mention.name?.replace('@', '') || '',
-    url: mention.href || mention.id,
-    acct: mention.name?.replace('@', '') || '',
+    id: mention.id || mention.href || acct,
+    username,
+    url: mention.url || mention.href || '',
+    acct,
   };
 }
 

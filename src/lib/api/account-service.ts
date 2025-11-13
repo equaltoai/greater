@@ -10,8 +10,10 @@ import type {
   MediaAttachment,
   Status,
   StatusVisibility,
-} from '@/types/mastodon';
+  StatusQuoteContext,
+} from '$lib/types/mastodon';
 import { getGraphQLAdapter } from './graphql-client';
+import { resolveBookmarkedFlag, resolveFavouritedFlag, resolvePinnedFlag, resolveRebloggedFlag } from '$lib/utils/interactions';
 
 type GraphQLCountValue = { totalCount?: number | null } | number | null;
 
@@ -86,6 +88,14 @@ type GraphQLStatusNode = {
   inReplyTo?: { id?: string | null } | null;
   language?: string | null;
   updated?: string | null;
+  quoteUrl?: string | null;
+  quoteContext?: {
+    quoteAllowed?: boolean | null;
+    quoteType?: string | null;
+    withdrawn?: boolean | null;
+    originalAuthor?: GraphQLActor | null;
+    originalNote?: { id?: string | null } | null;
+  } | null;
 };
 
 type GraphQLTimelineEdge = {
@@ -93,7 +103,7 @@ type GraphQLTimelineEdge = {
 };
 
 type GraphQLTimelineResponse = {
-  edges?: Array<GraphQLTimelineEdge | null> | null;
+  edges?: ReadonlyArray<GraphQLTimelineEdge | null> | null;
 };
 
 /**
@@ -361,11 +371,12 @@ export async function getAccountStatuses(
   const adapter = await getGraphQLAdapter();
   
   try {
-    // Use the new fetchActorTimeline method from greater-components 1.0.21+
-    const response = (await adapter.fetchActorTimeline(account.id, {
+    const timeline = await adapter.fetchActorTimeline(account.id, {
       first: params?.limit ?? 20,
       after: params?.after,
-    })) as GraphQLTimelineResponse;
+    });
+
+    const response = normalizeTimelineResponse(timeline);
 
     const statuses = (response.edges ?? []).flatMap((edge) =>
       edge?.node ? [mapGraphQLToStatus(edge.node)] : []
@@ -378,11 +389,39 @@ export async function getAccountStatuses(
   }
 }
 
+function normalizeTimelineResponse(value: unknown): GraphQLTimelineResponse {
+  if (
+    !value ||
+    typeof value !== 'object' ||
+    !('edges' in value)
+  ) {
+    return { edges: [] };
+  }
+
+  const edgesValue = (value as { edges?: unknown }).edges;
+
+  if (!Array.isArray(edgesValue)) {
+    return { edges: [] };
+  }
+
+  return {
+    edges: edgesValue.map((edge) => {
+      if (!edge || typeof edge !== 'object' || !('node' in edge)) {
+        return null;
+      }
+
+      const node = (edge as { node?: GraphQLStatusNode | null }).node ?? null;
+      return { node };
+    }),
+  };
+}
+
 // Helper to map GraphQL object to Status
 function mapGraphQLToStatus(node: GraphQLStatusNode): Status {
   const obj = node.object ?? node;
   const actor = resolveStatusActor(obj);
   const mediaAttachments = (obj.attachments ?? []).map(mapGraphQLAttachmentToMedia);
+  const quoteContext = normalizeQuoteContext(obj);
 
   return {
     id: obj.id,
@@ -401,10 +440,10 @@ function mapGraphQLToStatus(node: GraphQLStatusNode): Status {
     reblogs_count: resolveCount(obj.shares ?? obj.sharesCount ?? null),
     favourites_count: resolveCount(obj.likes ?? obj.likesCount ?? null),
     replies_count: resolveCount(obj.replies ?? obj.repliesCount ?? null),
-    reblogged: obj.userInteractions?.shared ?? false,
-    favourited: obj.userInteractions?.liked ?? false,
-    bookmarked: obj.userInteractions?.bookmarked ?? false,
-    pinned: false,
+    reblogged: resolveRebloggedFlag(obj),
+    favourited: resolveFavouritedFlag(obj),
+    bookmarked: resolveBookmarkedFlag(obj),
+    pinned: resolvePinnedFlag(obj),
     reblog: obj.shareOf ? mapGraphQLToStatus(obj.shareOf) : null,
     in_reply_to_id: obj.inReplyTo?.id ?? null,
     in_reply_to_account_id: null,
@@ -414,6 +453,9 @@ function mapGraphQLToStatus(node: GraphQLStatusNode): Status {
     poll: null,
     card: null,
     edited_at: obj.updated ?? null,
+    quote_id: quoteContext?.original_note_id ?? obj.quoteUrl ?? null,
+    quote_url: obj.quoteUrl ?? null,
+    quote_context: quoteContext,
   };
 }
 
@@ -435,6 +477,27 @@ function mapGraphQLAttachmentToMedia(attachment: GraphQLStatusAttachment): Media
     remote_url: attachment.remoteUrl ?? null,
     description: attachment.description ?? null,
     blurhash: attachment.blurhash ?? null,
+  };
+}
+
+function normalizeQuoteContext(obj: GraphQLStatusNode): StatusQuoteContext | null {
+  if (!obj.quoteContext && !obj.quoteUrl) {
+    return null;
+  }
+
+  const ctx = obj.quoteContext;
+  if (!ctx) {
+    return null;
+  }
+
+  const originalAuthor = ctx.originalAuthor ? mapGraphQLActorToAccount(ctx.originalAuthor) : null;
+
+  return {
+    quote_allowed: ctx.quoteAllowed ?? false,
+    quote_type: ctx.quoteType ?? null,
+    withdrawn: ctx.withdrawn ?? false,
+    original_author: originalAuthor,
+    original_note_id: ctx.originalNote?.id ?? obj.quoteUrl ?? null,
   };
 }
 

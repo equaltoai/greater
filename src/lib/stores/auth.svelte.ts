@@ -8,16 +8,16 @@ import type {
   MastodonAccount,
   OAuthToken,
   OAuthApp
-} from '@/types/auth';
+} from '../../types/auth.js';
 import { 
   buildAuthorizationUrl, 
   exchangeCodeForToken, 
   revokeToken,
   validateInstance 
-} from '@/lib/auth/oauth';
-import { AuthError } from '@/types/auth';
-import { secureAuthClient } from '@/lib/auth/secure-client';
-import { logDebug } from '@/lib/utils/logger';
+} from '$lib/auth/oauth';
+import { AuthError } from '../../types/auth.js';
+import { secureAuthClient } from '$lib/auth/secure-client';
+import { logDebug } from '$lib/utils/logger';
 
 // Create auth state with Svelte 5 runes
 class AuthStore {
@@ -71,18 +71,33 @@ class AuthStore {
           this.currentUser = parsed.state.currentUser;
           this.currentInstance = parsed.state.currentInstance;
           this.accounts = parsed.state.accounts || [];
-          this.isAuthenticated = parsed.state.isAuthenticated || false;
+          
+          // CRITICAL: Only mark as authenticated if we have BOTH user AND instance
+          // Default to false if either is missing
+          this.isAuthenticated = !!(parsed.state.currentUser && parsed.state.currentInstance);
           
           // Refresh current user data to get fresh avatar URL
           if (this.isAuthenticated && this.currentInstance) {
-            this.refreshCurrentUser().catch(err => 
-              console.error('[Auth] Failed to refresh user on init:', err)
-            );
+            this.refreshCurrentUser().catch(err => {
+              console.error('[Auth] Failed to refresh user on init:', err);
+              // If refresh fails, clear auth state
+              this.isAuthenticated = false;
+              this.currentUser = null;
+              this.persist();
+            });
           }
         }
       } catch (e) {
-        console.error('Failed to load auth state:', e);
+        console.error('[Auth] Failed to load auth state:', e);
+        this.isAuthenticated = false;
+        localStorage.removeItem('auth-storage');
       }
+    } else {
+      // No saved state - ensure defaults
+      this.isAuthenticated = false;
+      this.currentUser = null;
+      this.currentInstance = null;
+      this.accounts = [];
     }
   }
 

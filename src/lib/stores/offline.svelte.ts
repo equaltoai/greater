@@ -1,5 +1,5 @@
-import type { CreateStatusParams } from '@/types/mastodon';
-import { getGraphQLAdapter } from '@/lib/api/graphql-client';
+import type { CreateStatusParams } from '$lib/types/mastodon';
+import { getGraphQLAdapter } from '$lib/api/graphql-client';
 import type { LesserGraphQLAdapter } from '@equaltoai/greater-components/adapters';
 
 interface OfflinePost {
@@ -233,7 +233,7 @@ function mapCreateStatusParamsToGraphQL(params: CreateStatusParams): CreateNoteV
   }
 
   if (params.in_reply_to_id) {
-    variables.inReplyTo = params.in_reply_to_id;
+    variables.inReplyToId = params.in_reply_to_id;
   }
 
   if (params.media_ids?.length) {
