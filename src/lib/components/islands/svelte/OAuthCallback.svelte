@@ -62,7 +62,7 @@
         
         // Redirect to home page
         setTimeout(() => {
-          window.location.href = '/home';
+          window.location.href = '/';
         }, 1000);
       } catch (e) {
         console.error('[OAuthCallback] Login error:', e);

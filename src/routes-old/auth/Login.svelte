@@ -1,7 +1,6 @@
 <script lang="ts">
   import BaseLayout from '../../layouts/BaseLayout.svelte';
   import LoginForm from '../../components/islands/svelte/LoginForm.svelte';
-  import { GCButton } from '@/lib/components';
 </script>
 
 <BaseLayout title="Login - Greater">
@@ -39,7 +38,8 @@
     border: 1px solid var(--color-border);
     border-radius: var(--radius-xl, 1rem);
     padding: var(--spacing-8, 2rem);
-    box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1),
+    box-shadow:
+      0 20px 25px -5px rgba(0, 0, 0, 0.1),
       0 10px 10px -5px rgba(0, 0, 0, 0.04);
   }
 

@@ -1,11 +1,29 @@
-import { F as FILENAME, N as head } from "../../chunks/index.js";
-import { T as ThemeProvider } from "../../chunks/auth.svelte.js";
+import { v as head } from "../../chunks/index2.js";
+import "../../chunks/auth.svelte.js";
 import "isomorphic-dompurify";
 import { persistentAtom } from "@nanostores/persistent";
 import { atom, computed } from "nanostores";
 import { g as getGraphQLAdapter } from "../../chunks/graphql-client.js";
-import { p as prevent_snippet_stringification } from "../../chunks/validate.js";
-import { p as push_element, a as pop_element } from "../../chunks/dev.js";
+function ThemeProvider($$renderer, $$props) {
+  $$renderer.component(($$renderer2) => {
+    let {
+      preventFlash = true,
+      children
+    } = $$props;
+    head("14640p0", $$renderer2, ($$renderer3) => {
+      if (preventFlash && typeof window === "undefined") {
+        $$renderer3.push("<!--[-->");
+        $$renderer3.push(`<script>{preventFlashScript()}<\/script><!---->`);
+      } else {
+        $$renderer3.push("<!--[!-->");
+      }
+      $$renderer3.push(`<!--]-->`);
+    });
+    $$renderer2.push(`<div class="gr-theme-provider" data-theme-provider="">`);
+    children($$renderer2);
+    $$renderer2.push(`<!----></div>`);
+  });
+}
 const LIGHT_THEME = {
   primary: "#2563eb",
   primaryLight: "#3b82f6",
@@ -141,17 +159,10 @@ if (typeof window !== "undefined") {
     applyTheme(colors);
   });
 }
-ThemeInitializer[FILENAME] = "src/lib/components/islands/svelte/ThemeInitializer.svelte";
 function ThemeInitializer($$renderer, $$props) {
-  $$renderer.component(
-    ($$renderer2) => {
-    },
-    ThemeInitializer
-  );
+  $$renderer.component(($$renderer2) => {
+  });
 }
-ThemeInitializer.render = function() {
-  throw new Error("Component.render(...) is no longer valid in Svelte 5. See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-classes for more information");
-};
 class OfflineDB {
   dbName = "greater-offline";
   version = 1;
@@ -332,52 +343,31 @@ function mapVisibilityToGraphQL(visibility) {
   };
   return visibilityMap[visibility] ?? "PUBLIC";
 }
-OfflineIndicator[FILENAME] = "src/lib/components/islands/svelte/OfflineIndicator.svelte";
 function OfflineIndicator($$renderer, $$props) {
-  $$renderer.component(
-    ($$renderer2) => {
-      offlineStore.posts.length;
-      {
-        $$renderer2.push("<!--[!-->");
-      }
-      $$renderer2.push(`<!--]-->`);
-    },
-    OfflineIndicator
-  );
+  $$renderer.component(($$renderer2) => {
+    offlineStore.posts.length;
+    {
+      $$renderer2.push("<!--[!-->");
+    }
+    $$renderer2.push(`<!--]-->`);
+  });
 }
-OfflineIndicator.render = function() {
-  throw new Error("Component.render(...) is no longer valid in Svelte 5. See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-classes for more information");
-};
-_layout[FILENAME] = "src/routes/+layout.svelte";
 function _layout($$renderer, $$props) {
-  $$renderer.component(
-    ($$renderer2) => {
-      let { children } = $$props;
-      head("12qhfyh", $$renderer2, ($$renderer3) => {
-        $$renderer3.push(`<meta name="viewport" content="width=device-width, initial-scale=1.0"/>`);
-        push_element($$renderer3, "meta", 21, 2);
-        pop_element();
-        $$renderer3.push(` <meta name="description" content="A modern, high-performance web client for Mastodon-compatible instances"/>`);
-        push_element($$renderer3, "meta", 22, 2);
-        pop_element();
-      });
-      ThemeProvider($$renderer2, {
-        children: prevent_snippet_stringification(($$renderer3) => {
-          ThemeInitializer($$renderer3);
-          $$renderer3.push(`<!----> `);
-          OfflineIndicator($$renderer3);
-          $$renderer3.push(`<!----> `);
-          children($$renderer3);
-          $$renderer3.push(`<!---->`);
-        })
-      });
-    },
-    _layout
-  );
+  let { children } = $$props;
+  head("12qhfyh", $$renderer, ($$renderer2) => {
+    $$renderer2.push(`<meta name="viewport" content="width=device-width, initial-scale=1.0"/> <meta name="description" content="A modern, high-performance web client for Mastodon-compatible instances"/>`);
+  });
+  ThemeProvider($$renderer, {
+    children: ($$renderer2) => {
+      ThemeInitializer($$renderer2);
+      $$renderer2.push(`<!----> `);
+      OfflineIndicator($$renderer2);
+      $$renderer2.push(`<!----> `);
+      children($$renderer2);
+      $$renderer2.push(`<!---->`);
+    }
+  });
 }
-_layout.render = function() {
-  throw new Error("Component.render(...) is no longer valid in Svelte 5. See https://svelte.dev/docs/svelte/v5-migration-guide#Components-are-no-longer-classes for more information");
-};
 export {
   _layout as default
 };

@@ -41,6 +41,10 @@
   });
 </script>
 
+{#snippet fallbackAvatar()}
+  <img src="/profile.png" alt="Default avatar" />
+{/snippet}
+
 {#if currentUser}
   <div class="relative" bind:this={menuRef}>
     <button
@@ -54,7 +58,7 @@
         src={currentUser.avatar}
         alt={currentUser.display_name || currentUser.username}
         size="sm"
-        fallback={(currentUser.display_name || currentUser.username || '').charAt(0).toUpperCase()}
+        fallback={fallbackAvatar}
       />
       
       <!-- Username (hidden on mobile) -->

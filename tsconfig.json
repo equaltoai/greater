@@ -28,6 +28,7 @@
     "src/**/*.svelte",
     "src/**/*.js",
     "src/**/*.jsx",
+    "src/**/*.d.ts",
     ".svelte-kit/ambient.d.ts",
     ".svelte-kit/types/**/$types.d.ts"
   ],

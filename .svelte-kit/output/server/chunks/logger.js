@@ -173,7 +173,7 @@ class SecureAuthClient {
   }
 }
 const secureAuthClient = SecureAuthClient.getInstance();
-const isDebugEnvironment = typeof import.meta !== "undefined" && Boolean(true) || process.env.NODE_ENV === "development";
+const isDebugEnvironment = typeof import.meta !== "undefined" && Boolean(false) || process.env.NODE_ENV === "development";
 function logDebug(message, ...metadata) {
   if (isDebugEnvironment) {
     console.warn(message, ...metadata);

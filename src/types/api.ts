@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * API-related types for HTTP requests and responses
  */
@@ -63,7 +65,7 @@ export interface RateLimit {
 /**
  * Streaming API event types
  */
-export type StreamingEventType = 
+export type StreamingEventType =
   | 'update'
   | 'delete'
   | 'notification'
@@ -95,37 +97,36 @@ export enum ApiEndpoint {
   ACCOUNT_STATUSES = '/api/v1/accounts/:id/statuses',
   ACCOUNT_FOLLOWERS = '/api/v1/accounts/:id/followers',
   ACCOUNT_FOLLOWING = '/api/v1/accounts/:id/following',
-  
+
   // Timeline endpoints
   HOME_TIMELINE = '/api/v1/timelines/home',
   PUBLIC_TIMELINE = '/api/v1/timelines/public',
   TAG_TIMELINE = '/api/v1/timelines/tag/:hashtag',
   LIST_TIMELINE = '/api/v1/timelines/list/:list_id',
-  
+
   // Status endpoints
   STATUS = '/api/v1/statuses/:id',
   CREATE_STATUS = '/api/v1/statuses',
-  DELETE_STATUS = '/api/v1/statuses/:id',
   REBLOG_STATUS = '/api/v1/statuses/:id/reblog',
   UNREBLOG_STATUS = '/api/v1/statuses/:id/unreblog',
   FAVOURITE_STATUS = '/api/v1/statuses/:id/favourite',
   UNFAVOURITE_STATUS = '/api/v1/statuses/:id/unfavourite',
   BOOKMARK_STATUS = '/api/v1/statuses/:id/bookmark',
   UNBOOKMARK_STATUS = '/api/v1/statuses/:id/unbookmark',
-  
+
   // Notification endpoints
   NOTIFICATIONS = '/api/v1/notifications',
   NOTIFICATION = '/api/v1/notifications/:id',
   CLEAR_NOTIFICATIONS = '/api/v1/notifications/clear',
-  
+
   // Search endpoint
   SEARCH = '/api/v2/search',
-  
+
   // Instance endpoints
   INSTANCE = '/api/v1/instance',
   INSTANCE_PEERS = '/api/v1/instance/peers',
   INSTANCE_ACTIVITY = '/api/v1/instance/activity',
-  
+
   // Media endpoints
   UPLOAD_MEDIA = '/api/v2/media',
   UPDATE_MEDIA = '/api/v1/media/:id',
@@ -139,12 +140,16 @@ export type HttpMethod = 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH';
 /**
  * Request interceptor
  */
-export type RequestInterceptor = (config: ApiRequestConfig) => ApiRequestConfig | Promise<ApiRequestConfig>;
+export type RequestInterceptor = (
+  config: ApiRequestConfig
+) => ApiRequestConfig | Promise<ApiRequestConfig>;
 
 /**
  * Response interceptor
  */
-export type ResponseInterceptor<T = any> = (response: ApiResponse<T>) => ApiResponse<T> | Promise<ApiResponse<T>>;
+export type ResponseInterceptor<T = any> = (
+  response: ApiResponse<T>
+) => ApiResponse<T> | Promise<ApiResponse<T>>;
 
 /**
  * Error interceptor

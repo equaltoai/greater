@@ -4,7 +4,7 @@
   import { GCAvatar } from '$lib/components';
   import { getGraphQLAdapter } from '$lib/api/graphql-client';
   import { authStore } from '$lib/stores/auth.svelte';
-  import { stripHtmlSafe } from '$lib/utils/sanitize';
+  import { stripHtml } from '$lib/api/utils';
   
   interface Props {
     user: Account;
@@ -92,6 +92,10 @@
   }
 </script>
 
+{#snippet fallbackAvatar()}
+  <img src="/profile.png" alt="Default avatar" />
+{/snippet}
+
 <div class="flex items-start space-x-3">
   <!-- Avatar -->
   <a href={`/@${user.acct}`} class="flex-shrink-0">
@@ -99,7 +103,7 @@
       src={user.avatar}
       alt={user.display_name || user.username}
       size="md"
-      fallback={(user.display_name || user.username).charAt(0).toUpperCase()}
+      fallback={fallbackAvatar}
     />
   </a>
   
@@ -153,7 +157,7 @@
     <!-- Bio -->
     {#if user.note}
       <p class="mt-2 text-sm text-gray-700 dark:text-gray-300 line-clamp-2">
-        {stripHtmlSafe(user.note)}
+        {stripHtml(user.note)}
       </p>
     {/if}
     

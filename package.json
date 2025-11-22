@@ -25,10 +25,7 @@
   },
   "dependencies": {
     "@apollo/client": "^4.0.9",
-    "@equaltoai/greater-components": "file:../greater-components/packages/greater-components",
-    "@equaltoai/greater-components-fediverse": "file:../greater-components/packages/fediverse",
-    "@equaltoai/greater-components-primitives": "file:../greater-components/packages/primitives",
-    "@equaltoai/greater-components-tokens": "file:../greater-components/packages/tokens",
+    "@equaltoai/greater-components": "^2.1.6",
     "@graphql-typed-document-node/core": "^3.2.0",
     "@nanostores/persistent": "^1.2.0",
     "@sentry/svelte": "^10.24.0",
@@ -87,7 +84,11 @@
     "overrides": {
       "esbuild": "^0.25.4",
       "vite": "^7.2.2"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "core-js",
+      "esbuild"
+    ]
   },
   "repository": {
     "type": "git",

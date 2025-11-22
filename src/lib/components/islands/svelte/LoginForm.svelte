@@ -13,7 +13,7 @@
   // Check if already authenticated and redirect
   onMount(() => {
     if (authStore.isAuthenticated) {
-      window.location.href = '/home';
+      window.location.href = '/';
     }
   });
   

@@ -102,7 +102,7 @@
         localStorage.setItem('lesser_username', username);
         
         // Redirect to home
-        window.location.href = '/home';
+        window.location.href = '/';
       }
       
     } catch (err) {

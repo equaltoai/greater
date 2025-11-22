@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * Timeline-related types for Mastodon
  */
@@ -7,7 +9,7 @@ import type { Status, PaginationParams } from './mastodon';
 /**
  * Timeline types
  */
-export type TimelineType = 
+export type TimelineType =
   | 'home'
   | 'public'
   | 'local'
@@ -119,7 +121,7 @@ export interface TimelineCacheEntry {
 /**
  * Timeline event types for real-time updates
  */
-export type TimelineEventType = 
+export type TimelineEventType =
   | 'status.new'
   | 'status.update'
   | 'status.delete'

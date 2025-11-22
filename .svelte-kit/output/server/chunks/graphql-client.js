@@ -6,7 +6,7 @@ import { onError } from "@apollo/client/link/error/index.js";
 import { RetryLink } from "@apollo/client/link/retry/index.js";
 import { createClient } from "graphql-ws";
 import { l as logDebug, s as secureAuthClient } from "./logger.js";
-import { b as authStore } from "./auth.svelte.js";
+import { a as authStore } from "./auth.svelte.js";
 const n$1 = {
   Query: {
     fields: {
@@ -1246,7 +1246,7 @@ async function getGraphQLAdapter(instance) {
       httpEndpoint,
       wsEndpoint,
       token: tokenString,
-      debug: true,
+      debug: false,
       enableRetry: true,
       maxRetries: 3,
       connectionTimeout: 1e4

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import type { CreateStatusParams } from '$lib/types/mastodon';
 import { getGraphQLAdapter } from '$lib/api/graphql-client';
 import type { LesserGraphQLAdapter } from '@equaltoai/greater-components/adapters';
@@ -21,13 +23,13 @@ class OfflineDB {
 
     return new Promise((resolve, reject) => {
       const request = indexedDB.open(this.dbName, this.version);
-      
+
       request.onerror = () => reject(request.error);
       request.onsuccess = () => {
         this.db = request.result;
         resolve(request.result);
       };
-      
+
       request.onupgradeneeded = (event) => {
         const db = (event.target as IDBOpenDBRequest).result;
         if (!db.objectStoreNames.contains('offline-posts')) {
@@ -65,16 +67,16 @@ class OfflineStore {
   posts = $state<OfflinePost[]>([]);
   isOnline = $state(typeof navigator !== 'undefined' ? navigator.onLine : true);
   isSyncing = $state(false);
-  
+
   private offlineDB = new OfflineDB();
-  
+
   constructor() {
     // Constructor is empty to avoid SSR issues
   }
-  
+
   initialize() {
     if (typeof window === 'undefined') return;
-    
+
     // Load persisted state from localStorage
     const savedState = localStorage.getItem('offline-queue');
     if (savedState) {
@@ -87,7 +89,7 @@ class OfflineStore {
         console.error('Failed to load offline state:', e);
       }
     }
-    
+
     // Set up online/offline listeners
     window.addEventListener('online', () => {
       this.setOnlineStatus(true);
@@ -105,20 +107,23 @@ class OfflineStore {
         }
       });
     }
-    
+
     // Load posts from IndexedDB on startup
-    this.offlineDB.getAllPosts().then(posts => {
-      this.posts = posts;
-    }).catch(console.error);
+    this.offlineDB
+      .getAllPosts()
+      .then((posts) => {
+        this.posts = posts;
+      })
+      .catch(console.error);
   }
-  
+
   private persist() {
     if (typeof window === 'undefined') return;
-    
+
     const toPersist = {
       state: {
-        posts: this.posts
-      }
+        posts: this.posts,
+      },
     };
     localStorage.setItem('offline-queue', JSON.stringify(toPersist));
   }
@@ -129,7 +134,7 @@ class OfflineStore {
       id,
       data,
       timestamp: Date.now(),
-      retries: 0
+      retries: 0,
     };
 
     this.posts = [...this.posts, post];
@@ -139,7 +144,7 @@ class OfflineStore {
 
     // Register for background sync if available
     if ('serviceWorker' in navigator && 'SyncManager' in window) {
-      navigator.serviceWorker.ready.then(registration => {
+      navigator.serviceWorker.ready.then((registration) => {
         (registration as any).sync?.register('sync-posts').catch(console.error);
       });
     }
@@ -148,21 +153,19 @@ class OfflineStore {
   }
 
   removePost(id: string): void {
-    this.posts = this.posts.filter(post => post.id !== id);
+    this.posts = this.posts.filter((post) => post.id !== id);
 
     // Remove from IndexedDB
     this.offlineDB.deletePost(id).catch(console.error);
   }
 
   updatePost(id: string, updates: Partial<OfflinePost>): void {
-    this.posts = this.posts.map(post => 
-      post.id === id ? { ...post, ...updates } : post
-    );
+    this.posts = this.posts.map((post) => (post.id === id ? { ...post, ...updates } : post));
   }
 
   setOnlineStatus(online: boolean): void {
     this.isOnline = online;
-    
+
     // Trigger sync when coming back online
     if (online && this.posts.length > 0) {
       this.syncPosts();
@@ -188,7 +191,7 @@ class OfflineStore {
           // Update retry count and error
           this.updatePost(post.id, {
             retries: post.retries + 1,
-            error: error instanceof Error ? error.message : 'Failed to sync'
+            error: error instanceof Error ? error.message : 'Failed to sync',
           });
 
           // Remove if too many retries
@@ -207,7 +210,7 @@ class OfflineStore {
     this.posts = [];
 
     // Clear from IndexedDB
-    posts.forEach(post => {
+    posts.forEach((post) => {
       this.offlineDB.deletePost(post.id).catch(console.error);
     });
   }
@@ -262,12 +265,15 @@ function mapCreateStatusParamsToGraphQL(params: CreateStatusParams): CreateNoteV
 function mapVisibilityToGraphQL(
   visibility: NonNullable<CreateStatusParams['visibility']>
 ): 'PUBLIC' | 'UNLISTED' | 'FOLLOWERS' | 'DIRECT' {
-  const visibilityMap = {
+  const visibilityMap: Record<
+    NonNullable<CreateStatusParams['visibility']>,
+    'PUBLIC' | 'UNLISTED' | 'FOLLOWERS' | 'DIRECT'
+  > = {
     public: 'PUBLIC',
     unlisted: 'UNLISTED',
     private: 'FOLLOWERS',
     direct: 'DIRECT',
-  } as const;
+  };
 
   return visibilityMap[visibility] ?? 'PUBLIC';
 }

@@ -12,8 +12,13 @@ import type {
   StatusVisibility,
   StatusQuoteContext,
 } from '$lib/types/mastodon';
-import { getGraphQLAdapter } from './graphql-client';
-import { resolveBookmarkedFlag, resolveFavouritedFlag, resolvePinnedFlag, resolveRebloggedFlag } from '$lib/utils/interactions';
+import { getGraphQLAdapter } from '$lib/api/graphql-client';
+import {
+  resolveBookmarkedFlag,
+  resolveFavouritedFlag,
+  resolvePinnedFlag,
+  resolveRebloggedFlag,
+} from '$lib/utils/interactions';
 
 type GraphQLCountValue = { totalCount?: number | null } | number | null;
 
@@ -45,8 +50,14 @@ export type GraphQLActor = {
   locked?: boolean | null;
   bot?: boolean | null;
   trustScore?: number | null;
-  attachment?: Array<{ type?: string | null; name: string; value: string }> | null;
-  fields?: Array<{ name?: string | null; value?: string | null; verifiedAt?: string | null }> | null;
+  attachment?:
+    | ReadonlyArray<{ type?: string | null; name: string; value: string }>
+    | Array<{ type?: string | null; name: string; value: string }>
+    | null;
+  fields?:
+    | ReadonlyArray<{ name?: string | null; value?: string | null; verifiedAt?: string | null }>
+    | Array<{ name?: string | null; value?: string | null; verifiedAt?: string | null }>
+    | null;
 };
 
 type GraphQLStatusAttachment = {

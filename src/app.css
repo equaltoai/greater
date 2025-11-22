@@ -1,8 +1,4 @@
-/* Import Greater Components design tokens and styles */
-@import "@equaltoai/greater-components/tokens/theme.css";
-@import "@equaltoai/greater-components/primitives/style.css";
-
-/* Custom app-wide styles */
+/* Custom app-wide styles (Greater Components CSS is imported in +layout.svelte) */
 :root {
   /* Extend spacing scale if needed */
   --spacing-18: 4.5rem;

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 /**
  * Search state management with GraphQL
  * Handles account, status, and hashtag search
@@ -8,7 +10,12 @@ import { getGraphQLAdapter } from '$lib/api/graphql-client';
 import { mapGraphQLMediaToAttachment } from '$lib/mappers/media';
 import { logDebug } from '$lib/utils/logger';
 import { mapGraphQLActorToAccount } from '$lib/api/account-service';
-import { resolveBookmarkedFlag, resolveFavouritedFlag, resolvePinnedFlag, resolveRebloggedFlag } from '$lib/utils/interactions';
+import {
+  resolveBookmarkedFlag,
+  resolveFavouritedFlag,
+  resolvePinnedFlag,
+  resolveRebloggedFlag,
+} from '$lib/utils/interactions';
 
 export interface SearchResults {
   accounts: Account[];
@@ -27,7 +34,9 @@ function mapGraphQLToStatus(obj: any): Status {
     uri: obj.id,
     url: obj.id,
     created_at: obj.published || obj.createdAt || new Date().toISOString(),
-    account: mapGraphQLActorToAccount((obj.actor || obj.attributedTo || obj.author) ?? { id: obj.id }),
+    account: mapGraphQLActorToAccount(
+      (obj.actor || obj.attributedTo || obj.author) ?? { id: obj.id }
+    ),
     content: obj.content || '',
     visibility: (obj.visibility?.toLowerCase() || 'public') as any,
     sensitive: obj.sensitive ?? false,
@@ -63,9 +72,7 @@ function mapGraphQLToHashtag(hashtag: any): Tag {
     return { name: '', url: '', history: [] };
   }
 
-  const hostname = typeof window !== 'undefined' 
-    ? window.location.hostname 
-    : 'localhost';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
 
   return {
     name: hashtag.name?.replace(/^#/, '') || '', // Remove leading # if present
@@ -82,14 +89,14 @@ class SearchStore {
   error = $state<string | null>(null);
   searchHistory = $state<string[]>([]);
   activeTab = $state<'all' | 'accounts' | 'statuses' | 'hashtags'>('all');
-  
+
   constructor() {
     // Constructor is empty to avoid SSR issues
   }
-  
+
   initialize() {
     if (typeof window === 'undefined') return;
-    
+
     // Load search history from localStorage
     const savedHistory = localStorage.getItem('searchHistory');
     if (savedHistory) {
@@ -100,7 +107,7 @@ class SearchStore {
       }
     }
   }
-  
+
   private persist() {
     if (typeof window === 'undefined') return;
     localStorage.setItem('searchHistory', JSON.stringify(this.searchHistory));
@@ -109,7 +116,7 @@ class SearchStore {
   setQuery(query: string): void {
     this.query = query;
   }
-  
+
   setActiveTab(tab: 'all' | 'accounts' | 'statuses' | 'hashtags'): void {
     this.activeTab = tab;
   }
@@ -120,50 +127,52 @@ class SearchStore {
       this.error = null;
       return;
     }
-    
+
     this.loading = true;
     this.error = null;
-    
+
     try {
       const adapter = await getGraphQLAdapter();
-      
+
       // Map activeTab to GraphQL type filter
       // 'accounts' -> 'ACCOUNT', 'statuses' -> 'STATUS', 'hashtags' -> 'HASHTAG'
       let graphqlType: 'ACCOUNT' | 'STATUS' | 'HASHTAG' | undefined;
       if (type && type !== 'all') {
         const typeMap: Record<string, 'ACCOUNT' | 'STATUS' | 'HASHTAG'> = {
-          'accounts': 'ACCOUNT',
-          'statuses': 'STATUS',
-          'hashtags': 'HASHTAG',
+          accounts: 'ACCOUNT',
+          statuses: 'STATUS',
+          hashtags: 'HASHTAG',
         };
         graphqlType = typeMap[type];
       }
-      
+
       logDebug('[Search Store] Searching:', {
         query,
         type: graphqlType || 'all',
       });
-      
+
       const response = await adapter.search({
         query: query,
         type: graphqlType,
         first: 20,
         after: undefined,
       });
-      
+
       logDebug('[Search Store] Results:', {
         accounts: response.accounts?.length || 0,
         statuses: response.statuses?.length || 0,
         hashtags: response.hashtags?.length || 0,
       });
-      
+
       this.results = {
-        accounts: (response.accounts || []).map(actor => mapGraphQLActorToAccount(actor ?? { id: 'unknown' })),
+        accounts: (response.accounts || []).map((actor) =>
+          mapGraphQLActorToAccount(actor ?? { id: 'unknown' })
+        ),
         statuses: (response.statuses || []).map(mapGraphQLToStatus),
         hashtags: (response.hashtags || []).map(mapGraphQLToHashtag),
       };
       this.loading = false;
-      
+
       // Add to history
       this.addToHistory(query);
     } catch (error) {
@@ -172,23 +181,23 @@ class SearchStore {
       this.loading = false;
     }
   }
-  
+
   clearResults(): void {
     this.results = null;
     this.query = '';
     this.error = null;
   }
-  
+
   addToHistory(query: string): void {
-    const newHistory = [
-      query,
-      ...this.searchHistory.filter(q => q !== query)
-    ].slice(0, MAX_HISTORY_ITEMS);
-    
+    const newHistory = [query, ...this.searchHistory.filter((q) => q !== query)].slice(
+      0,
+      MAX_HISTORY_ITEMS
+    );
+
     this.searchHistory = newHistory;
     this.persist();
   }
-  
+
   clearHistory(): void {
     this.searchHistory = [];
     if (typeof window !== 'undefined') {

@@ -3,6 +3,9 @@
 		"src/routes/+layout.ts",
 		"src/routes/+layout.ts"
 	],
+	"/@/[user]": [
+		"src/routes/+layout.ts"
+	],
 	"/auth/callback": [
 		"src/routes/+layout.ts"
 	],
@@ -12,7 +15,7 @@
 	"/federated": [
 		"src/routes/+layout.ts"
 	],
-	"/home": [
+	"/lists/[id]": [
 		"src/routes/+layout.ts"
 	],
 	"/local": [

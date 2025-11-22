@@ -195,6 +195,17 @@ Clarify when to use deprecated simple components (ComposeBox, StatusCard) vs new
 
 ---
 
+### 4. Lesser GraphQL Client Coverage (Resolved)
+
+**Priority:** —  
+**Status:** GC already exposes the needed APIs via `createLesserGraphQLAdapter` (see `packages/adapters/src/graphql/LesserGraphQLAdapter.ts`).
+
+- Media uploads, timeline variants, list CRUD, relationships, thread context, notification controls, and push subscription helpers are all available through the adapter layer.
+- Action: Greater now instantiates both `createLesserClient` (for future high-level integrations) and `createLesserGraphQLAdapter` (for advanced operations) from the GC packages.
+- No upstream changes requested; this entry remains as documentation for where to find the relevant helpers.
+
+---
+
 ## 🎨 Styling/Theming
 
 ### None Yet
@@ -222,10 +233,7 @@ Clarify when to use deprecated simple components (ComposeBox, StatusCard) vs new
 
 **Q:** What's the recommended pattern for integrating existing app stores with GC components?
 
-**Context:**
-- We have a custom `timelineStore` managing state
-- It handles loading, pagination, streaming, and caching
-- Want to use GC's `TimelineVirtualizedReactive` but unsure how to bridge them
+**Status:** ✅ Resolved (2025-11-23) – timelines/notifications now use the GC integrations via `src/lib/integrations/realtime.ts` and shared layout context, so no bespoke Nanostores remain.
 
 ### 2. Auth Strategy
 
@@ -278,4 +286,3 @@ Clarify when to use deprecated simple components (ComposeBox, StatusCard) vs new
 **Last Updated:** 2025-11-11  
 **Reporter:** @aron (Greater maintainer)  
 **Contact:** [GitHub Issues](https://github.com/equaltoai/greater-components/issues)
-

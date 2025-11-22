@@ -1,6 +1,5 @@
 <script lang="ts">
   import { getGraphQLAdapter } from '$lib/api/graphql-client';
-  import { timelineStore } from '$lib/stores/timeline.svelte';
   import type { Status } from '$lib/types/mastodon';
 
   export let replyTo: Status;
@@ -98,9 +97,6 @@
       
       // Call success callback
       onSuccess(status);
-      
-      // Also add to timeline
-      timelineStore.prependStatus('home', status);
     } catch (err) {
       error = err instanceof Error ? err.message : 'Failed to post reply';
       console.error('Failed to post reply:', err);

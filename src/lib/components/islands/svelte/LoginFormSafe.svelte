@@ -27,7 +27,7 @@
     
     if (authStoreInstance.isAuthenticated) {
       console.log('[LoginForm] Already authenticated, redirecting to home');
-      window.location.href = '/home';
+      window.location.href = '/';
     }
     
     // Validate the default instance

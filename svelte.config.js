@@ -22,6 +22,11 @@ const config = {
     prerender: {
       handleHttpError: 'warn',
     },
+
+    alias: {
+      '@': 'src',
+      '$lib/types': 'src/types',
+    },
   },
 
   compilerOptions: {

@@ -96,19 +96,9 @@ async function verifyBug() {
       console.log('❌ No favorite button found - may need to wait for timeline to load');
     }
     
-    console.log('\n--- THE BUG ---');
-    console.log('In timeline.svelte.ts:');
-    console.log('❌ WRONG: const client = getClient(); // Uses wrong instance');
-    console.log('✅ RIGHT: const client = getClient(authStore.currentInstance || undefined);');
-    
-    console.log('\n--- THE FIX ---');
-    console.log('Update all these methods in timeline.svelte.ts to pass the instance:');
-    console.log('- favoriteStatus (line 297)');
-    console.log('- unfavoriteStatus (line 326)');
-    console.log('- reblogStatus (line 354)');
-    console.log('- unreblogStatus (line 384)');
-    console.log('- bookmarkStatus (line 413)');
-    console.log('- unbookmarkStatus (line 429)');
+    console.log('\n--- DEBUG NOTE ---');
+    console.log('Timeline interactions now flow through the GC integration helpers (see src/lib/integrations/realtime.ts).');
+    console.log('Ensure those helpers receive the correct instance + token when validating future regressions.');
     
     console.log('\nPress Ctrl+C to close when done checking...');
     

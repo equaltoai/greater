@@ -263,4 +263,7 @@ vi.mock('@/lib/api/graphql-client', () => ({
   closeGraphQLAdapter: vi.fn(() => Promise.resolve()),
   isGraphQLAdapterInitialized: vi.fn(() => true),
   getCurrentAdapter: vi.fn(() => mockAdapter),
+  getCurrentToken: vi.fn(() => Promise.resolve('mock-token')),
+  withGraphQLRetry: vi.fn(async (_operationName, operation) => operation()),
+  registerGraphQLCleanup: vi.fn(() => () => {}),
 }));

@@ -1,15 +1,14 @@
 <script lang="ts">
   import type { Snippet } from 'svelte';
-  import { GCThemeProvider } from '$lib/components';
-  
+
   interface Props {
     title?: string;
     description?: string;
     children: Snippet;
   }
-  
+
   let { title = 'Greater', description = 'A modern Mastodon client', children }: Props = $props();
-  
+
   // Update document title
   $effect(() => {
     if (typeof document !== 'undefined') {

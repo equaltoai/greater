@@ -2,8 +2,7 @@
  * Utility functions for common API operations
  */
 
-import type { Status, Account, Notification, TimelineParams } from '$lib/types/mastodon';
-import { stripHtmlSafe } from '$lib/utils/sanitize';
+import type { Status, Account, Notification, TimelineParams, Mention } from '$lib/types/mastodon';
 
 /**
  * Timeline utilities
@@ -71,7 +70,7 @@ export function isReply(status: Status): boolean {
 }
 
 export function isMention(status: Status, accountId: string): boolean {
-  return status.mentions.some(mention => mention.id === accountId);
+  return status.mentions.some((mention: Mention) => mention.id === accountId);
 }
 
 /**
@@ -171,7 +170,13 @@ export function getOptimizedImageUrl(
  * Content utilities
  */
 export function stripHtml(html: string): string {
-  return stripHtmlSafe(html);
+  if (!html) return '';
+  if (typeof document !== 'undefined') {
+    const div = document.createElement('div');
+    div.innerHTML = html;
+    return div.textContent || div.innerText || '';
+  }
+  return html.replace(/<[^>]*>/g, '');
 }
 
 export function getPlainTextContent(status: Status): string {
@@ -214,6 +219,8 @@ export function getVisibilityIcon(visibility: import('@/types/mastodon').StatusV
     case 'direct':
       return '✉️';
   }
+
+  return '❓';
 }
 
 /**

@@ -2,7 +2,7 @@
   import { onMount } from 'svelte';
   import { getGraphQLAdapter } from '$lib/api/graphql-client';
   import { authStore } from '$lib/stores/auth.svelte';
-  import { sanitizeUserContent } from '$lib/utils/sanitize';
+  import { sanitizeHtml } from '$lib/gc';
   import type { Account, Relationship } from '$lib/types/mastodon';
   import type { Account as LesserAccount } from '$lib/api/schemas';
   import Button from './Button.svelte';
@@ -264,7 +264,7 @@
       
       {#if account.note}
         <div class="mb-4 prose prose-sm dark:prose-invert max-w-none">
-          {@html sanitizeUserContent(account.note)}
+          {@html sanitizeHtml(account.note)}
         </div>
       {/if}
       
@@ -277,7 +277,7 @@
                 {field.name}
               </dt>
               <dd class="flex-1 flex items-center gap-1">
-                {@html sanitizeUserContent(field.value)}
+                {@html sanitizeHtml(field.value)}
                 {#if field.verified_at}
                   <span class="text-green-600 dark:text-green-400" title="Verified on {new Date(field.verified_at).toLocaleDateString()}">
                     <svg class="w-4 h-4 inline" fill="currentColor" viewBox="0 0 20 20">

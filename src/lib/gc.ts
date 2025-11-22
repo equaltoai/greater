@@ -41,7 +41,7 @@ export {
   type SkeletonProps,
   type ThemeSwitcherProps,
   type ThemeProviderProps,
-} from '@equaltoai/greater-components-primitives';
+} from '@equaltoai/greater-components/primitives';
 
 // ============================================================================
 // FEDIVERSE COMPONENTS
@@ -76,6 +76,7 @@ export {
   type ComposeState,
   type PostVisibility,
   type ComposeAttachment,
+  type StatusActionHandlers,
 } from '@equaltoai/greater-components/fediverse';
 
 // ============================================================================
@@ -134,6 +135,23 @@ export {
 } from '@equaltoai/greater-components/fediverse';
 
 // ============================================================================
+// REALTIME INTEGRATIONS
+// ============================================================================
+
+export {
+  createTimelineIntegration,
+  createNotificationIntegration,
+  createSharedTransport,
+  withRealtime,
+  realtimeErrorBoundary,
+  type ConnectionConfig,
+  type TimelineIntegrationConfig,
+  type NotificationIntegrationConfig,
+  type RealtimeIndicatorProps,
+  type TransportConfig,
+} from '@equaltoai/greater-components/fediverse';
+
+// ============================================================================
 // UTILS
 // ============================================================================
 
@@ -172,29 +190,30 @@ export {
 // ICONS (Svelte 5 compatible)
 // ============================================================================
 
-// Common icons - import as needed from @equaltoai/greater-components/icons/*
-export { default as Globe } from '@equaltoai/greater-components/icons/globe';
-export { default as Lock } from '@equaltoai/greater-components/icons/lock';
-export { default as Mail } from '@equaltoai/greater-components/icons/mail';
-export { default as Users } from '@equaltoai/greater-components/icons/users';
-export { default as X } from '@equaltoai/greater-components/icons/x';
-export { default as Heart } from '@equaltoai/greater-components/icons/heart';
-export { default as Repeat } from '@equaltoai/greater-components/icons/repeat';
-export { default as MessageCircle } from '@equaltoai/greater-components/icons/message-circle';
-export { default as Share } from '@equaltoai/greater-components/icons/share';
-export { default as Bookmark } from '@equaltoai/greater-components/icons/bookmark';
-export { default as MoreHorizontal } from '@equaltoai/greater-components/icons/more-horizontal';
-export { default as Image } from '@equaltoai/greater-components/icons/image';
-export { default as Video } from '@equaltoai/greater-components/icons/video';
-export { default as Send } from '@equaltoai/greater-components/icons/send';
-export { default as Search } from '@equaltoai/greater-components/icons/search';
-export { default as Home } from '@equaltoai/greater-components/icons/home';
-export { default as Bell } from '@equaltoai/greater-components/icons/bell';
-export { default as User } from '@equaltoai/greater-components/icons/user';
-export { default as Settings } from '@equaltoai/greater-components/icons/settings';
-export { default as LogOut } from '@equaltoai/greater-components/icons/log-out';
-export { default as UserCircle } from '@equaltoai/greater-components/icons/user';
-export { default as ArrowRight } from '@equaltoai/greater-components/icons/arrow-right';
-export { default as ListIcon } from '@equaltoai/greater-components/icons/list';
-export { default as LocalIcon } from '@equaltoai/greater-components/icons/building';
-
+// Common icons - import as needed from @equaltoai/greater-components/icons
+export {
+  GlobeIcon as Globe,
+  LockIcon as Lock,
+  MailIcon as Mail,
+  UsersIcon as Users,
+  XIcon as X,
+  HeartIcon as Heart,
+  RepeatIcon as Repeat,
+  MessageCircleIcon as MessageCircle,
+  ShareIcon as Share,
+  BookmarkIcon as Bookmark,
+  MoreHorizontalIcon as MoreHorizontal,
+  ImageIcon as Image,
+  VideoIcon as Video,
+  SendIcon as Send,
+  SearchIcon as SearchIcon,
+  HomeIcon as Home,
+  BellIcon as Bell,
+  UserIcon as User,
+  SettingsIcon as Settings,
+  LogOutIcon as LogOut,
+  UserIcon as UserCircle,
+  ArrowRightIcon as ArrowRight,
+  ListIcon,
+  BuildingIcon as LocalIcon,
+} from '@equaltoai/greater-components/icons';

@@ -119,6 +119,8 @@ export interface InstanceThumbnail {
 /**
  * Instance rule
  */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 export interface InstanceRule {
   id: string;
   text: string;

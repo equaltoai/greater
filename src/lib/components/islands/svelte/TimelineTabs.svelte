@@ -11,7 +11,7 @@
   let { activeTab }: Props = $props();
 
   const allTabs: Array<{ id: TimelineTabId; label: string; href: string; authRequired?: boolean }> = [
-    { id: 'home', label: 'Home', href: '/home', authRequired: true },
+    { id: 'home', label: 'Home', href: '/', authRequired: true },
     { id: 'local', label: 'Local', href: '/local' },
     { id: 'federated', label: 'Federated', href: '/federated' },
   ];

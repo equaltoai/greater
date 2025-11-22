@@ -1,7 +1,7 @@
 import { get_request_store, with_request_store } from "@sveltejs/kit/internal/server";
 import { error, json } from "@sveltejs/kit";
-import { k as stringify_remote_arg, j as stringify, h as create_remote_cache_key } from "./chunks/shared.js";
-import { b as base, c as app_dir, D as DEV, p as prerendering } from "./chunks/environment.js";
+import { j as stringify_remote_arg, k as parse, h as stringify, f as create_remote_cache_key } from "./chunks/shared.js";
+import { b as base, c as app_dir, B as BROWSER, p as prerendering } from "./chunks/environment.js";
 function create_validator(validate_or_fn, maybe_fn) {
   if (!maybe_fn) {
     return (arg) => {
@@ -38,6 +38,13 @@ async function get_response(info, arg, state, get_result) {
   await 0;
   const cache = get_cache(info, state);
   return cache[stringify_remote_arg(arg, state.transport)] ??= get_result();
+}
+function parse_remote_response(data, transport) {
+  const revivers = {};
+  for (const key in transport) {
+    revivers[key] = transport[key].decode;
+  }
+  return parse(data, revivers);
 }
 async function run_remote_function(event, state, allow_cookies, arg, validate, fn) {
   const store = {
@@ -167,7 +174,7 @@ function split_path(path) {
 function check_prototype_pollution(key) {
   if (key === "__proto__" || key === "constructor" || key === "prototype") {
     throw new Error(
-      `Invalid key "${key}": This key is not allowed to prevent prototype pollution.`
+      `Invalid key "${key}"`
     );
   }
 }
@@ -293,11 +300,6 @@ function create_field_proxy(target, get_input, set_input, get_issues, path = [])
             base_props.type = type === "file multiple" ? "file" : type;
           }
           if (type === "submit" || type === "hidden") {
-            {
-              if (!input_value) {
-                throw new Error(`\`${type}\` inputs must have a value`);
-              }
-            }
             return Object.defineProperties(base_props, {
               value: { value: input_value, enumerable: true }
             });
@@ -314,14 +316,6 @@ function create_field_proxy(target, get_input, set_input, get_issues, path = [])
             });
           }
           if (type === "checkbox" || type === "radio") {
-            {
-              if (type === "radio" && !input_value) {
-                throw new Error("Radio inputs must have a value");
-              }
-              if (type === "checkbox" && is_array && !input_value) {
-                throw new Error("Checkbox array inputs must have a value");
-              }
-            }
             return Object.defineProperties(base_props, {
               value: { value: input_value ?? "on", enumerable: true },
               checked: {
@@ -398,36 +392,6 @@ function build_path_string(path) {
   }
   return result;
 }
-function throw_on_old_property_access(instance) {
-  Object.defineProperty(instance, "field", {
-    value: (name) => {
-      const new_name = name.endsWith("[]") ? name.slice(0, -2) : name;
-      throw new Error(
-        `\`form.field\` has been removed: Instead of \`<input name={form.field('${name}')} />\` do \`<input {...form.fields.${new_name}.as(type)} />\``
-      );
-    }
-  });
-  for (const property of ["input", "issues"]) {
-    Object.defineProperty(instance, property, {
-      get() {
-        const new_name = property === "issues" ? "issues" : "value";
-        return new Proxy(
-          {},
-          {
-            get(_, prop) {
-              const prop_string = typeof prop === "string" ? prop : String(prop);
-              const old = prop_string.includes("[") || prop_string.includes(".") ? `['${prop_string}']` : `.${prop_string}`;
-              const replacement = `.${prop_string}.${new_name}()`;
-              throw new Error(
-                `\`form.${property}\` has been removed: Instead of \`form.${property}${old}\` write \`form.fields${replacement}\``
-              );
-            }
-          }
-        );
-      }
-    });
-  }
-}
 // @__NO_SIDE_EFFECTS__
 function form(validate_or_fn, maybe_fn) {
   const fn = maybe_fn ?? validate_or_fn;
@@ -469,28 +433,6 @@ function form(validate_or_fn, maybe_fn) {
           const id = form_data.get("sveltekit:id");
           if (typeof id === "string") {
             data.id = JSON.parse(id);
-          }
-        }
-        if (!data) {
-          const error2 = () => {
-            throw new Error(
-              "Remote form functions no longer get passed a FormData object. `form` now has the same signature as `query` or `command`, i.e. it expects to be invoked like `form(schema, callback)` or `form('unchecked', callback)`. The payload of the callback function is now a POJO instead of a FormData object. See https://kit.svelte.dev/docs/remote-functions#form for details."
-            );
-          };
-          data = {};
-          for (const key2 of [
-            "append",
-            "delete",
-            "entries",
-            "forEach",
-            "get",
-            "getAll",
-            "has",
-            "keys",
-            "set",
-            "values"
-          ]) {
-            Object.defineProperty(data, key2, { get: error2 });
           }
         }
         const output = {};
@@ -558,9 +500,6 @@ function form(validate_or_fn, maybe_fn) {
         );
       }
     });
-    {
-      throw_on_old_property_access(instance);
-    }
     Object.defineProperty(instance, "result", {
       get() {
         try {
@@ -701,7 +640,28 @@ function prerender(validate_or_fn, fn_or_options, maybe_options) {
       const payload = stringify_remote_arg(arg, state.transport);
       const id = __.id;
       const url = `${base}/${app_dir}/remote/${id}${payload ? `/${payload}` : ""}`;
-      if (!state.prerendering && !DEV) ;
+      if (!state.prerendering && !BROWSER && !event.isRemoteRequest) {
+        try {
+          return await get_response(__, arg, state, async () => {
+            const key = stringify_remote_arg(arg, state.transport);
+            const cache = get_cache(__, state);
+            const promise3 = cache[key] ??= fetch(new URL(url, event.url.origin).href).then(
+              async (response) => {
+                if (!response.ok) {
+                  throw new Error("Prerendered response not found");
+                }
+                const prerendered = await response.json();
+                if (prerendered.type === "error") {
+                  error(prerendered.status, prerendered.error);
+                }
+                return prerendered.result;
+              }
+            );
+            return parse_remote_response(await promise3, state.transport);
+          });
+        } catch {
+        }
+      }
       if (state.prerendering?.remote_responses.has(url)) {
         return (
           /** @type {Promise<any>} */

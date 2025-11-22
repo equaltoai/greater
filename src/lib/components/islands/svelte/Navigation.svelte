@@ -1,8 +1,12 @@
 <script lang="ts">
-  import { onMount, onDestroy } from 'svelte';
+  import { onMount, getContext } from 'svelte';
+  import { afterNavigate } from '$app/navigation';
   import { authStore } from '$lib/stores/auth.svelte';
-  import { unreadCount$, startNotificationStream } from '$lib/stores/notifications';
   import { UserCircle, Home as HomeIcon, LocalIcon, Globe, Bell, Bookmark, ListIcon, Settings as SettingsIcon } from '$lib/gc';
+  import {
+    notificationIntegrationContextKey,
+    type NotificationIntegrationInstance,
+  } from '$lib/integrations/realtime';
   
   interface NavItem {
     href: string;
@@ -18,7 +22,7 @@
   ];
   
   const authenticatedNavItems: NavItem[] = [
-    { href: '/home', label: 'Home', icon: HomeIcon, exact: true },
+    { href: '/', label: 'Home', icon: HomeIcon, exact: true },
     { href: '/notifications', label: 'Notifications', icon: Bell },
     { href: '/bookmarks', label: 'Bookmarks', icon: Bookmark },
     { href: '/lists', label: 'Lists', icon: ListIcon },
@@ -37,25 +41,21 @@
   });
   
   let currentPath = $state('');
-  let unreadCount = 0;
-  let unsubscribe: () => void;
+
+  const notificationCtx = getContext<{
+    integration: NotificationIntegrationInstance | null;
+  }>(notificationIntegrationContextKey);
+  const notificationIntegration = $derived(notificationCtx?.integration ?? null);
+  const unreadCount = $derived(notificationIntegration?.state.unreadCount ?? 0);
   
   onMount(() => {
     currentPath = window.location.pathname;
-    
-    // Subscribe to unread count
-    unsubscribe = unreadCount$.subscribe(count => {
-      unreadCount = count;
+    const stop = afterNavigate(() => {
+      currentPath = window.location.pathname;
     });
-    
-    // Start notification streaming if user is logged in
-    if (authStore.currentUser) {
-      startNotificationStream();
-    }
-  });
-  
-  onDestroy(() => {
-    if (unsubscribe) unsubscribe();
+    return () => {
+      stop();
+    };
   });
   
   function isActive(href: string, exact = false): boolean {
@@ -132,8 +132,8 @@
 
 <!-- Mobile bottom navigation -->
 <nav class="mobile-nav">
-  <a href="/home" class="mobile-nav-link {isActive('/home', true) ? 'active' : ''}">
-    {#if isActive('/home', true)}
+  <a href="/" class="mobile-nav-link {isActive('/', true) ? 'active' : ''}">
+    {#if isActive('/', true)}
       <span class="mobile-indicator"></span>
     {/if}
     <span>🏠</span>

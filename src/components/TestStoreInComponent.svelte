@@ -2,19 +2,19 @@
   // Create store inside component
   class TestStore {
     count = $state(0);
-    
+
     constructor() {
       // Test $effect in constructor
       $effect(() => {
-        console.log('Count changed to:', this.count);
+        console.warn('Count changed to:', this.count);
       });
     }
-    
+
     increment() {
       this.count++;
     }
   }
-  
+
   const testStore = new TestStore();
 </script>
 

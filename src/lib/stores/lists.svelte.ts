@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import type { List, Account } from '$lib/types/mastodon';
 import { getGraphQLAdapter } from '$lib/api/graphql-client';
 
@@ -42,11 +44,14 @@ function mapGraphQLToAccount(actor: any): Account {
     statuses_count: actor.outbox?.totalCount || 0,
     last_status_at: null,
     emojis: [],
-    fields: actor.attachment?.filter((a: any) => a.type === 'PropertyValue').map((a: any) => ({
-      name: a.name,
-      value: a.value,
-      verified_at: null
-    })) || [],
+    fields:
+      actor.attachment
+        ?.filter((a: any) => a.type === 'PropertyValue')
+        .map((a: any) => ({
+          name: a.name,
+          value: a.value,
+          verified_at: null,
+        })) || [],
   };
 }
 
@@ -56,14 +61,14 @@ class ListsStore {
   listMembers = $state<Record<string, ListMember[]>>({});
   isLoading = $state(false);
   error = $state<string | null>(null);
-  
+
   constructor() {
     // Constructor is empty to avoid SSR issues
   }
-  
+
   initialize() {
     if (typeof window === 'undefined') return;
-    
+
     // Load persisted state from localStorage
     const savedState = localStorage.getItem('lists-storage');
     if (savedState) {
@@ -78,15 +83,15 @@ class ListsStore {
       }
     }
   }
-  
+
   private persist() {
     if (typeof window === 'undefined') return;
-    
+
     const toPersist = {
       state: {
         lists: this.lists,
-        listMembers: this.listMembers
-      }
+        listMembers: this.listMembers,
+      },
     };
     localStorage.setItem('lists-storage', JSON.stringify(toPersist));
   }
@@ -106,7 +111,10 @@ class ListsStore {
     }
   }
 
-  async createList(title: string, repliesPolicy: 'followed' | 'list' | 'none' = 'list'): Promise<List> {
+  async createList(
+    title: string,
+    repliesPolicy: 'followed' | 'list' | 'none' = 'list'
+  ): Promise<List> {
     this.isLoading = true;
     this.error = null;
     try {
@@ -114,7 +122,7 @@ class ListsStore {
       const graphqlList = await adapter.createList({
         title,
         repliesPolicy: repliesPolicy.toUpperCase() as 'FOLLOWED' | 'LIST' | 'NONE',
-        exclusive: false
+        exclusive: false,
       });
       const newList = mapGraphQLToList(graphqlList);
       this.lists = [...this.lists, newList];
@@ -128,7 +136,11 @@ class ListsStore {
     }
   }
 
-  async updateList(id: string, title: string, repliesPolicy?: 'followed' | 'list' | 'none'): Promise<void> {
+  async updateList(
+    id: string,
+    title: string,
+    repliesPolicy?: 'followed' | 'list' | 'none'
+  ): Promise<void> {
     this.isLoading = true;
     this.error = null;
     try {
@@ -139,7 +151,7 @@ class ListsStore {
       }
       const graphqlList = await adapter.updateList(id, updateInput);
       const updated = mapGraphQLToList(graphqlList);
-      this.lists = this.lists.map(list => list.id === id ? updated : list);
+      this.lists = this.lists.map((list) => (list.id === id ? updated : list));
       this.persist();
       this.isLoading = false;
     } catch (error) {
@@ -155,7 +167,7 @@ class ListsStore {
     try {
       const adapter = await getGraphQLAdapter();
       await adapter.deleteList(id);
-      this.lists = this.lists.filter(list => list.id !== id);
+      this.lists = this.lists.filter((list) => list.id !== id);
       delete this.listMembers[id];
       this.persist();
       this.isLoading = false;
@@ -187,7 +199,7 @@ class ListsStore {
     try {
       const adapter = await getGraphQLAdapter();
       await adapter.addAccountsToList(listId, accountIds);
-      
+
       // Fetch updated member list
       await this.fetchListMembers(listId);
     } catch (error) {
@@ -203,11 +215,11 @@ class ListsStore {
     try {
       const adapter = await getGraphQLAdapter();
       await adapter.removeAccountsFromList(listId, accountIds);
-      
+
       // Update local state immediately
       if (this.listMembers[listId]) {
         this.listMembers[listId] = this.listMembers[listId].filter(
-          member => !accountIds.includes(member.id)
+          (member) => !accountIds.includes(member.id)
         );
       }
       this.persist();
@@ -220,12 +232,12 @@ class ListsStore {
   }
 
   getListById(id: string): List | undefined {
-    return this.lists.find(list => list.id === id);
+    return this.lists.find((list) => list.id === id);
   }
 
   isAccountInList(listId: string, accountId: string): boolean {
     const members = this.listMembers[listId];
-    return members?.some(member => member.id === accountId) || false;
+    return members?.some((member) => member.id === accountId) || false;
   }
 
   clearError(): void {

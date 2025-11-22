@@ -1,6 +1,5 @@
 import { map, atom, computed } from "nanostores";
 import "./logger.js";
-import "./index.js";
 import i from "isomorphic-dompurify";
 const MASTODON_CONFIG = {
   // Allowed tags for Mastodon content
